@@ -11,6 +11,8 @@ git switch -c fix/short-description
 npm ci
 # 修改 src/，必要時修改 platforms/；補有意義的回歸測試
 npm run check
+npx playwright install chromium firefox
+npm run test:layout
 npm run package
 git add src platforms scripts tests docs CHANGELOG.md
 git commit -m "Fix the concrete problem"

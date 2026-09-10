@@ -5,6 +5,8 @@
 ```sh
 npm ci
 npm run check
+npx playwright install chromium firefox
+npm run test:layout
 npm run package
 ```
 
@@ -13,6 +15,18 @@ npm run package
 高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序、無效設定與不選共同祖先。
 
 打包程序解壓比對每個檔案，確認 manifest 版本與內容一致。CI 也在 Windows 和 Linux 上執行，離線功能測試不向 iNaturalist 發送請求。
+
+## 0.10.2 上傳頁版面回歸
+
+新增 10 項瀏覽器版面案例（每個引擎 5 項）。以官方上傳頁的 DOM 結構、固定工具列、沒有指定 top 的固定左欄，以及右側 `#imageGrid` 建立受控頁面，載入實際建置的共用 AI 面板。
+
+舊版在 1280×720 的重現結果：左側欄 y 座標由 100 變成 367，下移 267 像素。修正後，1536×864、1280×720、1024×576 的左欄位置均與未注入面板時相同；410 張觀察、展開長明細、捲動及重新掛載照片欄也不推低左欄。可操作日期最後一列、小時、分鐘及地點輸入，AI 控制項不取消全選。
+
+版面 fixture 的日曆是用於邊界與點擊檢查的測試控制項，不是官方 React 日期選擇器；測試驗證原有側欄的定位不受干擾，不冒充正式帳號的人工驗收。AI 模型及原生選取流程使用下節另外的受控官方元件測試。
+
+0.10.2 也在加入照片欄結構的官方 AI 元件測試頁重跑 Chrome 與 Firefox：原生選取、手動值保留、提示備援、新增卡片、停止及手動操作中斷均通過；Firefox 直接載入當次產出的 XPI。
+
+版面來源：[官方 uploader.scss](https://github.com/inaturalist/inaturalist/blob/d65e6756e8c249d9e56798138cd55a90649a2409/app/assets/stylesheets/observations/uploader.scss)、[上傳頁 DOM 與選取事件](https://github.com/inaturalist/inaturalist/blob/d65e6756e8c249d9e56798138cd55a90649a2409/app/webpack/observations/uploader/components/drag_drop_zone.jsx)。
 
 ## 瀏覽器驗證的範圍
 

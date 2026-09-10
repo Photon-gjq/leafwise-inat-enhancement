@@ -46,10 +46,12 @@ dist/                ZIP / XPI / SHA256（自動產生、不提交）
 ```sh
 npm ci
 npm run check
+npx playwright install chromium firefox
+npm run test:layout
 npm run package
 ```
 
-`check` 會先建置，再對兩個瀏覽器產物執行語法和功能測試。`package` 會同步產出 Chrome ZIP、Firefox ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。
+`check` 會先建置，再對兩個瀏覽器產物執行語法和功能測試。`test:layout` 在獨立 Chromium／Firefox 中驗證上傳頁版面；Linux 安裝瀏覽器時可用 `--with-deps` 一併安裝系統依賴。`package` 會同步產出 Chrome ZIP、Firefox ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。
 
 ## 之後如何更新
 

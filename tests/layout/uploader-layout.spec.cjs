@@ -39,6 +39,9 @@ document.querySelectorAll('[data-day]').forEach(button=>button.addEventListener(
 document.querySelector('#save-time').addEventListener('click',()=>{date.value=date.value.slice(0,10)+' '+document.querySelector('[aria-label=小時]').value+':'+document.querySelector('[aria-label=分鐘]').value;document.querySelector('.calendar').hidden=true});
 // Like the uploader's unselectAll: shadow controls retarget to their host.
 document.body.addEventListener('click',event=>{if(!event.target.closest('a,.card,button,.leftColumn,.calendar,.nav_add_obs,input,.form-group,select'))document.querySelector('#select-all').checked=false});
+// Reproduce the uploader's jQuery UI selectable mousedown cancellation.
+// A shadow input retargets to the host, which is absent from the cancel list.
+document.querySelector('.uploader').addEventListener('mousedown',event=>{if(event.button===0&&!event.target.closest('.card,.glyphicon,input,button,.input-group-addon,.intro,select,.leftColumn,.bootstrap-datetimepicker-widget,a,li,.rw-datetimepicker,textarea'))event.preventDefault()});
 window.LeafwiseUploadAdapter={cards:()=>Array.from(document.querySelectorAll('.card')),key:card=>card.dataset.id,find:id=>document.querySelector('[data-id="'+id+'"]'),close:()=>{},editable:()=>true,filled:()=>true,hasPhoto:()=>false,menu:()=>null,visible:()=>false};
 </script>`;
 
@@ -105,3 +108,45 @@ test('wait for the real image column, then remount when the site replaces it',as
   await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
   expect((await page.locator('.leftColumn').boundingBox()).y).toBe(before.y);
 });
+
+for (const automatic of [false,true]) {
+  test(`stop ${automatic?'automatic':'manual'} processing, edit both settings with mouse and keyboard, then rerun`,async({page},testInfo)=>{
+    await load(page);
+    await page.evaluate(()=>{
+      const card=document.querySelector('.card');
+      window.suggestionReady=false;window.opened=0;window.selectedTaxon=null;
+      Object.assign(window.LeafwiseUploadAdapter,{
+        cards:()=>[card],find:()=>card,filled:()=>window.selectedTaxon!==null,hasPhoto:()=>true,
+        signature:()=>String(window.selectedTaxon),open:()=>{window.opened++},
+        read:()=>window.suggestionReady?{confident:false,items:[{id:123,name:'Controlled suggestion',vision:true,ancestor:false,score:85}]}:null,
+        click:(_card,id)=>{window.selectedTaxon=id},taxonID:()=>String(window.selectedTaxon)
+      });
+    });
+    await inject(page,testInfo);
+    const panel=page.locator('#leafwise-upload-ai');
+    const threshold=panel.locator('#threshold'),mode=panel.locator('#mode'),apply=panel.locator('#apply');
+    if(automatic)await panel.locator('#auto').click();else await apply.click();
+    await expect.poll(()=>page.evaluate(()=>window.opened)).toBe(1);
+    await expect(threshold).toBeDisabled();await expect(mode).toBeDisabled();
+    await panel.locator('#stop').click();
+    await expect(threshold).toBeEnabled();await expect(mode).toBeEnabled();
+    await expect(panel.locator('#auto')).not.toBeChecked();
+    // fill/selectOption could bypass the broken mouse focus. Use real input.
+    await threshold.click();await expect(threshold).toBeFocused();
+    await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('90');await page.keyboard.press('Tab');
+    await mode.click();await expect(mode).toBeFocused();
+    await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+    await expect(mode).toHaveValue('official');
+    await mode.click();await page.keyboard.press('ArrowUp');await page.keyboard.press('Enter');
+    await expect(mode).toHaveValue('score');await expect(threshold).toHaveValue('90');
+    await page.evaluate(()=>{window.suggestionReady=true});
+    expect(await page.evaluate(()=>window.selectedTaxon)).toBeNull();
+    await apply.click();await expect(apply).toBeEnabled();
+    await expect(panel.locator('tbody')).toContainText('未超過 90');
+    expect(await page.evaluate(()=>window.selectedTaxon)).toBeNull();
+    await threshold.click();await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('80');await page.keyboard.press('Tab');
+    await apply.click();await expect(apply).toBeEnabled();
+    expect(await page.evaluate(()=>window.selectedTaxon)).toBe(123);
+    await expect(page.locator('#select-all')).toBeChecked();
+  });
+}

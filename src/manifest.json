@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.inaturalist.org/*"
+  ],
+  "options_page": "options/options.html",
+  "action": {
+    "default_title": "__MSG_actionTitle__"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.inaturalist.org/observations/upload*",
+        "https://inaturalist.org/observations/upload*"
+      ],
+      "js": [
+        "scripts/uploader-ai-core.js",
+        "scripts/uploader-page-data.js",
+        "scripts/uploader-ai-adapter.js",
+        "scripts/uploader-ai-panel.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.inaturalist.org/observations*",
+        "https://inaturalist.org/observations*"
+      ],
+      "js": [
+        "scripts/url-filters.js",
+        "scripts/saved-users.js",
+        "scripts/saved-taxa.js",
+        "scripts/content.js",
+        "scripts/higher-taxa-core.js",
+        "scripts/higher-taxa-panel.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.inaturalist.org/observations/*",
+        "https://inaturalist.org/observations/*",
+        "https://www.inaturalist.org/taxa/*",
+        "https://inaturalist.org/taxa/*"
+      ],
+      "js": [
+        "scripts/taxon-status.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

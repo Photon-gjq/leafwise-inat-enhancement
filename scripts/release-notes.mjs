@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { root, version } from './build.mjs';
+const tag = process.env.GITHUB_REF_NAME;
+if (tag && tag !== `v${version}`) throw new Error(`Tag ${tag} differs from package version ${version}`);
+const text = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
+const section = text.split(/^## /m).find(section => section.startsWith(`${version} `));
+if (!section) throw new Error(`Missing changelog section ${version}`);
+fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
+fs.writeFileSync(path.join(root, 'dist/RELEASE_NOTES.md'), `## ${section.trim()}\n\nChrome：解壓 ZIP，在 chrome://extensions 載入其中 extension 資料夾。\n\nFirefox：unsigned.xpi 為未簽章測試版，透過 about:debugging 暫時載入；永久安裝仍需 Mozilla 簽章。\n\n兩個瀏覽器套件由此標籤的同一份原始碼建置。\n`);

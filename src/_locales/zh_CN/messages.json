@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "开卷有益 - Leafwise iNaturalist Enhancement"
+  },
+  "extensionDescription": {
+    "message": "增强 iNaturalist 用户筛选、个人观察计数、多地点高阶分类对比，并按分数或官方提示批量填写上传草稿的 AI 建议。"
+  },
+  "actionTitle": {
+    "message": "设置常用 iNaturalist 用户和类群"
+  },
+  "optionsTitle": {
+    "message": "开卷有益 - Leafwise iNaturalist Enhancement 设置"
+  }
+}

@@ -1,0 +1,17 @@
+name: 功能需求
+description: 提議新增或改善功能
+title: '[Feature] '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解決的具體問題
+      description: 描述使用情境、目前操作，以及希望得到的結果。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 驗收條件
+      description: 怎樣才算完成？是否涉及兩個瀏覽器或特殊頁面？

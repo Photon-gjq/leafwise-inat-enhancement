@@ -1,0 +1,32 @@
+name: 錯誤回報
+description: 回報可重現的插件問題
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: dropdown
+    id: browser
+    attributes:
+      label: 瀏覽器
+      options: [Chrome, Firefox, 兩者]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 插件及瀏覽器版本
+      placeholder: Leafwise 0.10.1 / Chrome 153
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 重現步驟與實際結果
+      description: 寫出頁面類型、操作步驟及錯誤文字；請勿附登入憑證或私人照片。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期結果
+    validations:
+      required: true

@@ -1,0 +1,16 @@
+{
+  "name": "leafwise-inat-enhancement",
+  "version": "0.10.1",
+  "private": true,
+  "description": "iNaturalist enhancements for Chrome and Firefox, built from shared source",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test.mjs",
+    "check": "npm run build && npm test",
+    "package": "npm run build && node scripts/package.mjs",
+    "release:notes": "node scripts/release-notes.mjs"
+  },
+  "devDependencies": { "fflate": "0.8.3" }
+}

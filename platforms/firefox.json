@@ -1,0 +1,14 @@
+{
+  "background": {
+    "scripts": ["scripts/higher-taxa-core.js", "scripts/higher-taxa-service.js", "scripts/background.js"],
+    "persistent": false
+  },
+  "browser_specific_settings": {
+    "gecko_android": { "strict_min_version": "142.0" },
+    "gecko": {
+      "id": "{ae19f2b4-7bb2-4974-bbda-c0d14e09428a}",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["websiteContent", "personallyIdentifyingInfo"] }
+    }
+  }
+}

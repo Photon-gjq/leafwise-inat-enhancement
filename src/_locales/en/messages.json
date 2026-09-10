@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Leafwise iNaturalist Enhancement"
+  },
+  "extensionDescription": {
+    "message": "User filters, higher-taxon comparisons, personal observation counts, and batch AI suggestions for upload drafts."
+  },
+  "actionTitle": {
+    "message": "Configure saved iNaturalist users and taxa"
+  },
+  "optionsTitle": {
+    "message": "Leafwise iNaturalist Enhancement Settings"
+  }
+}

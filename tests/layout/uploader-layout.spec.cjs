@@ -50,7 +50,7 @@ async function load(page) {
   await page.goto('https://www.inaturalist.org/observations/upload');
 }
 async function inject(page, testInfo) {
-  const target = testInfo.project.name.startsWith('firefox') ? 'firefox' : 'chrome';
+  const target = testInfo.project.name.split('-')[0];
   const directory = path.resolve(__dirname, '../../build', target, 'scripts');
   await page.addScriptTag({path:path.join(directory, 'uploader-ai-core.js')});
   await page.addScriptTag({path:path.join(directory, 'uploader-ai-panel.js')});

@@ -1,6 +1,6 @@
 # 資料及權限
 
-兩個瀏覽器版本均使用 `storage`、`https://api.inaturalist.org/*`，及 iNaturalist 指定觀察／分類頁的 content scripts。沒有分析、廣告、遙測、外部代理或第三方 AI 服務。
+三個瀏覽器版本均使用 `storage`、`https://api.inaturalist.org/*`，及 iNaturalist 指定觀察／分類頁的 content scripts。沒有分析、廣告、遙測、外部代理或第三方 AI 服務。
 
 使用者主動套用、檢查或開啟自動模式時，插件觸發 iNaturalist 原有的 AI 建議元件。網站自行把辨識縮圖及元件使用的位置／日期送到官方辨識服務，沿用網站登入驗證。插件不另行取得 Token、Cookie、密碼，也不另行保存或向第三方傳送照片。
 

@@ -54,3 +54,16 @@ test('page data adapter reads the correct page wrapper and handles unavailable j
   delete page.jQuery;
   assert.equal(context.LeafwiseUploadPageData(actualElement, 'uiAutocomplete'), null);
 });
+
+test('Edge retains the complete Chromium extension, including MAIN injection and permissions', () => {
+  const list = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry =>
+    entry.isDirectory() ? list(path.join(directory, entry.name)).map(file => path.join(entry.name, file)) : [entry.name]).sort();
+  const chrome = path.join(project, 'build/chrome');
+  const edge = path.join(project, 'build/edge');
+  assert.deepEqual(list(edge), list(chrome));
+  for (const file of list(chrome)) assert.deepEqual(fs.readFileSync(path.join(edge, file)), fs.readFileSync(path.join(chrome, file)), file);
+  const manifest = JSON.parse(read(path.join(edge, 'manifest.json')));
+  assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.content_scripts[0].world, 'MAIN');
+  assert.equal(manifest.background.service_worker, 'scripts/background.js');
+});

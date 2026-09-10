@@ -4,9 +4,9 @@
 
 ## 驗證
 
-- [ ] `npm run check`：Chrome 和 Firefox 均通過
+- [ ] `npm run check`：Chrome、Edge 和 Firefox 均通過
 - [ ] `npm run test:layout`：版面回歸測試通過
-- [ ] `npm run package`：两個瀏覽器套件產生且內容驗證通過
+- [ ] `npm run package`：三個瀏覽器套件產生且內容驗證通過
 - [ ] 介面／上傳變更已依 docs/TESTING.md 驗收，或明確列出未驗證範圍
 - [ ] CHANGELOG.md 已更新；沒有直接修改 build/ 或 dist/
 

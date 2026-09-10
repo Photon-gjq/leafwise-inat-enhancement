@@ -7,4 +7,4 @@ const text = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
 const section = text.split(/^## /m).find(section => section.startsWith(`${version} `));
 if (!section) throw new Error(`Missing changelog section ${version}`);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-fs.writeFileSync(path.join(root, 'dist/RELEASE_NOTES.md'), `## ${section.trim()}\n\nChrome：解壓 ZIP，在 chrome://extensions 載入其中 extension 資料夾。\n\nFirefox：unsigned.xpi 為未簽章測試版，透過 about:debugging 暫時載入；永久安裝仍需 Mozilla 簽章。\n\n兩個瀏覽器套件由此標籤的同一份原始碼建置。\n`);
+fs.writeFileSync(path.join(root, 'dist/RELEASE_NOTES.md'), `## ${section.trim()}\n\nChrome：解壓 ZIP，在 chrome://extensions 載入其中 extension 資料夾。\n\nEdge：解壓 edge.zip，在 edge://extensions 開啟開發人員模式，載入其中 extension 資料夾。\n\nFirefox：unsigned.xpi 為未簽章測試版，透過 about:debugging 暫時載入；永久安裝仍需 Mozilla 簽章。\n\n三個瀏覽器套件由此標籤的同一份原始碼建置。\n`);

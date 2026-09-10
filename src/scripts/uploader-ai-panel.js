@@ -6,7 +6,7 @@
   const shadow = host.attachShadow({ mode: "open" });
   shadow.innerHTML = `
     <style>
-      :host{display:block;margin:12px 20px;font:14px/1.5 Arial,sans-serif;color:#283521}
+      :host{display:block;margin:0 3px 16px;font:14px/1.5 Arial,sans-serif;color:#283521}
       *{box-sizing:border-box}section{background:#f5f8ef;border:1px solid #cad8bd;border-radius:5px;padding:13px 16px}
       h2{font-size:16px;margin:0 0 7px}p{margin:5px 0}.muted{font-size:12px;color:#55654d}
       .controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:10px 0}
@@ -18,7 +18,7 @@
       .scroll{max-height:280px;overflow:auto;margin-top:7px}table{width:100%;border-collapse:collapse;font-size:12px;background:white}
       td,th{padding:6px 8px;border-bottom:1px solid #dde5d6;text-align:left;overflow-wrap:anywhere}th{position:sticky;top:0;background:#e8eedf}
       #count{font-size:12px;margin-left:10px;font-weight:normal}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #608d32;outline-offset:2px}
-      @media(max-width:600px){:host{margin:10px}.controls{align-items:flex-start}label{flex-wrap:wrap}section{padding:10px}}
+      @media(max-width:600px){.controls{align-items:flex-start}label{flex-wrap:wrap}section{padding:10px}}
     </style>
     <section aria-label="Leafwise 上傳 AI 助手">
       <h2>Leafwise · 批次套用 AI 首選<span id="count"></span></h2>
@@ -171,11 +171,15 @@
   for (const type of ["pointerdown", "keydown", "input", "change", "dragstart"]) document.addEventListener(type, event => {
     if (event.isTrusted && running && !event.composedPath().includes(host)) cancel("偵測到你正在操作頁面，已停止自動套用並保留目前編輯。");
   }, true);
+  // Shadow controls retarget to this host outside the shadow tree. Keep their
+  // clicks/drags out of the site's background click and selectable handlers.
+  for (const type of ["click", "mousedown"]) host.addEventListener(type, event => event.stopPropagation());
   function mount() {
-    const toolbar = document.querySelector(".nav_add_obs");
-    const parent = toolbar?.parentElement;
-    if (parent && host.parentElement !== parent) toolbar.after(host);
-    else if (!host.isConnected) (document.querySelector("#uploader,main") || document.body).prepend(host);
+    // The left column is position:fixed with an implicit static top. Inserting
+    // before the entire row pushes it down permanently, clipping its calendar.
+    // Only occupy the right-hand image column, and wait if it is not ready.
+    const grid = document.querySelector(".uploader #imageGrid");
+    if (grid && host.parentElement !== grid) grid.prepend(host);
     const text = `本頁 ${a.cards().length} 份觀察`;
     if ($("#count").textContent !== text) $("#count").textContent = text;
   }

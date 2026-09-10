@@ -78,7 +78,10 @@
   }
 
   function taxonTitle(doc) {
-    return doc.querySelector("#taxon_page h1, .taxon-page h1, #taxon-show h1, main h1, h1");
+    for (const selector of ["#taxon_page h1", ".taxon-page h1", "#taxon-show h1", "main h1", "h1"]) {
+      const title = doc.querySelector(selector); if (title) return title;
+    }
+    return null;
   }
 
   function createPriorityQueue(worker, concurrency = 3) {
@@ -383,12 +386,54 @@
     return marker;
   }
 
+  function attachRecords(marker, user, taxonId, browseHref, count) {
+    marker.title = `${user.username} 已記錄 ${count} 次；點擊查看首次與最近紀錄`;
+    marker.setAttribute("aria-expanded", "false");
+    marker.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      const old = document.getElementById("leafwise-personal-records");
+      if (old) { old.remove(); marker.setAttribute("aria-expanded", "false"); return; }
+      const host=document.createElement("div");host.id="leafwise-personal-records";
+      const shadow=host.attachShadow({mode:"open"});
+      shadow.innerHTML=`<style>:host{position:fixed;z-index:10000;width:min(360px,calc(100vw - 32px));color-scheme:light;font:14px/1.5 system-ui,sans-serif;color:#293524}*{box-sizing:border-box}.card{background:#f5f8f0;border:1px solid #95a58b;border-radius:6px;padding:14px;box-shadow:0 4px 18px #0002;max-height:calc(100vh - 32px);overflow:auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px}button{font:inherit;background:white;border:1px solid #95a58b;border-radius:4px;cursor:pointer;padding:4px 9px;color:inherit}a{color:#496f29}p{margin:8px 0}.muted{font-size:12px;color:#607056}.error{color:#963d20}[hidden]{display:none!important}</style><section class="card" role="region" aria-label="我的紀錄"><header><strong>我的紀錄</strong><button id="close" type="button" aria-label="關閉我的紀錄">×</button></header><p id="status" role="status" aria-live="polite">正在讀取首次與最近紀錄…</p><div id="records"></div><button id="retry" type="button" hidden>重試</button><p id="all"></p><p class="muted">按觀察日期排序，包含此類群及後代；未填日期的觀察不參與排序。只讀取公開可見資料，快取 5 分鐘。</p></section>`;
+      document.body.append(host);marker.setAttribute("aria-expanded","true");
+      const rect=marker.getBoundingClientRect();
+      host.style.left=`${Math.max(16,Math.min(rect.left,innerWidth-376))}px`;
+      host.style.top=`${Math.max(16,Math.min(rect.bottom+8,innerHeight-340))}px`;
+      shadow.querySelector(".card").style.maxHeight=`${Math.max(80,innerHeight-parseFloat(host.style.top)-16)}px`;
+      const close=()=>{host.remove();marker.setAttribute("aria-expanded","false");if(marker.isConnected)marker.focus();};
+      shadow.querySelector("#close").addEventListener("click",close);
+      shadow.addEventListener("keydown",event=>{if(event.key==="Escape"){event.stopPropagation();close();}});
+      const all=document.createElement("a");all.href=browseHref;all.textContent=`查看我的全部 ${count} 筆觀察`;shadow.querySelector("#all").append(all);
+      async function load() {
+        const status=shadow.querySelector("#status"),retry=shadow.querySelector("#retry");retry.hidden=true;status.className="";status.textContent="正在讀取首次與最近紀錄…";
+        try {
+          const reply=await chrome.runtime.sendMessage({type:"leafwise-personal-records",userId:user.userId,taxonId});
+          if(!host.isConnected||!marker.isConnected)return;
+          if(!reply?.ok)throw new Error(reply?.error||"無法讀取個人紀錄。");
+          const data=reply.result;status.textContent=`${user.username} · 有日期的觀察 ${data.datedCount} 筆`;
+          const body=shadow.querySelector("#records");body.replaceChildren();
+          for(const [label,item] of [["首次",data.first],["最近",data.latest]]) {
+            const p=document.createElement("p");p.textContent=label+"：";
+            if(item){const a=document.createElement("a");a.href=`https://www.inaturalist.org/observations/${item.id}`;a.textContent=item.date;a.target="_blank";a.rel="noopener noreferrer";p.append(a,document.createElement("br"),document.createTextNode(item.place));}
+            else p.append(document.createTextNode("沒有可排序的日期紀錄"));
+            body.append(p);
+          }
+        }catch(error){if(host.isConnected){status.textContent=error.message;status.className="error";retry.hidden=false;}}
+      }
+      shadow.querySelector("#retry").addEventListener("click",load);
+      shadow.querySelector("#close").focus({preventScroll:true});load();
+    });
+  }
+
   function placeStatus(doc, info, user, taxonId, count, browseHref) {
     let titleReady = Boolean(doc.getElementById(MARKER_ID));
     if (!titleReady) {
       const target = info.kind === "taxon" ? taxonTitle(doc) : mainObservationTaxonLink(doc, taxonId, location.href);
       if (target) {
         const titleMarker = makeTitleMarker(doc, count, browseHref, user.username);
+        if(count>0)attachRecords(titleMarker,user,taxonId,browseHref,count);
         if (info.kind === "taxon") target.append(titleMarker);
         else {
           const targetStyle = globalThis.getComputedStyle?.(target);
@@ -447,7 +492,7 @@
   }
 
   function clearStatusMarkers(doc) {
-    for (const marker of doc.querySelectorAll(`#${MARKER_ID},.${YOURS_MARKER_CLASS},.${TAXONOMY_MARKER_CLASS}`)) marker.remove();
+    for (const marker of doc.querySelectorAll(`#${MARKER_ID},.${YOURS_MARKER_CLASS},.${TAXONOMY_MARKER_CLASS},#leafwise-personal-records`)) marker.remove();
   }
 
   function startPageController() {

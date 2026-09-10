@@ -32,7 +32,7 @@ export function build(target) {
     }
   } else {
     const background = path.join(destination, 'scripts/background.js');
-    fs.writeFileSync(background, 'importScripts("higher-taxa-core.js", "higher-taxa-service.js");\n\n' + fs.readFileSync(background, 'utf8'));
+    fs.writeFileSync(background, 'importScripts("higher-taxa-core.js", "explore-tools.js", "higher-taxa-service.js");\n\n' + fs.readFileSync(background, 'utf8'));
   }
   fs.writeFileSync(path.join(destination, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log(`Built ${target} ${version}`);

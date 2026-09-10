@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  function createService({ core, fetchJSON, storage, now = Date.now }) {
+  function createService({ core, fetchJSON, storage, now = Date.now, explore = root.LeafwiseExploreTools }) {
     const TTL = 10 * 60 * 1000;
     const NAME_TTL = 30 * 24 * 60 * 60 * 1000;
     const PREFIX = "qgHigherTaxaV1:";
@@ -119,13 +119,17 @@
       const [user, place, taxon] = await Promise.all([entity("users", options.user), places(options.place), entity("taxa", options.taxon)]);
       if (taxon.rank_level < core.ranks[options.rank]) throw new Error("统计层级不能高于所选类群；请将类群改为该层级或更高层级。");
       const locale = { locale: "zh-CN" };
-      const [region, personal] = await Promise.all([
+      const [region, personal, previous, known] = await Promise.all([
         taxonomy({ ...core.regionParams(options), ...locale }),
-        taxonomy({ ...core.userParams(options, user.id), ...locale })
+        taxonomy({ ...core.userParams(options, user.id), ...locale }),
+        options.comparison === "first" ? taxonomy({ ...core.userParams(options, user.id, true), ...locale }) : null,
+        ["year","local"].includes(options.comparison) ? taxonomy({...core.userParams({...options,comparison:"lifetime"},user.id),...locale}) : null
       ]);
-      const comparison = core.compare(region.nodes, personal.nodes, options, taxon);
+      const comparison = core.compare(region.nodes, personal.nodes, options, taxon, previous?.nodes, known?.nodes);
       return { ...comparison, options, user, place, taxon,
-        regionAt: region.at, personalAt: personal.at, regionURL: region.url, personalURL: personal.url };
+        regionAt: region.at, personalAt: personal.at, regionURL: region.url, personalURL: personal.url,
+        ...(previous ? { previousURL: previous.url, previousAt: previous.at } : {}),
+        ...(known ? { knownURL:known.url, knownAt:known.at } : {}) };
     }
     async function verifyLeaf(input, rowID) {
       const options = core.normalize(input);
@@ -141,7 +145,19 @@
       });
       return { count: entry.value, at: entry.at, url };
     }
-    return { compare, verifyLeaf, names, refreshNames };
+    async function records(userID, taxonID) {
+      const user = core.positiveID(userID), taxon = core.positiveID(taxonID);
+      return (await cached(`records/${user}/${taxon}`, async () => {
+        const responses = await Promise.all(["asc", "desc"].map(order => fetchJSON(core.apiURL("observations", {
+          user_id:user,taxon_id:taxon,verifiable:"any",per_page:1,order_by:"observed_on",order,d1:"0001-01-01"
+        }))));
+        for (const data of responses) {
+          if (!Number.isSafeInteger(data.total_results) || data.total_results < 0 || !Array.isArray(data.results) || data.results.length > 1 || (data.total_results > 0) !== (data.results.length === 1)) throw new Error("個人觀察摘要格式異常，請稍後重試。");
+        }
+        return { first:explore.observationSummary(responses[0].results[0]), latest:explore.observationSummary(responses[1].results[0]), datedCount:responses[0].total_results };
+      }, 5 * 60 * 1000)).value;
+    }
+    return { compare, verifyLeaf, names, refreshNames, records };
   }
   // Two simultaneous connections, with at least 1.1 seconds between starts.
   // No automatic retry storm; timeout / 429 / 5xx are actionable errors.

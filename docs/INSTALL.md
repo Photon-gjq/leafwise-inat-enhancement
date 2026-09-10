@@ -2,6 +2,8 @@
 
 在 GitHub [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需版本。每次 Release 同時提供 Chrome、Firefox ZIP 與未簽章 XPI，版本號相同。
 
+套件另附 `USAGE.md` 與 `REGIONS.md`。0.11.0 的搜尋頁入口是「類群對比」；日期、收藏等工具可展開使用，個人紀錄小卡從觀察／類群頁的個人次數開啟。
+
 ## Chrome
 
 1. 解壓 `Leafwise-x.y.z-chrome.zip`，把資料夾放到長期保留的位置。

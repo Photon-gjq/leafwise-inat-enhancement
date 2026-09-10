@@ -38,6 +38,7 @@
         "scripts/saved-taxa.js",
         "scripts/content.js",
         "scripts/higher-taxa-core.js",
+        "scripts/explore-tools.js",
         "scripts/higher-taxa-panel.js"
       ],
       "run_at": "document_idle"

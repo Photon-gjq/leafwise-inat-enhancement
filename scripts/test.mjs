@@ -12,5 +12,5 @@ function run(args, env = {}) {
 for (const target of targets) {
   console.log(`\nTesting ${target}`);
   for (const file of files(path.join(root, 'build', target)).filter(file => file.endsWith('.js'))) run(['--check', file]);
-  run(['--test', 'tests/higher-taxa.test.cjs', 'tests/uploader-ai.test.cjs', 'tests/build.test.cjs'], { LEAFWISE_TARGET: target });
+  run(['--test', 'tests/higher-taxa.test.cjs', 'tests/uploader-ai.test.cjs', 'tests/build.test.cjs', 'tests/explore-tools.test.cjs'], { LEAFWISE_TARGET: target });
 }

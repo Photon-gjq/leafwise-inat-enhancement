@@ -3,6 +3,19 @@ const higherTaxaService = QGInatHigherTaxaService.createService({
   fetchJSON: QGInatHigherTaxaService.createTransport(),
   storage: chrome.storage.session
 });
+const LIBRARY_KEY = "leafwiseExploreLibraryV1";
+let libraryTask = Promise.resolve();
+function exploreLibrary(message) {
+  const task = libraryTask.then(async () => {
+    const current = (await chrome.storage.local.get(LIBRARY_KEY))[LIBRARY_KEY] || {queries:[],groups:[]};
+    if (message.action === "list") return current;
+    const next = LeafwiseExploreTools.editLibrary(current, message.action, message.entry, QGInatHigherTaxa, crypto.randomUUID());
+    await chrome.storage.local.set({[LIBRARY_KEY]:next});
+    return next;
+  });
+  libraryTask = task.catch(() => {});
+  return task;
+}
 
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
@@ -148,6 +161,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     task = higherTaxaService.refreshNames(message.options, message.taxonIds).then(result => ({ ok: true, result }));
   } else if (message?.type === "qg-higher-taxa-names") {
     task = higherTaxaService.names(message.options, message.taxonIds).then(result => ({ ok: true, result }));
+  } else if (message?.type === "leafwise-explore-library") {
+    task = exploreLibrary(message).then(library => ({ok:true,library}));
+  } else if (message?.type === "leafwise-personal-records") {
+    task = higherTaxaService.records(message.userId, message.taxonId).then(result => ({ok:true,result}));
   } else return;
   task.catch(error => ({ ok: false, error: error.message || "请求失败，请稍后重试。" })).then(respond);
   return true;

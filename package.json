@@ -1,6 +1,6 @@
 {
   "name": "leafwise-inat-enhancement",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "private": true,
   "description": "iNaturalist enhancements for Chrome and Firefox, built from shared source",
   "license": "UNLICENSED",

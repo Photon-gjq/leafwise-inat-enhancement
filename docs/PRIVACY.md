@@ -10,4 +10,8 @@
 
 常用使用者與類群存於瀏覽器 `storage.sync`，可依 Chrome／Firefox 同步設定經 Google／Mozilla 同步。個人觀察計數使用 `storage.local` 快取，高階分類服務使用 `storage.session` 快取。設定不會透過 GitHub 倉庫同步。
 
+查詢收藏與自訂地點組合保存在 `storage.local`，不跨瀏覽器同步；內容包含使用者主動保存的完整搜尋網址、對比條件與名稱，可在面板刪除。載入收藏的網址可帶 `leafwise_query` 本機收藏識別碼，以還原對比面板；其他瀏覽器沒有該收藏時只恢復網址中的原生搜尋條件。
+
+個人紀錄小卡按需讀取官方公開 API，僅保存首次／最近觀察的 ID、日期、公開位置文字及筆數，放在記憶體／`storage.session` 快取 5 分鐘。背景请求不携带登入憑證，無法取得非公開座標。複製／CSV 匯出僅由使用者點擊觸發，資料寫入本機剪貼簿或下載檔，不上傳第三方；沒有新增瀏覽器權限。
+
 Chrome 上傳助手在 MAIN 環境存取網站 jQuery；該部分不使用擴充 API。Firefox 透過 `wrappedJSObject` 讀取原生建議資料，不向頁面暴露帶擴充權限的回呼。Firefox manifest 保留 `websiteContent` 及 `personallyIdentifyingInfo` 的必要資料宣告。

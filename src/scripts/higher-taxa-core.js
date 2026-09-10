@@ -8,6 +8,20 @@
   const iconicIDs = { Aves: 3, Amphibia: 20978, Reptilia: 26036, Mammalia: 40151,
     Actinopterygii: 47178, Animalia: 1, Insecta: 47158, Arachnida: 47119,
     Mollusca: 47115, Plantae: 47126, Fungi: 47170, Protozoa: 47686, Chromista: 48222 };
+  const comparisonNames = { lifetime: "生涯未見", year: "已見，但該年未見", local: "已見，但此地未見", first: "該年首次記錄" };
+  function dateValue(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || !Number.isFinite(Date.parse(text)) || new Date(text).toISOString().slice(0, 10) !== text) throw new Error("日期請使用有效的 YYYY-MM-DD。");
+    return text;
+  }
+  function monthsValue(value) {
+    const text = String(value ?? "").trim().replaceAll("，", ",");
+    if (!text) return "";
+    const parts = text.split(",").map(v => v.trim());
+    if (parts.some(v => !/^\d{1,2}$/.test(v) || +v < 1 || +v > 12)) throw new Error("月份請填 1–12，多個月份用逗號分隔。");
+    return [...new Set(parts.map(Number))].sort((a, b) => a - b).join(",");
+  }
   function positiveID(value, label = "ID") {
     const str = String(value ?? "").trim();
     const id = Number(str);
@@ -34,23 +48,47 @@
     const placeValue = String(input.place ?? "").trim();
     const ids = placeIDs(placeValue);
     const place = placeValue.toLowerCase() === "any" ? "any" : ids.length === 1 ? ids[0] : ids.join(",");
-    return { user, place, taxon: positiveID(input.taxon, "类群"), rank: input.rank, quality };
+    const result = { user, place, taxon: positiveID(input.taxon, "类群"), rank: input.rank, quality };
+    const comparison = input.comparison || "lifetime";
+    if (!Object.hasOwn(comparisonNames, comparison)) throw new Error("對比模式無效。");
+    if (comparison !== "lifetime") result.comparison = comparison;
+    if (["year", "first"].includes(comparison)) {
+      const year = Number(input.year || new Date().getFullYear());
+      if (!Number.isInteger(year) || year < 1700 || year > 9999) throw new Error("年份請填 1700–9999。");
+      result.year = year;
+    }
+    const months = monthsValue(input.months);
+    if (months) result.months = months;
+    for (const key of ["d1", "d2"]) { const value = dateValue(input[key]); if (value) result[key] = value; }
+    if (result.d1 && result.d2 && result.d1 > result.d2) throw new Error("開始日期不能晚於結束日期。");
+    if (String(input.project ?? "").trim()) result.project = positiveID(input.project, "項目");
+    return result;
   }
   function pageDefaults(href, fallbackUser = "") {
     const p = new URL(href).searchParams;
     const rank = [p.get("rank"), p.get("lrank"), p.get("hrank")].find(r => Object.hasOwn(ranks, r)) || "order";
     const user = p.get("unobserved_by_user_id") || p.get("user_id") || fallbackUser;
     return { user, place: p.get("place_id") || "", taxon: p.get("taxon_id") || iconicIDs[p.get("iconic_taxa")] || "", rank,
-      quality: p.get("quality_grade") === "research" ? "research" : p.get("verifiable") === "any" ? "any" : "verifiable" };
+      quality: p.get("quality_grade") === "research" ? "research" : p.get("verifiable") === "any" ? "any" : "verifiable",
+      months: p.get("month") || "", d1: p.get("d1") || "", d2: p.get("d2") || "", project: p.get("project_id") || "" };
   }
   function regionParams(options, taxon = options.taxon) {
     const p = { taxon_id: taxon, verifiable: options.quality === "any" ? "any" : "true" };
     if (options.place !== "any") p.place_id = options.place;
     if (options.quality === "research") p.quality_grade = "research";
+    if (options.months) p.month = options.months;
+    for (const key of ["d1", "d2"]) if (options[key]) p[key] = options[key];
+    if (options.project) p.project_id = options.project;
     return p;
   }
-  function userParams(options, userID) {
-    return { user_id: userID, taxon_id: options.taxon, verifiable: "any" };
+  function userParams(options, userID, previous = false) {
+    const p = { user_id: userID, taxon_id: options.taxon, verifiable: "any" };
+    if (options.comparison === "local" && options.place !== "any") p.place_id = options.place;
+    if (["year", "first"].includes(options.comparison)) {
+      if (previous) p.d2 = `${options.year - 1}-12-31`;
+      else { p.d1 = `${options.year}-01-01`; p.d2 = `${options.year}-12-31`; }
+    }
+    return p;
   }
   function apiURL(path, params) {
     const url = new URL(`https://api.inaturalist.org/v1/${path}`);
@@ -119,20 +157,22 @@
     }
     return counts;
   }
-  function compare(region, personal, options, rootTaxon) {
+  function compare(region, personal, options, rootTaxon, previous = new Map(), known = new Map()) {
     if (!Number.isFinite(rootTaxon.rank_level) || rootTaxon.rank_level < ranks[options.rank]) {
       throw new Error("统计层级不能高于所选类群；例如统计鸟类的目，请选择 Aves（3），不要选择某个物种。");
     }
     const leaves = leafCounts(region);
     const candidates = [...region.values()].filter(n => n.rank === options.rank && n.descendant_obs_count > 0 && ancestors(region, n.id).includes(options.taxon));
-    const rows = candidates.filter(n => !(personal.get(n.id)?.descendant_obs_count > 0))
+    const rows = candidates.filter(n => options.comparison === "first"
+      ? personal.get(n.id)?.descendant_obs_count > 0 && !(previous.get(n.id)?.descendant_obs_count > 0)
+      : !(personal.get(n.id)?.descendant_obs_count > 0) && (!["year", "local"].includes(options.comparison) || known.get(n.id)?.descendant_obs_count > 0))
       .map(n => ({ id: n.id, name: n.name, commonName: n.commonName, rank: n.rank, count: n.descendant_obs_count, leaves: leaves.get(n.id) || 0 }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     return { rows, total: candidates.length, seen: candidates.length - rows.length,
       regionObservations: region.get(options.taxon)?.descendant_obs_count || 0,
       personalObservations: personal.get(options.taxon)?.descendant_obs_count || 0 };
   }
-  const api = { ranks, rankNames, positiveID, placeIDs, normalize, pageDefaults, regionParams, userParams, apiURL, observationsURL, tree, ancestors, leafCounts, compare };
+  const api = { ranks, rankNames, comparisonNames, dateValue, monthsValue, positiveID, placeIDs, normalize, pageDefaults, regionParams, userParams, apiURL, observationsURL, tree, ancestors, leafCounts, compare };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.QGInatHigherTaxa = api;
 })(globalThis);

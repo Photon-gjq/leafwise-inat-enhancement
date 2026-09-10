@@ -50,8 +50,8 @@ test('rank cannot be above the search root, and root ancestors are not candidate
 });
 test('query parameters isolate the global baseline and never send rank or unobserved filters', () => {
   const defaults = core.normalize(core.pageDefaults('https://www.inaturalist.org/observations?user_id=source&unobserved_by_user_id=observer&place_id=6903&iconic_taxa=Aves&lrank=family&verifiable=any&d1=2025-01-01'));
-  assert.deepEqual(defaults, { ...options, rank: 'family' });
-  assert.deepEqual(core.regionParams(defaults), { place_id: 6903, taxon_id: 3, verifiable: 'any' });
+  assert.deepEqual(defaults, { ...options, rank: 'family', d1:'2025-01-01' });
+  assert.deepEqual(core.regionParams(defaults), { place_id: 6903, taxon_id: 3, verifiable: 'any', d1:'2025-01-01' });
   assert.deepEqual(core.userParams(defaults, 123), { user_id: 123, taxon_id: 3, verifiable: 'any' });
   assert.equal(core.pageDefaults('https://www.inaturalist.org/observations', 'saved').user, 'saved');
   assert.equal(core.pageDefaults('https://www.inaturalist.org/observations?rank=species').rank, 'order');

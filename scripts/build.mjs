@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const targets = ['chrome', 'firefox'];
+export const targets = ['chrome', 'edge', 'firefox'];
 export const readJSON = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
 export const version = readJSON('package.json').version;
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Use a browser-compatible x.y.z version in package.json');
@@ -16,14 +16,16 @@ export function files(dir) {
 export function build(target) {
   if (!targets.includes(target)) throw new Error(`Unknown target: ${target}`);
   const destination = path.join(root, 'build', target);
-  // Only remove these two fixed generated directories, never arbitrary paths.
+  // Only remove these fixed generated directories, never arbitrary paths.
   if (!targets.some(name => destination === path.join(root, 'build', name))) throw new Error('Invalid build path');
   fs.rmSync(destination, { force: true, recursive: true });
   fs.cpSync(path.join(root, 'src'), destination, { recursive: true });
-  const manifest = { ...readJSON('src/manifest.json'), ...readJSON(`platforms/${target}.json`), version };
+  // Edge uses the same Chromium manifest and page adapter as Chrome.
+  const platform = target === 'edge' ? 'chrome' : target;
+  const manifest = { ...readJSON('src/manifest.json'), ...readJSON(`platforms/${platform}.json`), version };
   const uploader = manifest.content_scripts[0];
-  if (target === 'chrome') uploader.world = 'MAIN';
-  fs.copyFileSync(path.join(root, `platforms/${target}-page-data.js`), path.join(destination, 'scripts/uploader-page-data.js'));
+  if (platform === 'chrome') uploader.world = 'MAIN';
+  fs.copyFileSync(path.join(root, `platforms/${platform}-page-data.js`), path.join(destination, 'scripts/uploader-page-data.js'));
   // Shared source uses the Chrome namespace; Firefox uses its Promise API.
   // All API calls keep the same argument/response contract across targets.
   if (target === 'firefox') {

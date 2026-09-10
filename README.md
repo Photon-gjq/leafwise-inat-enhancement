@@ -2,20 +2,21 @@
 
 [![Build, test and release](https://github.com/Photon-gjq/leafwise-inat-enhancement/actions/workflows/build.yml/badge.svg)](https://github.com/Photon-gjq/leafwise-inat-enhancement/actions/workflows/build.yml)
 
-iNaturalist 網頁增強插件。**一份核心原始碼，同時建置 Chrome 和 Firefox 兩個版本。**
+iNaturalist 網頁增強插件。**一份核心原始碼，同時建置 Chrome、Edge 和 Firefox 三個版本。**
 
 提供類群對比、季節目標清單、查詢與地點組合收藏、個人紀錄小卡，以及上傳頁的批次 AI 建議助手。不是 iNaturalist 官方產品。
 
 ## 下載與安裝
 
-到 [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需瀏覽器版本，兩者使用相同版本號。
+到 [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需瀏覽器版本，三者使用相同版本號。
 
 | 瀏覽器 | 安裝包 | 安裝方法 |
 | --- | --- | --- |
 | Chrome 114+ | `Leafwise-x.y.z-chrome.zip` | 解壓；`chrome://extensions` → 開發人員模式 → 載入其中的 `extension` 資料夾。 |
+| Edge（桌面現行版） | `Leafwise-x.y.z-edge.zip` | 解壓；`edge://extensions` → 開發人員模式 → 載入其中的 `extension` 資料夾。 |
 | Firefox 140+ | `Leafwise-x.y.z-firefox-unsigned.xpi` | `about:debugging#/runtime/this-firefox` → 載入暫時附加元件 → 選 XPI。 |
 
-Firefox 目前是未簽章測試包，重新啟動後需再次暫時載入；正式永久安裝需要 Mozilla 簽章。Chrome 請保留已載入的資料夾。GitHub 發佈會同時更新兩份下載包，**不等於瀏覽器內已安裝的本機版本會自動升級**。完整步驟見 [安裝及升級](docs/INSTALL.md)。
+Firefox 目前是未簽章測試包，重新啟動後需再次暫時載入；正式永久安裝需要 Mozilla 簽章。Chrome／Edge 請保留已載入的資料夾。GitHub 發佈會同時更新三份瀏覽器下載包，**不等於瀏覽器內已安裝的本機版本會自動升級**。完整步驟見 [安裝及升級](docs/INSTALL.md)。
 
 ## 功能
 
@@ -32,9 +33,9 @@ AI 預設要求第一項視覺分數嚴格大於 80；數字不可讀時，只�
 
 ```text
 src/                 共用功能、介面、語系與基本 manifest
-platforms/           Chrome / Firefox manifest 差異及小型頁面資料適配器
+platforms/           Chrome（Edge 共用）/ Firefox manifest 差異及小型頁面資料適配器
 scripts/             同步建置、測試、打包及發佈說明產生器
-tests/               同一套測試，分別對兩個建置結果執行
+tests/               同一套測試，分別對三個建置結果執行
 docs/                使用、安裝、架構與測試文件
 .github/             自動測試／發佈、Issue 與 PR 範本
 build/               本機載入用產物（自動產生、不提交）
@@ -53,14 +54,14 @@ npm run test:layout
 npm run package
 ```
 
-`check` 會先建置，再對兩個瀏覽器產物執行語法和功能測試。`test:layout` 在獨立 Chromium／Firefox 中驗證上傳頁版面；Linux 安裝瀏覽器時可用 `--with-deps` 一併安裝系統依賴。`package` 會同步產出 Chrome ZIP、Firefox ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。
+`check` 會先建置，再對三個瀏覽器產物執行語法和功能測試。`test:layout` 在獨立 Chromium／Firefox 中驗證上傳頁及對比功能；設定 `LEAFWISE_EDGE_TESTS=1` 時也會用本機 Microsoft Edge 測試 Edge 產物，Windows CI 已啟用。Linux 安裝瀏覽器時可用 `--with-deps` 一併安裝系統依賴。`package` 會同步產出 Chrome ZIP、Edge ZIP、Firefox ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。
 
 ## 之後如何更新
 
 1. 在 [Issues](https://github.com/Photon-gjq/leafwise-inat-enhancement/issues) 記錄需求或錯誤，註明瀏覽器、版本及重現步驟。
 2. 每個修改使用一個分支；功能在 `src/` 修改，瀏覽器差異在 `platforms/` 修改。不要直接修改 `build/` 或 `dist/`。
-3. 開 PR，通過 Chrome＋Firefox 測試，再合併到 `main`。`main` 是最新可建置版本；Release 標籤是已發佈版本。
-4. 發版時統一調整 `package.json` 版本及 `CHANGELOG.md`，推送同名 `vX.Y.Z` 標籤。GitHub Actions 會測試兩個瀏覽器，全部成功後同時發布兩份套件。
+3. 開 PR，通過 Chrome＋Edge＋Firefox 測試，再合併到 `main`。`main` 是最新可建置版本；Release 標籤是已發佈版本。
+4. 發版時統一調整 `package.json` 版本及 `CHANGELOG.md`，推送同名 `vX.Y.Z` 標籤。GitHub Actions 會測試三個瀏覽器產物，全部成功後同時發布三個瀏覽器套件。
 
 完整分支、版本及發佈步驟見 [CONTRIBUTING.md](CONTRIBUTING.md)。歷史壓縮包與本機測試設定檔不納入此倉庫；從 `0.10.1` 起，以 Git 提交、標籤和 Releases 管理版本。
 

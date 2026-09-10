@@ -7,14 +7,14 @@ body:
     id: browser
     attributes:
       label: 瀏覽器
-      options: [Chrome, Firefox, 兩者]
+      options: [Chrome, Edge, Firefox, 多個瀏覽器]
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: 插件及瀏覽器版本
-      placeholder: Leafwise 0.10.1 / Chrome 153
+      placeholder: Leafwise 0.11.1 / Edge 152
     validations:
       required: true
   - type: textarea

@@ -14,4 +14,4 @@ body:
     id: acceptance
     attributes:
       label: 驗收條件
-      description: 怎樣才算完成？是否涉及兩個瀏覽器或特殊頁面？
+      description: 怎樣才算完成？是否涉及多個瀏覽器或特殊頁面？

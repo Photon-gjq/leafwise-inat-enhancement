@@ -33,7 +33,7 @@ async function prepare(page) {
  });
 }
 async function inject(page,testInfo,personal=false) {
- const directory=path.resolve(__dirname,'../../build',testInfo.project.name.startsWith('firefox')?'firefox':'chrome','scripts');
+ const directory=path.resolve(__dirname,'../../build',testInfo.project.name.split('-')[0],'scripts');
  for(const file of ['higher-taxa-core.js','explore-tools.js','higher-taxa-service.js'])await page.addScriptTag({path:path.join(directory,file)});
  // Keep production service/message/storage behavior; skip throttling only in
  // this offline fake API. The real transport is tested separately.

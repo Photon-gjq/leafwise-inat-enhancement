@@ -10,11 +10,26 @@ npm run test:layout
 npm run package
 ```
 
-同一套 39 項測試對 Chrome 和 Firefox 產物各執行一次，共 78 個測試案例執行；另檢查兩個產物的 JavaScript 語法、所有 manifest 及 options script 引用、平台讀取機制與版本一致性。
+同一套 40 項測試對 Chrome、Edge 和 Firefox 產物各執行一次，共 120 個測試案例執行；另檢查三個產物的 JavaScript 語法、所有 manifest 及 options script 引用、平台讀取機制與版本一致性。
 
 高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序、無效設定與不選共同祖先。
 
 打包程序解壓比對每個檔案，確認 manifest 版本與內容一致。CI 也在 Windows 和 Linux 上執行，離線功能測試不向 iNaturalist 發送請求。
+
+## Edge 驗證（0.11.1 起）
+
+Edge 是獨立建置／打包目標，測試會逐檔確認它與 Chrome 擴充內容一致，包含 MAIN 注入、service worker、權限與語系。Windows CI 另外用已安裝的 Microsoft Edge 執行 13 項介面案例；加上 Chromium、Firefox 共 39 項，涵蓋上傳側欄與停止後修改設定，以及對比、收藏、匯出和個人紀錄。Linux CI 驗證三個產物的功能與建置，介面測試使用 Chromium、Firefox。
+
+本機已安裝 Edge 時，在 PowerShell 可單獨執行：
+
+```powershell
+$env:LEAFWISE_EDGE_TESTS='1'
+npm run test:layout -- --project=edge-layout
+```
+
+其他 shell 可先設定同名環境變數。省略 `--project=edge-layout` 會同時跑三個瀏覽器。此設定只選擇測試瀏覽器，不會修改個人瀏覽器設定檔。
+
+0.11.1 已在 Microsoft Edge 152.0.4191.66 的獨立設定檔實際載入擴充，使用既有官方 React／jQuery AI 元件受控頁驗證：背景啟動、設定保存、預覽、原生建議選取與視覺辨識標記、手動值保留、分數與提示規則、自動新增卡片、停止及面板外手動操作中斷均通過。沒有使用正式帳號草稿或發布觀察；這也不代表已在每個歷史 Edge 版本驗收。
 
 ## 0.10.2 上傳頁版面回歸
 
@@ -52,7 +67,7 @@ npm run package
 
 ## 每次發版的人工驗收
 
-在兩個瀏覽器都載入當次建置：
+在三個瀏覽器都載入當次建置：
 
 1. 設定頁保存常用使用者、鳥類及全部生物，重新開啟確認仍保留。
 2. 高階分類比較使用一個地點、多地點及全球；切換目／科／屬，核驗一列 Leaf taxa。

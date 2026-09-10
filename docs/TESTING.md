@@ -28,6 +28,14 @@ npm run package
 
 版面來源：[官方 uploader.scss](https://github.com/inaturalist/inaturalist/blob/d65e6756e8c249d9e56798138cd55a90649a2409/app/assets/stylesheets/observations/uploader.scss)、[上傳頁 DOM 與選取事件](https://github.com/inaturalist/inaturalist/blob/d65e6756e8c249d9e56798138cd55a90649a2409/app/webpack/observations/uploader/components/drag_drop_zone.jsx)。
 
+## 停止後修改規則與門檻回歸
+
+0.10.2 發布後補驗舊版的第二項回報：按停止後，規則與門檻的 disabled 已解除，但官方 jQuery UI selectable 在父層阻止 mousedown 預設行為，Shadow DOM 內的控制項因事件重定向而無法取得焦點。0.10.2 原有的面板事件隔離已同時修好這個問題，無需另一個功能版本。
+
+在受控官方 React 建議元件中加入真正的 jQuery UI selectable 與官方 cancel／distance 設定，分別比較 0.10.1 和 0.10.2：Chrome、Firefox 舊版均重現兩個欄位無法用滑鼠取得焦點；0.10.2 均可停止、用滑鼠及鍵盤修改規則與門檻，並按新門檻重新執行。85 分的建議在 90 門檻保留，在 80 門檻可選取；沒有發布觀察。
+
+倉庫額外加入 4 項可重跑案例（每個引擎分別測手動／自動處理後停止），使版面及互動測試合計 14 項。CI fixture 重現父層阻止 mousedown 的行為，以滑鼠點擊、焦點斷言、鍵盤輸入及重新執行驗證；不使用會跳過滑鼠焦點問題的 fill／selectOption。這仍屬受控頁面驗證，未操作回報者的真實草稿。
+
 ## 瀏覽器驗證的範圍
 
 0.10.0 的原始瀏覽器適配曾在 Firefox 155.0.1 及 Google Chrome for Testing 153.0.8010.36 驗證。使用固定提交 `d65e6756e8c249d9e56798138cd55a90649a2409` 的官方 React `TaxonAutocomplete` 與 jQuery `genericAutocomplete` 元件，搭配受控 AI 回應。原生選取確實更新 React 草稿並保留 `isVisionResult`；預覽、手動值保留、快取、自動新增卡片、停止及使用者操作中斷均通過。

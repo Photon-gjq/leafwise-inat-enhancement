@@ -18,4 +18,4 @@
 
 `scripts/package.mjs` 使用 fflate 打包，固定 ZIP 內部時間戳，輸出後解壓比對所有內容並產生 SHA256。擴充本身不包含 fflate、npm 或其他建置工具。`dist` 只作為成品，不回填到來源。
 
-CI 在 Windows／Linux 執行同樣指令。標籤發佈還要求 `vX.Y.Z`、package 版本及 CHANGELOG 三者一致，測試全部成功才發布。一般分支建置產物在 Actions；正式安裝包在 Releases。
+CI 在 Windows／Linux 執行同樣指令。標籤發佈還要求 `vX.Y.Z`、package 版本及 CHANGELOG 三者一致，測試全部成功才發布。一般分支建置產物在 Actions；正式安裝包在 Releases。倉庫啟用 AMO 憑證後，標籤流程會在 Release 成功後以 manifest 的既有 Gecko ID 提交同版本 Firefox 套件；提交前先用 AMO 公開 API 檢查版本，讓網路失敗後重跑保持冪等。

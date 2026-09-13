@@ -6,6 +6,12 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_firefox:
+        description: Submit the current package version to the existing public AMO listing
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -69,3 +75,46 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.xpi dist/SHA256SUMS.txt \
               --verify-tag --title "Leafwise ${GITHUB_REF_NAME#v}" --notes-file dist/RELEASE_NOTES.md
           fi
+
+  firefox_amo:
+    name: Submit Firefox update to AMO
+    if: >-
+      always() &&
+      needs.check.result == 'success' &&
+      (needs.release.result == 'success' || needs.release.result == 'skipped') &&
+      vars.AMO_AUTO_PUBLISH == 'true' &&
+      ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish_firefox))
+    needs: [check, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: firefox-amo-listed
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Check whether this version is already on AMO
+        id: amo_version
+        run: npm run amo:status
+      - name: Submit listed Firefox update
+        if: steps.amo_version.outputs.exists != 'true'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: >-
+          npx --yes web-ext@10.6.0 sign
+          --source-dir build/firefox
+          --channel listed
+          --approval-timeout 0
+          --timeout 900000
+          --no-input
+      - name: Report an existing version
+        if: steps.amo_version.outputs.exists == 'true'
+        run: echo "Firefox ${{ steps.amo_version.outputs.version }} already exists on AMO; submission skipped."

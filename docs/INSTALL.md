@@ -24,16 +24,20 @@ Edge 版共用 Chrome 的 Manifest V3 程式與權限；已在 Edge 載入 Chrom
 
 ## Firefox
 
+正式使用請從 [Mozilla Add-ons 的 Leafwise 頁面](https://addons.mozilla.org/zh-TW/firefox/addon/leafwise-inat-enhancement/) 安裝；Mozilla 通過新版後，Firefox 會按一般附加元件機制自動更新。
+
+GitHub Release 的未簽章檔只供開發測試：
+
 1. 開啟 `about:debugging#/runtime/this-firefox`。
 2. 按「載入暫時附加元件」，選 `Leafwise-x.y.z-firefox-unsigned.xpi`。
 3. 也可解壓 Firefox ZIP，選其中的 `extension/manifest.json`。
 
-保留原先 Firefox 擴充 ID；更新時載入同 ID 的新版，並確認管理頁版本號。未簽章的暫時安裝會在 Firefox 關閉後移除，重新啟動需再次載入。一般正式 Firefox 的永久安裝需要 Mozilla 簽章，目前此專案沒有簽章或自動送審設定。[Firefox 暫時安裝](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/)
+保留原先 Firefox 擴充 ID；開發測試時載入同 ID 的新版，並確認管理頁版本號。未簽章的暫時安裝會在 Firefox 關閉後移除，重新啟動需再次載入。[Firefox 暫時安裝](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/)
 
 ## 使用與更新邊界
 
 - 完成安裝／更新後開啟新的 iNaturalist 頁面。已有未提交照片或草稿時，先處理好再重新整理，以免網站清掉工作。
-- GitHub 的同步發佈產生三個瀏覽器下載包；Chrome／Edge 本機載入與 Firefox 暫時安裝不會自動跟隨 GitHub 升級。
+- GitHub 的同步發佈產生三個瀏覽器下載包；Chrome／Edge 本機載入和 Firefox 暫時安裝不會自動跟隨 GitHub 升級。從 Mozilla Add-ons 安裝的 Firefox 正式版會自動更新。
 - 常用條件由各瀏覽器擴充儲存管理，不自動跨 Chrome／Edge／Firefox 搬移。可點擴充工具列圖示管理常用使用者與分類單元。
 - 開發者可直接載入 `build/chrome`、`build/edge` 或 `build/firefox/manifest.json`，這三個目錄由 `npm run build` 生成。
 

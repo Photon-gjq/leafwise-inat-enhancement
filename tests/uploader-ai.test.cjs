@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const candidate = (score, id = 1) => ({ id, score, name: 'Test', vision: true, ancestor: false });
-const snapshot = (score, confident = false) => ({ items: [candidate(score)], confident });
+const ancestor = (id = 999, name = 'Official ancestor') => ({ id, score: null, name, vision: true, ancestor: true });
+const snapshot = (score, confident = false) => ({ items: [...(confident ? [ancestor()] : []), candidate(score)], confident });
 
 test('native 0–100 scores: preserve zero, decimals and reject unknown values', () => {
   for (const value of [0, 0.9, 80, 100]) assert.equal(core.score(value), value);
@@ -17,20 +18,30 @@ test('strict threshold: above 80 qualifies; exactly 80 and low scores do not use
   for (const value of [0, 0.9, 40, 80]) assert.equal(core.decide(snapshot(value, true), {}).apply, false);
 });
 test('missing score uses official common-ancestor indication only', () => {
-  assert.equal(core.decide(snapshot(undefined, true), {}).apply, true);
+  const result = core.decide(snapshot(undefined, true), {});
+  assert.equal(result.apply, true);
+  assert.equal(result.candidate.id, 999);
   assert.equal(core.decide(snapshot(undefined, false), {}).apply, false);
-  assert.equal(core.decide(snapshot(null, 'true'), {}).apply, false);
+  assert.equal(core.decide({ items: [candidate(null)], confident: 'true' }, {}).apply, false);
 });
-test('official-only mode requires a header even for a high numeric score', () => {
+test('official-only mode selects the official ancestor, never its more specific best suggestion', () => {
   assert.equal(core.decide(snapshot(99), { mode: 'official' }).apply, false);
-  assert.equal(core.decide(snapshot(15, true), { mode: 'official' }).apply, true);
+  const result = core.decide({ items: [ancestor(777, 'Leaf beetles'), candidate(5.39, 123)], confident: true }, { mode: 'official' });
+  assert.equal(result.apply, true);
+  assert.equal(result.candidate.id, 777);
+  assert.equal(result.candidate.name, 'Leaf beetles');
+  assert.equal(result.score, null);
 });
-test('select first displayed best suggestion, never common ancestor or higher-scored later item', () => {
-  const items = [{...candidate(99, 999), ancestor: true}, candidate(45, 1), candidate(98, 2)];
+test('score mode selects the first displayed best suggestion when its numeric score is available', () => {
+  const items = [ancestor(), candidate(81, 1), candidate(98, 2)];
   const result = core.decide({ items, confident: true }, {});
-  assert.equal(result.candidate.id, 1); assert.equal(result.apply, false);
-  assert.equal(core.decide({ items, confident: true }, { mode: 'official' }).candidate.id, 1);
-  assert.equal(core.decide({ items: [items[0]], confident: true }, {}).apply, false);
+  assert.equal(result.candidate.id, 1); assert.equal(result.apply, true);
+  assert.equal(core.decide({ items, confident: true }, { mode: 'official' }).candidate.id, 999);
+});
+test('a confident header without a selectable official ancestor does not authorize a child suggestion', () => {
+  const result = core.decide({ items: [candidate(undefined, 1)], confident: true }, { mode: 'official' });
+  assert.equal(result.apply, false);
+  assert.match(result.reason, /無法確認官方確定類群/);
 });
 test('invalid settings and empty/non-CV menus cannot produce an automatic selection', () => {
   assert.throws(() => core.settings({threshold:'bad'}));

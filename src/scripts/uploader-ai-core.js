@@ -15,18 +15,24 @@
   }
   function decide(snapshot, raw) {
     const opts = settings(raw);
-    const candidate = snapshot.items.find(item => item.vision && !item.ancestor);
-    if (!candidate || !Number.isSafeInteger(candidate.id) || candidate.id <= 0) return { apply: false, reason: "沒有可選取的 AI 最佳建議" };
-    const value = score(candidate.score);
-    const base = { candidate, score: value };
-    if (opts.mode === "score" && value !== null) {
-      return { ...base, apply: value > opts.threshold, reason: value > opts.threshold
+    const valid = item => item?.vision === true && Number.isSafeInteger(item.id) && item.id > 0;
+    const best = snapshot.items.find(item => valid(item) && !item.ancestor);
+    const official = snapshot.items.find(item => valid(item) && item.ancestor);
+    const value = score(best?.score);
+    if (opts.mode === "score" && best && value !== null) {
+      return { candidate: best, score: value, apply: value > opts.threshold, reason: value > opts.threshold
         ? `首選視覺分數 ${value.toFixed(2)} > ${opts.threshold}`
         : `首選視覺分數 ${value.toFixed(2)} 未超過 ${opts.threshold}` };
     }
-    return { ...base, apply: snapshot.confident === true, reason: snapshot.confident === true
-      ? `${opts.mode === "score" ? "分數不可讀；" : ""}有官方「非常確定」提示，選其下第一個最佳建議`
-      : `${opts.mode === "score" ? "分數不可讀；" : ""}沒有官方「非常確定」提示，保留原值` };
+    const prefix = opts.mode === "score" ? "首選分數不可讀；" : "";
+    if (snapshot.confident === true && official) {
+      return { candidate: official, score: null, apply: true,
+        reason: `${prefix}填入官方「非常確定」的上階類群` };
+    }
+    return { candidate: best || official, score: value, apply: false,
+      reason: `${prefix}${snapshot.confident === true
+        ? "無法確認官方確定類群，保留原值"
+        : "沒有官方「非常確定」提示，保留原值"}` };
   }
   function confidentHeader(text) {
     return /我們非常確定|我们非常确定|we[’']?re pretty sure|we are pretty sure/i.test(text || "");

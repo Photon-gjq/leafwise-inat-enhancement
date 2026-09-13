@@ -11,6 +11,7 @@
     "build": "node scripts/build.mjs",
     "test": "node scripts/test.mjs",
     "check": "npm run build && npm test",
+    "amo:status": "node scripts/amo-version-status.mjs",
     "package": "npm run build && node scripts/package.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "test:layout": "playwright test"

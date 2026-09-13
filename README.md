@@ -8,7 +8,7 @@ iNaturalist 網頁增強插件。**一份核心原始碼，同時建置 Chrome�
 
 ## 下載與安裝
 
-到 [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需瀏覽器版本，三者使用相同版本號。
+到 [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需瀏覽器版本，三者使用相同版本號。Firefox 正式版也可從 [Mozilla Add-ons](https://addons.mozilla.org/zh-TW/firefox/addon/leafwise-inat-enhancement/) 安裝並由 Firefox 自動更新。
 
 | 瀏覽器 | 安裝包 | 安裝方法 |
 | --- | --- | --- |

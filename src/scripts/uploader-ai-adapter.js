@@ -3,6 +3,8 @@
   const core = root.LeafwiseUploadCore;
   const scoreStyle = root.LeafwiseVisionScoreStyle;
   const scores = root.LeafwiseVisionScores;
+  const SCORE_EVENT = "leafwise:cv-combined-scores";
+  const SCORE_LISTENER = Symbol.for("leafwise.upload.scoreListener");
   const cardSelector = ".ObsCardComponent .card[data-id]";
   const cards = () => Array.from(document.querySelectorAll(cardSelector));
   const key = card => card.getAttribute("data-id");
@@ -105,5 +107,31 @@
     label.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
     label.click();
   }
-  root.LeafwiseUploadAdapter = { cards, key, find, input, taxonID, filled, signature, editable, hasPhoto, menu, visible, open, close, read, click };
+  function scanScores() {
+    let count = 0;
+    for (const card of cards()) {
+      if (!visible(menu(card))) continue;
+      if (read(card, true)) count++;
+    }
+    return count;
+  }
+  function installScoreListener(target = root, rescan = scanScores) {
+    if (target[SCORE_LISTENER]) return target[SCORE_LISTENER];
+    const onScore = () => rescan();
+    const state = { onScore, cleanup: null };
+    const cleanup = () => {
+      target.removeEventListener?.(SCORE_EVENT, onScore);
+      target.removeEventListener?.("pagehide", cleanup);
+      try { delete target[SCORE_LISTENER]; } catch { /* The page is already leaving. */ }
+    };
+    state.cleanup = cleanup;
+    try { Object.defineProperty(target, SCORE_LISTENER, { configurable: true, value: state }); }
+    catch { target[SCORE_LISTENER] = state; }
+    target.addEventListener?.(SCORE_EVENT, onScore);
+    target.addEventListener?.("pagehide", cleanup, { once: true });
+    return state;
+  }
+  root.LeafwiseUploadAdapter = { cards, key, find, input, taxonID, filled, signature, editable, hasPhoto,
+    menu, visible, open, close, read, click, scanScores, installScoreListener };
+  if (/^\/observations\/upload\/?$/.test(root.location?.pathname || "")) installScoreListener();
 })(globalThis);

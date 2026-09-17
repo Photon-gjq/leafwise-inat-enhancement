@@ -9,6 +9,11 @@ test('observation suggestions use combined-score storage and reject visual-score
   assert.match(code, /LeafwiseVisionScores/);
   assert.match(code, /Number\(data\.id\) === id/);
   assert.doesNotMatch(code, /visionScore/);
+  assert.match(code, /new root\.MutationObserver\(schedule\)/);
+  assert.match(code, /setInterval\?\.\(scan, 1200\)/);
+  assert.match(code, /addEventListener\?\.\("leafwise:cv-combined-scores", schedule\)/);
+  assert.match(code, /removeEventListener\?\.\("leafwise:cv-combined-scores", schedule\)/);
+  assert.match(code, /observer\.disconnect\(\)/);
 });
 
 test('observation content script shares the uploader score style and page-data adapter', () => {

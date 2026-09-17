@@ -2,8 +2,8 @@
 (function (root) {
   "use strict";
   function score(value) {
-    // iNaturalist's combined_score is already scaled to 0–100. It combines
-    // visual similarity with place/date context but is not calibrated accuracy.
+    // The bridge normalizes iNaturalist's raw combined_score to 0–100. It
+    // combines visual and place/date context but is not calibrated accuracy.
     return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
   }
   function settings(raw = {}) {

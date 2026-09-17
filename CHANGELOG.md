@@ -1,5 +1,11 @@
 # 更新紀錄
 
+## 0.12.1 — 2026-09-18
+
+- 修正 iNaturalist 把 `inaturalistjs` 改為 ES module 區域變數後綜合分數消失的問題：MAIN world 現在被動旁讀網站原有的 fetch／XHR 辨識回應，不依賴 `window.inaturalistjs`，也不增加或改寫請求與回應。
+- 把官方回應中 0–1 的 `combined_score` 正規化為介面使用的 0–100，保留既有 >1–100 相容值；仍只接受 `combined_score` 並按 taxon ID 配對，不使用 `vision_score`。
+- 上傳選單已先出現而分數稍後抵達時立即重掃並裝飾；新增 URL 白名單、fetch、XHR、回應不變、重複安裝、遲到事件及清理的三瀏覽器回歸測試。
+
 ## 0.12.0 — 2026-09-17
 
 - 上傳頁及觀察詳情頁改為顯示 iNaturalist 原生辨識回應中的 `combined_score`，按分類 ID 配對，不再把純視覺 `vision_score` 當作門檻分數；沿用網站已帶入的照片、地點、日期與登入驗證，不重複呼叫辨識 API。

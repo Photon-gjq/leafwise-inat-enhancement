@@ -47,6 +47,7 @@
 ### 分數語義
 
 - 使用 combined_score（iNaturalist 原生請求已結合可用的照片、地點、時間上下文），不要退回 vision_score。
+- 官方回應目前以 0–1 表示 combined_score；bridge 乘以 100 後交給介面。為相容既有／替代回應，>1–100 保留原值；其他型別、非有限數及範圍外值拒絕。
 - 分數不是校準後的「正確率」。介面可顯示相對分數，但文件與文案不得把它描述為真實準確率。
 - 候選和分數一律按 taxon ID 配對，不能按陣列位置或畫面順序配對。
 - 只有原生候選 isVisionResult === true 且分數是 0–100 的有限數字時才顯示／使用分數。
@@ -118,13 +119,15 @@ taxon-status.js
 
 ### 6.1 iNaturalist 綜合 AI 分數
 
-vision-score-bridge.js 在 MAIN world 包裝網站現有的 inaturalistjs.computervision.score_image 與 score_observation。它把原參數原封不動傳給網站函式，從同一回應讀取每個 taxon 的 combined_score，並：
+vision-score-bridge.js 在 document_start 的 MAIN world 被動包裝頁面原有的 fetch 與 XMLHttpRequest，不依賴 `window.inaturalistjs`（官方 uploader 已把 inaturalistjs 作為 ES module 區域變數使用）。它只匹配 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`，端點可帶數字 ID：
 
-- 能寫入時把 leafwiseCombinedScore 附在 taxon 物件上；
-- 同時發出 leafwise:cv-combined-scores CustomEvent，payload 為 JSON 字串；
-- 不新增另一個辨識網路請求。
+- fetch 只用 `Response.clone().json()` 旁讀；XHR 只在 `responseType=json` 或 JSON Content-Type 時讀取；
+- 原方法只呼叫一次，原參數、Promise、Response／XHR 與回傳值不改動，不新增辨識請求；
+- 重複注入不會多重包裝；舊頁面若仍暴露 `window.inaturalistjs`，保留不依賴的相容 fallback；
+- 只取明確的 combined_score，將 0–1 乘以 100，>1–100 保留，拒絕 vision_score、字串、非有限與範圍外值；
+- 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、taxon ID 及正規化分數的 JSON 字串。
 
-vision-score-data.js 以 taxon ID 儲存／合併分數，直接附在原生物件上的分數優先；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。
+vision-score-data.js 以 taxon ID 儲存／合併分數；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。上傳 adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理。
 
 vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：一位小數、無百分號、約 46×24 px 膠囊、3 px 左側色條，使用紅／棕／綠三段色階。沒有有效分數時要移除 Leafwise 色條與標記，不顯示佔位。
 
@@ -292,7 +295,7 @@ npm run test:layout -- --project=edge-layout
 - 上傳頁 .uploader #imageGrid、原生「全選」區域、觀察卡片與 taxon autocomplete
 - jQuery data key：ui-autocomplete-item、item.autocomplete
 - 候選欄位：id、isVisionResult、visionScore／vision_score、confident、ancestor
-- inaturalistjs.computervision.score_image、score_observation 與回應的 combined_score
+- fetch／XHR 的 `/v1`、`/v2` computervision score_image／score_observation URL、JSON 回應形狀與 combined_score
 
 碰到「突然全部沒顯示」「選錯 taxon」「分數對不上」時，先在正式頁面只讀檢查上述介面，再修改 adapter。不能以候選順序、ancestor 或舊 screenshot 推測新結構。
 
@@ -326,7 +329,8 @@ npm run test:layout -- --project=edge-layout
 - Firefox 隔離環境曾暴露 window／全域與 Chromium 不同；不要用只在 Chrome 成功作為跨瀏覽器完成標準。
 - 上傳頁官方固定批次欄曾被面板推低；目前收合面板與 Shadow DOM 定位有專門 layout 回歸，修改掛載點時務必重跑。
 - jQuery UI selectable 會在父層阻止 mousedown；Shadow DOM 控制項的焦點與事件隔離有專門回歸，不要簡化掉。
-- combined_score 的設計選擇是「攔截並重用 iNaturalist 自己的回應」，不是讓擴充自己重算或發第二次請求。
+- combined_score 的設計選擇是「被動旁讀並重用 iNaturalist 自己的 fetch／XHR 回應」，不是依賴頁面全域變數，也不是讓擴充自己重算或發第二次請求。
+- iNaturalist uploader 已把 inaturalistjs 作為 ES module 區域變數使用；只查 `window.inaturalistjs` 會完全漏掉分數。修改橋接時必須保留無該全域的 fetch／XHR 回歸。
 
 ## 15. 完成一項工作的交付格式
 

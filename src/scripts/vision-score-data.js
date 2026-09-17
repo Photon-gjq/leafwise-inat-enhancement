@@ -13,9 +13,16 @@
       : null;
   }
 
+  function combinedScore(value) {
+    const valid = score(value);
+    return valid === null ? null : valid <= 1 ? valid * 100 : valid;
+  }
+
   function direct(raw, taxonId) {
     if (!raw || Number(raw.id) !== taxonId) return null;
-    return score(raw.leafwiseCombinedScore ?? raw.combinedScore ?? raw.combined_score);
+    const captured = score(raw.leafwiseCombinedScore);
+    if (captured !== null) return captured;
+    return combinedScore(raw.combined_score);
   }
 
   function createStore(now = () => Date.now()) {
@@ -50,9 +57,11 @@
   }
 
   const store = createStore();
-  root.addEventListener?.(EVENT_NAME, event => {
+  const receive = event => {
     try { store.add(JSON.parse(event.detail)); } catch { /* Ignore foreign or malformed events. */ }
-  });
-  root.LeafwiseVisionScores = Object.freeze({ add: store.add, value: store.value, direct, score });
-  if (typeof module !== "undefined" && module.exports) module.exports = { createStore, direct, score };
+  };
+  root.addEventListener?.(EVENT_NAME, receive);
+  root.addEventListener?.("pagehide", () => root.removeEventListener?.(EVENT_NAME, receive), { once: true });
+  root.LeafwiseVisionScores = Object.freeze({ add: store.add, value: store.value, direct, score, combinedScore });
+  if (typeof module !== "undefined" && module.exports) module.exports = { createStore, direct, score, combinedScore };
 })(globalThis);

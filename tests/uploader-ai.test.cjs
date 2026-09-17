@@ -94,3 +94,72 @@ test('browser initialization works with an isolated window and preserves page Co
     assert.deepEqual(pageModule.exports, { existing: true });
   }
 });
+
+test('a late score event immediately rescans an existing uploader menu and the listener cleans up once', () => {
+  const listeners = new Map();
+  const addEventListener = (type, listener, options = {}) => {
+    const entries = listeners.get(type) || [];
+    entries.push({ listener, once: options.once === true }); listeners.set(type, entries);
+  };
+  const removeEventListener = (type, listener) => {
+    listeners.set(type, (listeners.get(type) || []).filter(entry => entry.listener !== listener));
+  };
+  const dispatch = type => {
+    for (const entry of [...(listeners.get(type) || [])]) {
+      entry.listener({ type });
+      if (entry.once) removeEventListener(type, entry.listener);
+    }
+  };
+  const result = {
+    getAttribute: name => name === 'data-taxon-id' ? '42' : null,
+    querySelector: selector => selector === '.title' ? { textContent: 'Late taxon' } : null,
+    textContent: 'Late taxon'
+  };
+  const item = {
+    matches: () => false,
+    querySelector: selector => selector === '.ac.vision[data-taxon-id]' ? result : null
+  };
+  const menu = {
+    isConnected: true, textContent: '', children: [item],
+    getClientRects: () => [1], querySelectorAll: () => [result]
+  };
+  const field = { value: '', disabled: false };
+  const chooser = { querySelector(selector) {
+    if (selector === "ul.ac-menu.taxon-autocomplete") return menu;
+    if (selector === "input[name='taxon_name']") return field;
+    if (selector === "input[name='taxon_id']") return { value: '' };
+    return null;
+  } };
+  const card = {
+    isConnected: true,
+    getAttribute: name => name === 'data-id' ? 'card-1' : null,
+    matches: () => false,
+    querySelector: selector => selector === '.TaxonAutocomplete' ? chooser : null
+  };
+  let lateScore = null;
+  const decorated = [];
+  const context = vm.createContext({
+    location: { pathname: '/observations/upload' },
+    document: { querySelectorAll: () => [card], activeElement: null },
+    getComputedStyle: () => ({ visibility: 'visible' }),
+    addEventListener, removeEventListener,
+    LeafwiseUploadCore: { score: value => value },
+    LeafwiseVisionScoreStyle: { decorate: (_result, _item, value) => decorated.push(value) },
+    LeafwiseVisionScores: { value: () => lateScore },
+    LeafwiseUploadPageData: () => ({ id: 42, isVisionResult: true, isCommonAncestor: false })
+  });
+  vm.runInContext(fs.readFileSync(path.join(extension, 'scripts/uploader-ai-adapter.js'), 'utf8'), context);
+  const adapter = context.LeafwiseUploadAdapter;
+  assert.equal((listeners.get('leafwise:cv-combined-scores') || []).length, 1);
+  const first = adapter.installScoreListener(context);
+  const second = adapter.installScoreListener(context);
+  assert.equal(first, second);
+  assert.equal((listeners.get('leafwise:cv-combined-scores') || []).length, 1);
+  lateScore = 90;
+  dispatch('leafwise:cv-combined-scores');
+  assert.deepEqual(decorated, [90]);
+  dispatch('pagehide');
+  assert.equal((listeners.get('leafwise:cv-combined-scores') || []).length, 0);
+  dispatch('leafwise:cv-combined-scores');
+  assert.deepEqual(decorated, [90]);
+});

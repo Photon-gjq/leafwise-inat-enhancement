@@ -19,12 +19,13 @@
     const best = snapshot.items.find(item => valid(item) && !item.ancestor);
     const official = snapshot.items.find(item => valid(item) && item.ancestor);
     const value = score(best?.score);
-    if (opts.mode === "score" && best && value !== null) {
-      return { candidate: best, score: value, apply: value > opts.threshold, reason: value > opts.threshold
-        ? `首選視覺分數 ${value.toFixed(2)} > ${opts.threshold}`
-        : `首選視覺分數 ${value.toFixed(2)} 未超過 ${opts.threshold}` };
+    if (opts.mode === "score" && best && value !== null && value > opts.threshold) {
+      return { candidate: best, score: value, apply: true,
+        reason: `首選視覺分數 ${value.toFixed(2)} > ${opts.threshold}` };
     }
-    const prefix = opts.mode === "score" ? "首選分數不可讀；" : "";
+    const prefix = opts.mode === "score"
+      ? value === null ? "首選分數不可讀；" : `首選視覺分數 ${value.toFixed(2)} 未超過 ${opts.threshold}；`
+      : "";
     if (snapshot.confident === true && official) {
       return { candidate: official, score: null, apply: true,
         reason: `${prefix}填入官方「非常確定」的上階類群` };

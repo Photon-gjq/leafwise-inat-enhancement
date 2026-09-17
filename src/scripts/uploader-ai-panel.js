@@ -24,7 +24,7 @@
       <h2>Leafwise · 批次套用 AI 建議<span id="count"></span></h2>
       <p class="muted">逐一讀取本頁觀察的原生 AI 建議，只填寫草稿；最後由你檢查並按網站的上傳按鈕。</p>
       <div class="controls">
-        <label>選取規則 <select id="mode"><option value="score">首選分數；不可讀時填官方確定類群</option><option value="official">只填官方「非常確定」類群</option></select></label>
+        <label>選取規則 <select id="mode"><option value="score">首選達標；否則填官方確定類群</option><option value="official">只填官方「非常確定」類群</option></select></label>
         <label id="threshold-label">視覺分數 &gt; <input id="threshold" type="number" value="80" min="0" max="100" step="0.1" aria-label="AI 視覺分數門檻"> / 100</label>
         <label><input id="only-empty" type="checkbox" checked>保留已填寫的分類／文字</label>
       </div>
@@ -34,7 +34,7 @@
         <button id="stop" type="button" disabled>停止</button>
         <label><input id="auto" type="checkbox">自動處理空白觀察（目前及後續新增；本頁有效）</label>
       </div>
-      <p class="muted">視覺分數不是實際正確率。使用官方提示時，只填「非常確定」區塊中的上階類群，不會把下方較細的最佳建議當成同樣確定。未達條件時保留原值。</p>
+      <p class="muted">視覺分數不是實際正確率。首選未超過門檻或分數不可讀時，會改填「非常確定」區塊中的上階類群；沒有該官方類群才保留原值。</p>
       <div id="status" role="status" aria-live="polite">先加入照片，再按「一鍵套用」。已開啟的 AI 建議旁會顯示可讀取的視覺分數。</div>
       <details id="report"><summary>處理明細 <span id="summary"></span></summary><div class="scroll"><table><thead><tr><th>觀察卡片</th><th>準備套用的類群</th><th>視覺分數</th><th>結果／原因</th></tr></thead><tbody></tbody></table></div></details>
     </section>`;

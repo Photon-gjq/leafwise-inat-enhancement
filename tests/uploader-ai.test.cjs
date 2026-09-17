@@ -13,9 +13,21 @@ test('native 0–100 scores: preserve zero, decimals and reject unknown values',
   for (const value of [0, 0.9, 80, 100]) assert.equal(core.score(value), value);
   for (const value of [null, undefined, '', '90', false, NaN, Infinity, -1, 100.1]) assert.equal(core.score(value), null);
 });
-test('strict threshold: above 80 qualifies; exactly 80 and low scores do not use header fallback', () => {
+test('strict threshold: above 80 selects the first suggestion', () => {
   assert.equal(core.decide(snapshot(80.01), {}).apply, true);
-  for (const value of [0, 0.9, 40, 80]) assert.equal(core.decide(snapshot(value, true), {}).apply, false);
+  assert.equal(core.decide(snapshot(80.01), {}).candidate.id, 1);
+});
+test('a readable score at or below the threshold falls back to the official ancestor', () => {
+  for (const value of [0, 0.9, 40, 80]) {
+    const result = core.decide(snapshot(value, true), {});
+    assert.equal(result.apply, true);
+    assert.equal(result.candidate.id, 999);
+    assert.equal(result.score, null);
+    assert.match(result.reason, /未超過 80；填入官方/);
+  }
+  const noOfficial = core.decide(snapshot(40, false), {});
+  assert.equal(noOfficial.apply, false);
+  assert.match(noOfficial.reason, /沒有官方/);
 });
 test('missing score uses official common-ancestor indication only', () => {
   const result = core.decide(snapshot(undefined, true), {});

@@ -253,6 +253,8 @@ test('browser background loads dependencies and responds to asynchronous message
   const message = { type: 'qg-taxon-observation-count', userId: 123, taxonId: 3 };
   assert.equal((await send(message)).count, 7);
   assert.equal((await send(message)).count, 7); assert.equal(fetches, 1);
+  assert.equal((await send({ ...message, force: true })).count, 7); assert.equal(fetches, 2);
+  assert.equal((await send(message)).count, 7); assert.equal(fetches, 2);
   const cached = await send({ type: 'qg-cached-taxon-observation-counts', userId: 123, taxonIds: [3, 4] });
   assert.equal(cached.counts[3], 7); assert.equal(cached.counts[4], undefined);
   const invalid = await send({ ...message, taxonId: -1 });

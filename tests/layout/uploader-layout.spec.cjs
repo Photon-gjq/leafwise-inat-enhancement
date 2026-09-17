@@ -63,6 +63,12 @@ for (const viewport of [{width:1536,height:864},{width:1280,height:720},{width:1
     const before = await page.locator('.leftColumn').boundingBox();
     await inject(page,testInfo);
     await expect(page.locator('#leafwise-upload-ai')).toBeVisible();
+    await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
+    const selectAll = await page.locator('#select-all').locator('..').boundingBox();
+    const collapsed = await page.locator('#leafwise-upload-ai').boundingBox();
+    expect(Math.abs(collapsed.y-selectAll.y)).toBeLessThan(12);
+    await page.getByRole('button',{name:'展開',exact:true}).click();
+    await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
     const after = await page.locator('.leftColumn').boundingBox();
     expect(after.y, 'AI panel must not push the fixed sidebar down').toBe(before.y);
     const panel = await page.locator('#leafwise-upload-ai').boundingBox();
@@ -85,6 +91,7 @@ test('expanding a long report and using AI controls preserves the sidebar and se
   await page.setViewportSize({width:1280,height:720});
   await load(page);const before=await page.locator('.leftColumn').boundingBox();
   await inject(page,testInfo);
+  await page.getByRole('button',{name:'展開',exact:true}).click();
   await page.getByRole('button',{name:'僅檢查建議',exact:true}).click();
   await page.locator('#leafwise-upload-ai').getByText('處理明細',{exact:false}).click();
   await expect(page.locator('#leafwise-upload-ai').locator('tbody tr')).toHaveCount(410);
@@ -101,7 +108,8 @@ test('wait for the real image column, then remount when the site replaces it',as
   await page.evaluate(()=>{window.oldGrid=document.querySelector('#imageGrid');window.oldGrid.remove()});
   const before=await page.locator('.leftColumn').boundingBox();
   await inject(page,testInfo);
-  await expect(page.locator('#leafwise-upload-ai')).toHaveCount(0);
+  await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
+  await page.getByRole('button',{name:'展開',exact:true}).click();
   await page.evaluate(()=>document.querySelector('.row-fluid').append(window.oldGrid));
   await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
   await page.evaluate(()=>{const grid=document.querySelector('#imageGrid');const next=document.createElement('div');next.id='imageGrid';next.className=grid.className;next.append(document.createElement('div'));grid.replaceWith(next)});
@@ -123,6 +131,7 @@ for (const automatic of [false,true]) {
       });
     });
     await inject(page,testInfo);
+    await page.getByRole('button',{name:'展開',exact:true}).click();
     const panel=page.locator('#leafwise-upload-ai');
     const threshold=panel.locator('#threshold'),mode=panel.locator('#mode'),apply=panel.locator('#apply');
     if(automatic)await panel.locator('#auto').click();else await apply.click();
@@ -150,3 +159,37 @@ for (const automatic of [false,true]) {
     await expect(page.locator('#select-all')).toBeChecked();
   });
 }
+
+test('collapsed quick action runs directly without opening the full panel',async({page},testInfo)=>{
+  await load(page);await inject(page,testInfo);
+  const panel=page.locator('#leafwise-upload-ai');
+  await panel.getByRole('button',{name:'一鍵套用 AI 首選',exact:true}).click();
+  await expect(panel).toHaveAttribute('data-open','false');
+  await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
+});
+
+test('expanded panel state survives a page reload',async({page},testInfo)=>{
+  await load(page);await inject(page,testInfo);
+  await page.getByRole('button',{name:'展開',exact:true}).click();
+  expect(await page.evaluate(()=>localStorage.getItem('leafwise-upload-ai-panel-open'))).toBe('true');
+  await page.reload();await inject(page,testInfo);
+  await expect(page.locator('#leafwise-upload-ai')).toHaveAttribute('data-open','true');
+  await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
+});
+
+test('combined score is a compact readable chip rather than a large percentage oval',async({page},testInfo)=>{
+  await load(page);
+  const target=testInfo.project.name.split('-')[0];
+  const directory=path.resolve(__dirname,'../../build',target,'scripts');
+  await page.addScriptTag({path:path.join(directory,'vision-score-style.js')});
+  await page.evaluate(()=>{
+    const row=document.createElement('div');row.id='score-row';row.style.cssText='display:flex;align-items:center;width:520px;height:70px;background:white;margin:16px;padding:10px';
+    row.innerHTML='<div id="score-result" style="display:flex;align-items:center;flex:1"><span class="ac-label">雉鸡 <i>Phasianus colchicus</i></span><a class="ac-view" style="margin-left:auto">查看</a></div>';
+    document.querySelector('#imageGrid').prepend(row);
+    LeafwiseVisionScoreStyle.decorate(document.querySelector('#score-result'),row,81.94);
+  });
+  const badge=page.locator('.leafwise-ai-score');
+  await expect(badge).toHaveText('81.9');
+  const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(60);expect(box.height).toBe(24);
+  expect(await badge.textContent()).not.toContain('%');
+});

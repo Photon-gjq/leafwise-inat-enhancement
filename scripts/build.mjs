@@ -23,8 +23,14 @@ export function build(target) {
   // Edge uses the same Chromium manifest and page adapter as Chrome.
   const platform = target === 'edge' ? 'chrome' : target;
   const manifest = { ...readJSON('src/manifest.json'), ...readJSON(`platforms/${platform}.json`), version };
-  const uploader = manifest.content_scripts[0];
-  if (platform === 'chrome') uploader.world = 'MAIN';
+  const hasScript = (entry, name) => entry.js?.includes(`scripts/${name}`);
+  const uploader = manifest.content_scripts.find(entry => hasScript(entry, 'uploader-ai-panel.js'));
+  const observationAI = manifest.content_scripts.find(entry => hasScript(entry, 'observation-ai-adapter.js'));
+  if (!uploader || !observationAI) throw new Error('AI content-script entries are missing');
+  if (platform === 'chrome') {
+    uploader.world = 'MAIN';
+    observationAI.world = 'MAIN';
+  }
   fs.copyFileSync(path.join(root, `platforms/${platform}-page-data.js`), path.join(destination, 'scripts/uploader-page-data.js'));
   // Shared source uses the Chrome namespace; Firefox uses its Promise API.
   // All API calls keep the same argument/response contract across targets.

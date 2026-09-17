@@ -1,6 +1,8 @@
 (function (root) {
   "use strict";
   const core = root.LeafwiseUploadCore;
+  const scoreStyle = root.LeafwiseVisionScoreStyle;
+  const scores = root.LeafwiseVisionScores;
   const cardSelector = ".ObsCardComponent .card[data-id]";
   const cards = () => Array.from(document.querySelectorAll(cardSelector));
   const key = card => card.getAttribute("data-id");
@@ -56,6 +58,9 @@
     const list = menu(card);
     if (!visible(list)) return null;
     const items = [];
+    const visibleIds = Array.from(list.querySelectorAll("[data-taxon-id]"))
+      .map(element => Number(element.getAttribute("data-taxon-id")))
+      .filter(id => Number.isSafeInteger(id) && id > 0);
     let confident = false, section = 0, confidentDOM = false;
     for (const li of list.children) {
       if (li.matches(".header-category")) {
@@ -73,7 +78,7 @@
       try {
         if (raw && raw.id === id && raw.isVisionResult === true) {
           ancestor = raw.isCommonAncestor === true;
-          value = core.score(raw.visionScore);
+          value = core.score(scores?.value(raw, id, visibleIds));
         }
       } catch { /* Fall back to the visible official category structure. */ }
       if (ancestor) confident = true;
@@ -81,16 +86,7 @@
       const item = { id, name, vision: true, ancestor, score: value };
       items.push(item);
       if (decorate) {
-        let badge = result.querySelector(".leafwise-ai-score");
-        if (!badge) {
-          badge = document.createElement("span"); badge.className = "leafwise-ai-score";
-          badge.style.cssText = "display:block;font:12px/1.5 sans-serif;color:#48692e;margin-top:3px";
-          (result.querySelector(".ac-label") || result).append(badge);
-        }
-        const text = ancestor ? "官方確定的上階類群；不代表下方物種同樣確定"
-          : value === null ? "Leafwise：視覺分數不可讀"
-            : `Leafwise 視覺分數：${value.toFixed(2)} / 100（非正確率）`;
-        if (badge.textContent !== text) badge.textContent = text;
+        scoreStyle?.decorate(result, li, value);
       }
     }
     if (!items.length && /not confident|没有足够|沒有足夠|没有信心|沒有信心/i.test(list.textContent)) return { items: [], confident: false };

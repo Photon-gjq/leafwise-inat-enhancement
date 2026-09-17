@@ -56,11 +56,11 @@ async function observationTaxon(observationId) {
   });
 }
 
-async function taxonObservationCount(userId, taxonId) {
+async function taxonObservationCount(userId, taxonId, force = false) {
   const user = positiveInteger(userId);
   const taxon = positiveInteger(taxonId);
   if (!user || !taxon) throw new Error("Invalid user or taxon id");
-  return cached(`qgTaxonCount:${user}:${taxon}`, async () => {
+  const load = async () => {
     const data = await apiJSON("/observations", {
       user_id: user,
       taxon_id: taxon,
@@ -70,7 +70,14 @@ async function taxonObservationCount(userId, taxonId) {
     const count = Number(data.total_results);
     if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid observation count");
     return count;
-  });
+  };
+  const key = `qgTaxonCount:${user}:${taxon}`;
+  if (force) {
+    const value = await load();
+    try { await chrome.storage.local.set({ [key]: { value, savedAt: Date.now() } }); } catch {}
+    return value;
+  }
+  return cached(key, load);
 }
 
 function scopedCountRequest(endpoint, rawParams) {
@@ -146,7 +153,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   else if (message?.type === "qg-observation-taxon") {
     task = observationTaxon(message.observationId).then(taxonId => ({ ok: true, taxonId }));
   } else if (message?.type === "qg-taxon-observation-count") {
-    task = taxonObservationCount(message.userId, message.taxonId).then(count => ({ ok: true, count }));
+    task = taxonObservationCount(message.userId, message.taxonId, message.force === true).then(count => ({ ok: true, count }));
   } else if (message?.type === "qg-cached-taxon-observation-counts") {
     task = cachedTaxonObservationCounts(message.userId, message.taxonIds).then(counts => ({ ok: true, counts }));
   } else if (message?.type === "qg-scoped-observation-count") {

@@ -17,13 +17,45 @@
     {
       "matches": [
         "https://www.inaturalist.org/observations/upload*",
+        "https://inaturalist.org/observations/upload*",
+        "https://www.inaturalist.org/observations/*",
+        "https://inaturalist.org/observations/*"
+      ],
+      "js": [
+        "scripts/vision-score-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.inaturalist.org/observations/upload*",
         "https://inaturalist.org/observations/upload*"
       ],
       "js": [
+        "scripts/vision-score-data.js",
+        "scripts/vision-score-style.js",
         "scripts/uploader-ai-core.js",
         "scripts/uploader-page-data.js",
         "scripts/uploader-ai-adapter.js",
         "scripts/uploader-ai-panel.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.inaturalist.org/observations/*",
+        "https://inaturalist.org/observations/*"
+      ],
+      "exclude_matches": [
+        "https://www.inaturalist.org/observations/upload*",
+        "https://inaturalist.org/observations/upload*"
+      ],
+      "js": [
+        "scripts/vision-score-data.js",
+        "scripts/vision-score-style.js",
+        "scripts/uploader-page-data.js",
+        "scripts/observation-ai-adapter.js"
       ],
       "run_at": "document_idle"
     },

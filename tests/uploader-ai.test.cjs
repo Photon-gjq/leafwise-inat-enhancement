@@ -9,7 +9,7 @@ const candidate = (score, id = 1) => ({ id, score, name: 'Test', vision: true, a
 const ancestor = (id = 999, name = 'Official ancestor') => ({ id, score: null, name, vision: true, ancestor: true });
 const snapshot = (score, confident = false) => ({ items: [...(confident ? [ancestor()] : []), candidate(score)], confident });
 
-test('native 0–100 scores: preserve zero, decimals and reject unknown values', () => {
+test('native 0–100 combined scores preserve zero and decimals and reject unknown values', () => {
   for (const value of [0, 0.9, 80, 100]) assert.equal(core.score(value), value);
   for (const value of [null, undefined, '', '90', false, NaN, Infinity, -1, 100.1]) assert.equal(core.score(value), null);
 });
@@ -71,8 +71,10 @@ test('visible fallback recognizes both Chinese forms and English without accepti
 test('uploader has the correct execution world and no extension API access', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
   const main = manifest.content_scripts.filter(script => script.world === 'MAIN');
-  assert.equal(main.length, process.env.LEAFWISE_TARGET === 'firefox' ? 0 : 1);
-  const uploader = manifest.content_scripts[0];
+  assert.equal(main.length, process.env.LEAFWISE_TARGET === 'firefox' ? 1 : 3);
+  const bridge = manifest.content_scripts.find(script => script.js.includes('scripts/vision-score-bridge.js'));
+  assert.equal(bridge.world, 'MAIN');
+  const uploader = manifest.content_scripts.find(script => script.js.includes('scripts/uploader-ai-panel.js'));
   assert.ok(uploader.matches.every(url => url.endsWith('/observations/upload*')));
   assert.deepEqual(manifest.permissions, ['storage']);
   for (const file of uploader.js) {

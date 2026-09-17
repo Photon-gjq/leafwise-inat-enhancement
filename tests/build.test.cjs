@@ -19,7 +19,13 @@ test('built version has one source and all manifest/HTML script references resol
   for (const [, script] of html.matchAll(/<script src="([^"]+)"/g)) {
     assert.ok(fs.existsSync(path.resolve(extension, path.dirname(manifest.options_page), script)), script);
   }
-  assert.deepEqual(manifest.content_scripts[0].js.slice(0, 3), ['scripts/uploader-ai-core.js', 'scripts/uploader-page-data.js', 'scripts/uploader-ai-adapter.js']);
+  const bridge = manifest.content_scripts.find(group => group.js.includes('scripts/vision-score-bridge.js'));
+  const uploader = manifest.content_scripts.find(group => group.js.includes('scripts/uploader-ai-panel.js'));
+  const observation = manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js'));
+  assert.deepEqual(bridge.js, ['scripts/vision-score-bridge.js']);
+  assert.equal(bridge.world, 'MAIN');
+  assert.deepEqual(uploader.js.slice(0, 5), ['scripts/vision-score-data.js', 'scripts/vision-score-style.js', 'scripts/uploader-ai-core.js', 'scripts/uploader-page-data.js', 'scripts/uploader-ai-adapter.js']);
+  assert.ok(observation.js.includes('scripts/vision-score-style.js'));
 });
 
 test('Firefox keeps its existing extension ID; targets keep their respective background model', () => {
@@ -64,6 +70,8 @@ test('Edge retains the complete Chromium extension, including MAIN injection and
   for (const file of list(chrome)) assert.deepEqual(fs.readFileSync(path.join(edge, file)), fs.readFileSync(path.join(chrome, file)), file);
   const manifest = JSON.parse(read(path.join(edge, 'manifest.json')));
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.content_scripts[0].world, 'MAIN');
+  assert.equal(manifest.content_scripts.find(group => group.js.includes('scripts/vision-score-bridge.js')).world, 'MAIN');
+  assert.equal(manifest.content_scripts.find(group => group.js.includes('scripts/uploader-ai-panel.js')).world, 'MAIN');
+  assert.equal(manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js')).world, 'MAIN');
   assert.equal(manifest.background.service_worker, 'scripts/background.js');
 });

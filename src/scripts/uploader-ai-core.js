@@ -2,12 +2,12 @@
 (function (root) {
   "use strict";
   function score(value) {
-    // iNaturalist's non-aggregated vision_score is already scaled to 0–100.
-    // In particular 0.9 is 0.9/100, NOT 90/100. Do not normalize the top eight.
+    // iNaturalist's combined_score is already scaled to 0–100. It combines
+    // visual similarity with place/date context but is not calibrated accuracy.
     return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
   }
   function settings(raw = {}) {
-    if (String(raw.threshold ?? 80).trim() === "") throw new Error("請填寫視覺分數門檻。");
+    if (String(raw.threshold ?? 80).trim() === "") throw new Error("請填寫綜合分數門檻。");
     const threshold = Number(raw.threshold ?? 80);
     if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) throw new Error("門檻請填 0–100 的數字。");
     if (!["score", "official"].includes(raw.mode || "score")) throw new Error("選取規則無效。");
@@ -21,10 +21,10 @@
     const value = score(best?.score);
     if (opts.mode === "score" && best && value !== null && value > opts.threshold) {
       return { candidate: best, score: value, apply: true,
-        reason: `首選視覺分數 ${value.toFixed(2)} > ${opts.threshold}` };
+        reason: `首選綜合分數 ${value.toFixed(1)} > ${opts.threshold}` };
     }
     const prefix = opts.mode === "score"
-      ? value === null ? "首選分數不可讀；" : `首選視覺分數 ${value.toFixed(2)} 未超過 ${opts.threshold}；`
+      ? value === null ? "首選綜合分數不可讀；" : `首選綜合分數 ${value.toFixed(1)} 未超過 ${opts.threshold}；`
       : "";
     if (snapshot.confident === true && official) {
       return { candidate: official, score: null, apply: true,

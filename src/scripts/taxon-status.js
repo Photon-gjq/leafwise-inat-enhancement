@@ -9,6 +9,17 @@
     "[id*='taxonomy' i]", "[class*='Taxonomy']", "[class*='TaxonTree']",
     "[data-testid*='taxonomy' i]", "[data-tab='taxonomy']"
   ].join(",");
+  const OBSERVATION_TAXON_SELECTORS = [
+    ".ObservationShow .TaxonSummary a[href*='/taxa/']", ".ObservationShow .TaxonSummary a[data-taxon-id]",
+    ".ObservationShow .taxon-summary a[href*='/taxa/']", ".ObservationShow .taxon-summary a[data-taxon-id]",
+    ".observation-show .taxon a[href*='/taxa/']", ".observation-show .taxon a[data-taxon-id]",
+    ".observation-taxon a[href*='/taxa/']", ".observation-taxon a[data-taxon-id]",
+    ".ObservationShow a[href*='/taxa/']", ".ObservationShow a[data-taxon-id]",
+    ".observation-show a[href*='/taxa/']", ".observation-show a[data-taxon-id]",
+    "[data-testid*='observation' i] a[href*='/taxa/']", "[data-testid*='observation' i] a[data-taxon-id]",
+    "a.taxon-name[href*='/taxa/']", "a.taxon-name[data-taxon-id]",
+    "h1 a[href*='/taxa/']", "h1 a[data-taxon-id]", "h2 a[href*='/taxa/']", "h2 a[data-taxon-id]"
+  ];
 
   function pageInfo(href) {
     const url = new URL(href);
@@ -54,23 +65,35 @@
     } catch { return null; }
   }
 
-  function mainObservationTaxonLink(doc, taxonId, baseHref) {
-    const selectors = [
-      ".ObservationShow .TaxonSummary a[href*='/taxa/']",
-      ".ObservationShow .taxon-summary a[href*='/taxa/']",
-      ".observation-show .taxon a[href*='/taxa/']",
-      ".observation-taxon a[href*='/taxa/']",
-      "h1 a[href*='/taxa/']",
-      "h2 a[href*='/taxa/']",
-      "a.taxon-name[href*='/taxa/']"
-    ];
-    let links = [];
-    for (const selector of selectors) {
-      links = Array.from(doc.querySelectorAll(selector)).filter(link => taxonIdFromHref(link.getAttribute("href"), baseHref) === taxonId);
-      if (links.length) break;
+  function taxonIdFromElement(element, baseHref) {
+    const hrefID = taxonIdFromHref(element?.getAttribute?.("href"), baseHref);
+    if (hrefID) return hrefID;
+    const numeric = Number(element?.getAttribute?.("data-taxon-id") || element?.getAttribute?.("data-taxonid"));
+    return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  }
+
+  function observationTaxonLinks(doc, baseHref) {
+    for (const selector of OBSERVATION_TAXON_SELECTORS) {
+      const links = Array.from(doc.querySelectorAll(selector)).filter(link => taxonIdFromElement(link, baseHref));
+      if (links.length) return links;
     }
+    return Array.from(doc.querySelectorAll("a[href*='/taxa/'],a[data-taxon-id],a[data-taxonid]")).filter(link => {
+      if (!taxonIdFromElement(link, baseHref) || link.closest?.("nav,header,footer") || link.closest?.(TAXONOMY_ROOT_SELECTOR)) return false;
+      return typeof link.getClientRects !== "function" || link.getClientRects().length > 0;
+    });
+  }
+
+  function currentObservationTaxonId(doc, baseHref) {
+    const links = observationTaxonLinks(doc, baseHref);
+    const link = links.find(candidate => candidate.matches?.("a.taxon-name")) || links[0];
+    return link ? taxonIdFromElement(link, baseHref) : null;
+  }
+
+  function mainObservationTaxonLink(doc, taxonId, baseHref) {
+    let links = observationTaxonLinks(doc, baseHref).filter(link => taxonIdFromElement(link, baseHref) === taxonId);
     if (!links.length) {
-      links = Array.from(doc.querySelectorAll("a[href*='/taxa/']")).filter(link => taxonIdFromHref(link.getAttribute("href"), baseHref) === taxonId);
+      links = Array.from(doc.querySelectorAll("a[href*='/taxa/'],a[data-taxon-id],a[data-taxonid]"))
+        .filter(link => taxonIdFromElement(link, baseHref) === taxonId);
     }
     if (!links.length) return null;
     const firstParent = links[0].parentElement;
@@ -428,6 +451,10 @@
   }
 
   function placeStatus(doc, info, user, taxonId, count, browseHref) {
+    if (info.kind === "observation") {
+      const currentTaxonId = currentObservationTaxonId(doc, location.href);
+      if (!currentTaxonId || currentTaxonId !== taxonId) return false;
+    }
     let titleReady = Boolean(doc.getElementById(MARKER_ID));
     if (!titleReady) {
       const target = info.kind === "taxon" ? taxonTitle(doc) : mainObservationTaxonLink(doc, taxonId, location.href);
@@ -448,18 +475,21 @@
     return titleReady;
   }
 
-  async function run(isActive = () => true, registerCleanup = () => {}) {
+  async function run(isActive = () => true, registerCleanup = () => {}, forceCount = false) {
     const info = pageInfo(location.href);
     if (!info) return;
     const user = loggedInUser(document, location.href);
     if (!user) return;
     let taxonId = info.taxonId;
     if (!taxonId) {
-      const result = await chrome.runtime.sendMessage({ type: "qg-observation-taxon", observationId: info.id });
-      if (!isActive() || !result?.ok || !result.taxonId) return;
-      taxonId = result.taxonId;
+      taxonId = currentObservationTaxonId(document, location.href);
+      if (!taxonId) {
+        const result = await chrome.runtime.sendMessage({ type: "qg-observation-taxon", observationId: info.id });
+        if (!isActive() || !result?.ok || !result.taxonId) return;
+        taxonId = result.taxonId;
+      }
     }
-    const result = await chrome.runtime.sendMessage({ type: "qg-taxon-observation-count", userId: user.userId, taxonId });
+    const result = await chrome.runtime.sendMessage({ type: "qg-taxon-observation-count", userId: user.userId, taxonId, force: forceCount });
     if (!isActive() || !result?.ok || !Number.isSafeInteger(result.count) || result.count < 0) return;
     const browseHref = ownObservationsURL(location.href, user.username, taxonId);
     let statusScheduled = false;
@@ -468,12 +498,14 @@
       statusScheduled = true;
       requestAnimationFrame(() => {
         statusScheduled = false;
+        if (info.kind === "observation" && currentObservationTaxonId(document, location.href) !== taxonId) return;
         if (isActive()) placeStatus(document, info, user, taxonId, result.count, browseHref);
       });
     };
     placeStatus(document, info, user, taxonId, result.count, browseHref);
     const statusObserver = new MutationObserver(ensureStatus);
-    statusObserver.observe(document.body, { childList: true, subtree: true });
+    statusObserver.observe(document.body, { childList: true, subtree: true, characterData: true,
+      attributes: true, attributeFilter: ["href", "data-taxon-id", "data-taxonid"] });
     registerCleanup(() => statusObserver.disconnect());
     if (info.kind === "taxon") {
       registerCleanup(watchYoursCounts(document, user, taxonId, result.count, isActive));
@@ -497,6 +529,7 @@
 
   function startPageController() {
     let identity = null;
+    let observationTaxonId = null;
     let generation = 0;
     let cleanups = [];
     const clearRun = () => {
@@ -507,8 +540,17 @@
     };
     const check = () => {
       const next = pageIdentity(location.href);
-      if (next === identity) return;
+      const info = pageInfo(location.href);
+      const detectedTaxonId = info?.kind === "observation" ? currentObservationTaxonId(document, location.href) : null;
+      let forceCount = false;
+      if (next === identity) {
+        if (info?.kind === "observation" && detectedTaxonId && detectedTaxonId !== observationTaxonId) {
+          forceCount = Boolean(observationTaxonId);
+          observationTaxonId = detectedTaxonId;
+        } else return;
+      }
       identity = next;
+      observationTaxonId = detectedTaxonId;
       clearRun();
       if (!next) return;
       const current = generation;
@@ -518,7 +560,7 @@
         if (active()) cleanups.push(cleanup);
         else cleanup();
       };
-      run(active, register).catch(() => {});
+      run(active, register, forceCount).catch(() => {});
     };
     let scheduled = false;
     const observer = new MutationObserver(() => {
@@ -526,7 +568,8 @@
       scheduled = true;
       requestAnimationFrame(() => { scheduled = false; check(); });
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true,
+      attributes: true, attributeFilter: ["href", "data-taxon-id", "data-taxonid"] });
     if (typeof setInterval === "function") setInterval(check, 500);
     globalThis.addEventListener?.("popstate", check);
     globalThis.addEventListener?.("hashchange", check);
@@ -534,7 +577,7 @@
   }
 
   const api = {
-    pageInfo, userInfoFromHrefs, ownObservationsURL, taxonIdFromHref,
+    pageInfo, userInfoFromHrefs, ownObservationsURL, taxonIdFromHref, currentObservationTaxonId,
     createPriorityQueue, orderTaxonomyEntries, taxonomyEntries, countRequestFromHref,
     pageIdentity, clearStatusMarkers
   };

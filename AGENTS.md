@@ -1,5 +1,6 @@
 # Leafwise 維護約定
 
+- 開始任何工作前，先完整閱讀根目錄的 AI_PROJECT_CONTEXT.md，再以目前程式碼、git status、package.json 與最新提交核對其中快照；架構、工作流、儲存格式或重要風險改變時，同步更新該文件。
 - 此倉庫是 Chrome、Edge 與 Firefox 的共同來源。除非使用者明確只要求單一瀏覽器，功能更新必須同時建置、驗證及打包三個版本。
 - 修改 `src/` 的共用功能；僅瀏覽器差異放在 `platforms/`。不要維護第二份完整程式，也不要直接編輯生成的 `build/`、`dist/`。
 - 版本只改 `package.json`，同步 `package-lock.json` 與 `CHANGELOG.md`。維持既有 Firefox gecko ID；不因重構更換儲存鍵。

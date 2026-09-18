@@ -40,7 +40,7 @@
 
 - 不提交帳號、憑證、瀏覽器 profile、私人照片、完整 API 回應或個人本機絕對路徑。
 - 擴充目前沒有分析、廣告或遙測，也不把照片送到第三方 AI。
-- AI 分數來自 iNaturalist 頁面原本已發出的辨識請求；Leafwise 不應另行呼叫 /computervision/score_image。
+- AI 分數來自 iNaturalist 頁面原本已發出的辨識請求；Leafwise 不應另行呼叫 `/computervision/score_image` 或 `/computervision/score_observation`。若 API v2 觀察請求使用明確 `fields` 投影卻省略 `combined_score`，bridge 只可在同一請求的回傳欄位投影補入 `combined_score: true`，不得改動照片、觀察、位置、日期、驗證或其他請求語意。
 - 公開 API 背景請求使用 credentials: omit。
 - 上傳功能只修改草稿，不可自動發布觀察。使用者的手動分類或文字優先；停止／手動操作後，遲到結果不得覆蓋草稿。
 
@@ -119,17 +119,17 @@ taxon-status.js
 
 ### 6.1 iNaturalist 綜合 AI 分數
 
-vision-score-bridge.js 在 document_start 的 MAIN world 被動包裝頁面原有的 fetch 與 XMLHttpRequest，不依賴 `window.inaturalistjs`（官方 uploader 已把 inaturalistjs 作為 ES module 區域變數使用）。它只匹配 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`，端點可帶數字 ID：
+vision-score-bridge.js 在 document_start 的 MAIN world 包裝頁面原有的 fetch 與 XMLHttpRequest，不依賴 `window.inaturalistjs`（官方 uploader 已把 inaturalistjs 作為 ES module 區域變數使用）。它只匹配 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`，端點可帶數字 ID 或嚴格的 observation UUID：
 
 - fetch 只用 `Response.clone().json()` 旁讀；XHR 只在 `responseType=json` 或 JSON Content-Type 時讀取；
-- 原方法只呼叫一次，原參數、Promise、Response／XHR 與回傳值不改動，不新增辨識請求；
+- 原方法只呼叫一次，Promise、Response／XHR 與回傳值不改動，不新增辨識請求；API v2 `score_observation` 已有欄位投影但欠缺 `combined_score` 時，只把該布林回傳欄位補入 Rison URL 或 JSON body，其他參數及資料不改；
 - 重複注入不會多重包裝；舊頁面若仍暴露 `window.inaturalistjs`，保留不依賴的相容 fallback；
 - 只取明確的 combined_score，將 0–1 乘以 100，>1–100 保留，拒絕 vision_score、字串、非有限與範圍外值；
 - 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、taxon ID 及正規化分數的 JSON 字串。
 
 vision-score-data.js 以 taxon ID 儲存／合併分數；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。上傳 adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 在每個數字 ID 詳情頁保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理；若隔離環境無法讀 jQuery 候選資料，改以官方由 `isVisionResult` 產生的 `.ac.vision` DOM class 判定視覺候選，仍按 `data-taxon-id` 配對，不能替手動搜尋列補分。
 
-vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：只顯示一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，使用紅／棕／綠連續色階。沒有有效分數時要移除 Leafwise 標記，不顯示佔位。
+vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：只顯示一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，使用紅／棕／綠連續色階，並在多行候選列中上下居中。沒有有效分數時要移除 Leafwise 標記，不顯示佔位。
 
 兩個 adapter 都從原生 DOM 上的 `data-taxon-id` 取得 ID；上傳頁再與 jQuery data 的 `ui-autocomplete-item` 或 `item.autocomplete` 物件 ID 交叉驗證，觀察詳情頁在可讀時也交叉驗證，否則只接受官方 `.ac.vision` 候選。不能用候選下標推算分數。
 
@@ -329,7 +329,7 @@ npm run test:layout -- --project=edge-layout
 - Firefox 隔離環境曾暴露 window／全域與 Chromium 不同；不要用只在 Chrome 成功作為跨瀏覽器完成標準。
 - 上傳頁官方固定批次欄曾被面板推低；目前收合面板與 Shadow DOM 定位有專門 layout 回歸，修改掛載點時務必重跑。
 - jQuery UI selectable 會在父層阻止 mousedown；Shadow DOM 控制項的焦點與事件隔離有專門回歸，不要簡化掉。
-- combined_score 的設計選擇是「被動旁讀並重用 iNaturalist 自己的 fetch／XHR 回應」，不是依賴頁面全域變數，也不是讓擴充自己重算或發第二次請求。
+- combined_score 的設計選擇是「重用 iNaturalist 自己的 fetch／XHR 請求與回應」；API v2 欄位投影欠缺此欄位時只擴充同一請求的回傳投影。它不依賴頁面全域變數，不自行重算，也不發第二次請求。
 - iNaturalist uploader 已把 inaturalistjs 作為 ES module 區域變數使用；只查 `window.inaturalistjs` 會完全漏掉分數。修改橋接時必須保留無該全域的 fetch／XHR 回歸。
 
 ## 15. 完成一項工作的交付格式

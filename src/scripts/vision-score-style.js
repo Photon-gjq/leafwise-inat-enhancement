@@ -53,7 +53,7 @@
       badge.className = "leafwise-ai-score";
     }
     badge.style.cssText =
-      "all:initial;display:inline-block!important;flex:0 0 auto!important;min-width:34px;" +
+      "all:initial;display:inline-block!important;flex:0 0 auto!important;align-self:center!important;min-width:34px;" +
       "box-sizing:border-box!important;margin:0 8px;padding:0!important;border:0!important;" +
       "border-radius:0!important;box-shadow:none!important;background:transparent!important;" +
       `color:${accent}!important;font:700 15px/1.2 Arial,sans-serif;` +

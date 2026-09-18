@@ -184,13 +184,15 @@ test('combined score is a plain colored number without a chip or row accent',asy
   await page.addScriptTag({path:path.join(directory,'vision-score-style.js')});
   await page.evaluate(()=>{
     const row=document.createElement('div');row.id='score-row';row.style.cssText='display:flex;align-items:center;width:520px;height:70px;background:white;margin:16px;padding:10px';
-    row.innerHTML='<div id="score-result" style="display:flex;align-items:center;flex:1"><span class="ac-label">雉鸡 <i>Phasianus colchicus</i></span><a class="ac-view" style="margin-left:auto">查看</a></div>';
+    row.innerHTML='<div id="score-result" style="display:flex;align-items:flex-start;flex:1;height:100%"><span class="ac-label" style="width:250px;line-height:24px">雉鸡 · Common Pheasant<br><i>Phasianus colchicus</i><br>视觉类似</span><a class="ac-view" style="align-self:center;margin-left:auto">查看</a></div>';
     document.querySelector('#imageGrid').prepend(row);
     LeafwiseVisionScoreStyle.decorate(document.querySelector('#score-result'),row,81.94);
   });
   const badge=page.locator('.leafwise-ai-score');
   await expect(badge).toHaveText('81.9');
   const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(55);expect(box.height).toBeLessThanOrEqual(20);
+  const resultBox=await page.locator('#score-result').boundingBox();
+  expect(Math.abs((box.y+box.height/2)-(resultBox.y+resultBox.height/2))).toBeLessThanOrEqual(1.5);
   const appearance=await badge.evaluate(element=>{const css=getComputedStyle(element);return{background:css.backgroundColor,border:css.borderTopWidth,radius:css.borderRadius,color:css.color}});
   expect(appearance.background).toBe('rgba(0, 0, 0, 0)');expect(appearance.border).toBe('0px');expect(appearance.radius).toBe('0px');
   expect(appearance.color).not.toBe('rgb(255, 255, 255)');
@@ -202,24 +204,38 @@ test('combined score is a plain colored number without a chip or row accent',asy
 test('observation detail shows scores from the official vision DOM marker without jQuery data',async({page},testInfo)=>{
   const detail=`<!doctype html><meta charset="utf-8"><style>
     body{font:16px Arial;background:#fff}.id_tab{width:660px;margin:30px}.ac-menu{display:block;margin:0;padding:0;border:1px solid #ccc}
-    .ac-result{display:flex;min-height:70px;border-bottom:1px solid #ddd;list-style:none}.ac{display:flex;align-items:center;width:100%}
-    .ac-label{flex:1;padding:10px}.ac-view{margin-left:auto;padding:20px}
+    .ac-result{display:flex;min-height:100px;border-bottom:1px solid #ddd;list-style:none}.ac{display:flex;align-items:flex-start;width:100%}
+    .ac-label{flex:1;padding:10px;line-height:24px}.ac-view{align-self:center;margin-left:auto;padding:20px}
   </style><body><div class="id_tab"><ul class="ac-menu taxon-autocomplete">
-    <li class="ac-result"><div class="ac vision" data-taxon-id="42"><div class="ac-label">林夜鹰 · Savanna Nightjar</div><a class="ac-view">查看</a></div></li>
+    <li class="ac-result"><div class="ac vision" data-taxon-id="42"><div class="ac-label">林夜鹰 · Savanna Nightjar<br><i>Caprimulgus affinis</i><br>视觉类似</div><a class="ac-view">查看</a></div></li>
     <li class="ac-result manual"><div class="ac" data-taxon-id="43"><div class="ac-label">手动搜索结果</div><a class="ac-view">查看</a></div></li>
-  </ul></div><script>
-    window.LeafwiseVisionScores={value:(_raw,id,ids)=>id===42&&ids.join(',')==='42,43'?82.5:null};
-    window.LeafwiseUploadPageData=()=>null;
-  </script>`;
+  </ul></div><script>window.LeafwiseUploadPageData=()=>null;</script>`;
   await page.route('https://www.inaturalist.org/observations/400958933',route=>route.fulfill({body:detail,contentType:'text/html'}));
+  const uuid='9fd4c85a-95e3-4fc7-ae61-c46675021754';
+  await page.route(`https://api.inaturalist.org/v2/computervision/score_observation/${uuid}*`,async route=>{
+    const fields=new URL(route.request().url()).searchParams.get('fields')||'';
+    const results=fields.includes('combined_score:!t')
+      ? [{taxon:{id:42},combined_score:0.825},{taxon:{id:43},combined_score:0.034}]
+      : [{taxon:{id:42},vision_score:0.9},{taxon:{id:43},vision_score:0.8}];
+    await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
+  });
   await page.goto('https://www.inaturalist.org/observations/400958933');
   const target=testInfo.project.name.split('-')[0];
   const directory=path.resolve(__dirname,'../../build',target,'scripts');
+  await page.addScriptTag({path:path.join(directory,'vision-score-data.js')});
   await page.addScriptTag({path:path.join(directory,'vision-score-style.js')});
+  await page.addScriptTag({path:path.join(directory,'vision-score-bridge.js')});
   await page.addScriptTag({path:path.join(directory,'observation-ai-adapter.js')});
+  const fields='(frequency_score:!t,taxon:(id:!t),vision_score:!t)';
+  await page.evaluate(async({uuid,fields})=>{
+    await fetch(`https://api.inaturalist.org/v2/computervision/score_observation/${uuid}?fields=${encodeURIComponent(fields)}`);
+  },{uuid,fields});
   const score=page.locator('.ac.vision .leafwise-ai-score');
   await expect(score).toHaveText('82.5');
   await expect(page.locator('.manual .leafwise-ai-score')).toHaveCount(0);
+  const scoreBox=await score.boundingBox();
+  const resultBox=await page.locator('.ac.vision').boundingBox();
+  expect(Math.abs((scoreBox.y+scoreBox.height/2)-(resultBox.y+resultBox.height/2))).toBeLessThanOrEqual(1.5);
   const appearance=await score.evaluate(element=>{const css=getComputedStyle(element);return{background:css.backgroundColor,radius:css.borderRadius,color:css.color}});
   expect(appearance.background).toBe('rgba(0, 0, 0, 0)');expect(appearance.radius).toBe('0px');expect(appearance.color).not.toBe('rgb(255, 255, 255)');
 });

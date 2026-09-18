@@ -7,7 +7,9 @@
   const XHR_SEND_WRAPPED = Symbol.for("leafwise.cv.xhrSendWrapped");
   const FUNCTION_WRAPPED = Symbol.for("leafwise.cv.functionWrapped");
   const STARTED = Symbol.for("leafwise.cv.bridgeStarted");
-  const ENDPOINT = /^\/v[12]\/computervision\/(?:score_image|score_observation)(?:\/\d+)?\/?$/;
+  const OBSERVATION_ID = "(?:\\d+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})";
+  const ENDPOINT = new RegExp(`^/v[12]/computervision/(?:score_image|score_observation)(?:/${OBSERVATION_ID})?/?$`, "i");
+  const V2_OBSERVATION_ENDPOINT = new RegExp(`^/v2/computervision/score_observation(?:/${OBSERVATION_ID})?/?$`, "i");
   let sequence = 0;
 
   function validScore(value) {
@@ -34,6 +36,74 @@
     const hostname = url.hostname.toLowerCase();
     if (hostname !== "inaturalist.org" && !hostname.endsWith(".inaturalist.org")) return false;
     return ENDPOINT.test(url.pathname);
+  }
+
+  function isV2ObservationURL(input, target = root) {
+    const url = requestURL(input, target);
+    if (!url || url.protocol !== "https:") return false;
+    const hostname = url.hostname.toLowerCase();
+    return (hostname === "inaturalist.org" || hostname.endsWith(".inaturalist.org")) &&
+      V2_OBSERVATION_ENDPOINT.test(url.pathname);
+  }
+
+  function risonFieldsWithCombined(fields) {
+    if (typeof fields !== "string" || fields.length < 2 || fields[0] !== "(" || fields.at(-1) !== ")") return fields;
+    if (/(?:^\(|,)combined_score:/.test(fields)) return fields;
+    const body = fields.slice(1, -1);
+    return `(combined_score:!t${body ? `,${body}` : ""})`;
+  }
+
+  function fieldsWithCombined(fields) {
+    if (!fields || typeof fields !== "object" || Array.isArray(fields) || fields.combined_score === true) return fields;
+    return { ...fields, combined_score: true };
+  }
+
+  function inputWithURL(input, url, target = root) {
+    if (typeof input === "string") return url.href;
+    const URLCtor = target.URL;
+    if (URLCtor && input instanceof URLCtor) return new URLCtor(url.href);
+    const RequestCtor = target.Request;
+    if (RequestCtor && input instanceof RequestCtor) {
+      try { return new RequestCtor(url.href, input); } catch { return input; }
+    }
+    return input;
+  }
+
+  // The current observation-detail UI requests an explicit API v2 field
+  // projection that omits combined_score. Add only that response field to the
+  // existing request so the bridge can keep using the canonical combined
+  // score without issuing another CV request.
+  function URLWithCombinedScore(input, target = root) {
+    if (!isV2ObservationURL(input, target)) return input;
+    const url = requestURL(input, target);
+    const fields = url?.searchParams?.get("fields");
+    const augmented = risonFieldsWithCombined(fields);
+    if (!url || augmented === fields) return input;
+    url.searchParams.set("fields", augmented);
+    return inputWithURL(input, url, target);
+  }
+
+  function JSONBodyWithCombinedScore(body) {
+    if (typeof body !== "string") return body;
+    try {
+      const value = JSON.parse(body);
+      if (!value || typeof value !== "object" || Array.isArray(value)) return body;
+      const fields = fieldsWithCombined(value.fields);
+      return fields === value.fields ? body : JSON.stringify({ ...value, fields });
+    } catch { return body; }
+  }
+
+  function fetchArgsWithCombinedScore(args, target = root) {
+    const input = args[0];
+    if (!isV2ObservationURL(input, target)) return args;
+    const rewrittenInput = URLWithCombinedScore(input, target);
+    const init = args[1];
+    const rewrittenBody = JSONBodyWithCombinedScore(init?.body);
+    if (rewrittenInput === input && rewrittenBody === init?.body) return args;
+    const rewritten = [...args];
+    rewritten[0] = rewrittenInput;
+    if (rewrittenBody !== init?.body) rewritten[1] = { ...init, body: rewrittenBody };
+    return rewritten;
   }
 
   function scoreEntries(response) {
@@ -68,8 +138,9 @@
     if (typeof original !== "function") return false;
     if (original[FETCH_WRAPPED]) return true;
     function wrappedFetch(...args) {
-      const shouldInspect = isVisionURL(args[0], target);
-      const pending = original.apply(this, args);
+      const requestArgs = fetchArgsWithCombinedScore(args, target);
+      const shouldInspect = isVisionURL(requestArgs[0], target);
+      const pending = original.apply(this, requestArgs);
       if (shouldInspect) {
         Promise.resolve(pending).then(response => inspectFetchResponse(response, target)).catch(() => {});
       }
@@ -101,8 +172,9 @@
     if (typeof prototype.open === "function" && !prototype.open[XHR_OPEN_WRAPPED]) {
       const originalOpen = prototype.open;
       function wrappedOpen(method, url, ...rest) {
-        urls.set(this, url);
-        return originalOpen.call(this, method, url, ...rest);
+        const requestURL = URLWithCombinedScore(url, target);
+        urls.set(this, requestURL);
+        return originalOpen.call(this, method, requestURL, ...rest);
       }
       Object.defineProperty(wrappedOpen, XHR_OPEN_WRAPPED, { value: true });
       try { prototype.open = wrappedOpen; } catch { return false; }
@@ -113,7 +185,10 @@
         if (isVisionURL(urls.get(this), target) && typeof this.addEventListener === "function") {
           this.addEventListener("loadend", () => inspectXHR(this, target), { once: true });
         }
-        return originalSend.apply(this, args);
+        const requestArgs = isV2ObservationURL(urls.get(this), target) && args.length
+          ? [JSONBodyWithCombinedScore(args[0]), ...args.slice(1)]
+          : args;
+        return originalSend.apply(this, requestArgs);
       }
       Object.defineProperty(wrappedSend, XHR_SEND_WRAPPED, { value: true });
       try { prototype.send = wrappedSend; } catch { return false; }
@@ -174,8 +249,10 @@
     return state;
   }
 
-  const api = { EVENT_NAME, validScore, resultList, requestURL, isVisionURL, scoreEntries, capture,
-    inspectFetchResponse, installFetch, inspectXHR, installXHR, wrap, installLegacy, install, start };
+  const api = { EVENT_NAME, validScore, resultList, requestURL, isVisionURL, isV2ObservationURL,
+    risonFieldsWithCombined, fieldsWithCombined, URLWithCombinedScore, JSONBodyWithCombinedScore,
+    fetchArgsWithCombinedScore, scoreEntries, capture, inspectFetchResponse, installFetch, inspectXHR,
+    installXHR, wrap, installLegacy, install, start };
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
     return;

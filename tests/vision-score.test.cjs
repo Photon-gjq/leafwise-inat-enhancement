@@ -62,6 +62,7 @@ test('URL allowlist accepts only HTTPS iNaturalist v1/v2 CV scoring endpoints, i
   for (const url of [
     'https://api.inaturalist.org/v1/computervision/score_image',
     'https://api.inaturalist.org/v2/computervision/score_observation/123?locale=zh-CN',
+    'https://api.inaturalist.org/v2/computervision/score_observation/9fd4c85a-95e3-4fc7-ae61-c46675021754',
     '/v1/computervision/score_observation/987/'
   ]) assert.equal(bridge.isVisionURL(url, page), true, url);
   for (const url of [
@@ -69,9 +70,63 @@ test('URL allowlist accepts only HTTPS iNaturalist v1/v2 CV scoring endpoints, i
     'https://evil-inaturalist.org/v1/computervision/score_image',
     'https://api.inaturalist.org/v3/computervision/score_image',
     'https://api.inaturalist.org/v1/computervision/score_image/not-an-id',
+    'https://api.inaturalist.org/v2/computervision/score_observation/not-a-uuid',
     'https://api.inaturalist.org/v1/observations/1',
     'https://example.com/v1/computervision/score_image'
   ]) assert.equal(bridge.isVisionURL(url, page), false, url);
+});
+
+test('API v2 observation field projections gain combined_score without an extra fetch', async () => {
+  const uuid = '9fd4c85a-95e3-4fc7-ae61-c46675021754';
+  const fields = '(frequency_score:!t,taxon:(id:!t),vision_score:!t)';
+  const originalURL = `https://api.inaturalist.org/v2/computervision/score_observation/${uuid}?locale=zh-CN&fields=${encodeURIComponent(fields)}`;
+  let calls = 0;
+  const response = {
+    clone() { return { json: async () => ({ results: [{ taxon: { id: 42 }, combined_score: 0.825 }] }) }; }
+  };
+  const originalPromise = Promise.resolve(response);
+  const page = target({ fetch(input, options) {
+    calls++;
+    const url = new URL(input);
+    assert.equal(url.searchParams.get('locale'), 'zh-CN');
+    assert.equal(url.searchParams.get('fields'), `(combined_score:!t,${fields.slice(1)}`);
+    assert.equal(options, undefined);
+    return originalPromise;
+  } });
+  const events = [];
+  page.addEventListener(bridge.EVENT_NAME, event => events.push(JSON.parse(event.detail)));
+  bridge.installFetch(page);
+  const pending = page.fetch(originalURL);
+  assert.equal(pending, originalPromise);
+  assert.equal(await pending, response);
+  await settle(); await settle();
+  assert.equal(calls, 1);
+  assert.deepEqual(events[0].scores, [{ id: 42, combinedScore: 82.5 }]);
+  assert.equal(new URL(originalURL).searchParams.get('fields'), fields);
+});
+
+test('API v2 observation JSON field projections are cloned and augmented without mutating caller input', async () => {
+  const uuid = '9fd4c85a-95e3-4fc7-ae61-c46675021754';
+  const url = `https://api.inaturalist.org/v2/computervision/score_observation/${uuid}`;
+  const body = JSON.stringify({ locale: 'zh-CN', fields: { frequency_score: true, vision_score: true, taxon: { id: true } } });
+  const init = { method: 'post', headers: { 'X-HTTP-Method-Override': 'GET' }, body };
+  let calls = 0;
+  const response = { clone() { return { json: async () => ({ results: [] }) }; } };
+  const page = target({ fetch(input, options) {
+    calls++;
+    assert.equal(input, url);
+    assert.notEqual(options, init);
+    assert.deepEqual(JSON.parse(options.body).fields, {
+      frequency_score: true, vision_score: true, taxon: { id: true }, combined_score: true
+    });
+    assert.equal(options.headers, init.headers);
+    return Promise.resolve(response);
+  } });
+  bridge.installFetch(page);
+  await page.fetch(url, init);
+  assert.equal(calls, 1);
+  assert.equal(init.body, body);
+  assert.equal(JSON.parse(init.body).fields.combined_score, undefined);
 });
 
 test('fetch capture works without window.inaturalistjs, sends once, and returns the original response unchanged', async () => {
@@ -141,6 +196,28 @@ test('XHR reads JSON CV responses without altering the request, response, or ret
   assert.equal(xhr.response, payload);
   assert.equal(opens, 1); assert.equal(sends, 1);
   assert.deepEqual(events[0].scores, [{ id: 44, combinedScore: 90 }]);
+});
+
+test('XHR augments API v2 observation UUID field projections and still sends once', () => {
+  const uuid = '9fd4c85a-95e3-4fc7-ae61-c46675021754';
+  const fields = '(frequency_score:!t,vision_score:!t)';
+  let opens = 0, sends = 0;
+  class FakeXHR {
+    constructor() { this.listeners = new Map(); this.responseType = 'json'; this.response = { results: [] }; }
+    addEventListener(type, listener) { this.listeners.set(type, listener); }
+    open(method, url) { opens++; this.nativeOpen = [method, url]; }
+    send(body) { sends++; this.nativeBody = body; this.listeners.get('loadend')?.(); }
+  }
+  const page = target({ XMLHttpRequest: FakeXHR });
+  bridge.installXHR(page);
+  const xhr = new FakeXHR();
+  xhr.open('POST', `https://api.inaturalist.org/v2/computervision/score_observation/${uuid}?fields=${encodeURIComponent(fields)}`);
+  xhr.send(JSON.stringify({ fields: { frequency_score: true, vision_score: true } }));
+  assert.equal(opens, 1); assert.equal(sends, 1);
+  assert.equal(new URL(xhr.nativeOpen[1]).searchParams.get('fields'), `(combined_score:!t,${fields.slice(1)}`);
+  assert.deepEqual(JSON.parse(xhr.nativeBody).fields, {
+    frequency_score: true, vision_score: true, combined_score: true
+  });
 });
 
 test('XHR ignores non-JSON, non-CV, and vision_score-only payloads', () => {
@@ -216,6 +293,7 @@ test('score style uses a colored number without a chip, row accent, or percent s
   assert.match(badge.style.cssText, /background:transparent!important/);
   assert.match(badge.style.cssText, /border:0!important/);
   assert.match(badge.style.cssText, /border-radius:0!important/);
+  assert.match(badge.style.cssText, /align-self:center!important/);
   assert.match(badge.style.cssText, new RegExp(`color:${style.color(81.94).replace(/[()]/g, '\\$&')}!important`));
   assert.equal(properties.has('--leafwise-score-accent'), false);
   assert.ok(removedClasses.includes('leafwise-ai-score-row'));

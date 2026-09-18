@@ -18,6 +18,13 @@
     return pageData(item, "ui-autocomplete-item") || pageData(item, "item.autocomplete") ||
       pageData(result, "ui-autocomplete-item") || pageData(result, "item.autocomplete");
   }
+  function vision(data, result, id) {
+    // The official TaxonAutocomplete template derives .ac.vision from
+    // isVisionResult. The DOM marker keeps detail-page scores working when a
+    // browser's isolated world cannot read the page's jQuery data cache.
+    return (data && Number(data.id) === id && data.isVisionResult === true) ||
+      result?.classList?.contains("vision") === true;
+  }
   function scan(doc = root.document) {
     if (!active() || !style || !scores) return 0;
     let count = 0;
@@ -31,7 +38,7 @@
         const id = Number(result.getAttribute("data-taxon-id"));
         if (!Number.isSafeInteger(id) || id <= 0) continue;
         const data = raw(item, result);
-        const value = data && Number(data.id) === id && data.isVisionResult === true
+        const value = vision(data, result, id)
           ? scores.value(data, id, ids)
           : null;
         style.decorate(result, item.matches("li") ? item : result.closest("li"), value);
@@ -41,7 +48,7 @@
     return count;
   }
 
-  const api = { active, visible, scan };
+  const api = { active, visible, vision, scan };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   if (!root.document?.body || !active()) return;
   let pending = false;

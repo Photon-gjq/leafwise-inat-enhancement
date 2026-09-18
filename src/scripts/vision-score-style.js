@@ -30,13 +30,9 @@
   }
 
   function ensureStyles(doc) {
-    if (!doc?.createElement || doc.getElementById?.("leafwise-vision-score-css")) return;
-    const sheet = doc.createElement("style");
-    sheet.id = "leafwise-vision-score-css";
-    sheet.textContent = ".leafwise-ai-score-row{position:relative!important}" +
-      ".leafwise-ai-score-row::before{content:'';position:absolute;z-index:1;inset-block:0;" +
-      "inset-inline-start:0;width:3px;border-radius:2px;background:var(--leafwise-score-accent);pointer-events:none}";
-    (doc.head || doc.documentElement)?.append(sheet);
+    // Remove the stylesheet used by the older chip-and-row-accent treatment if
+    // this script is re-evaluated in a long-lived page during development.
+    doc?.getElementById?.("leafwise-vision-score-css")?.remove?.();
   }
 
   function decorate(result, row, value) {
@@ -48,9 +44,7 @@
     }
     const accent = color(normalized);
     ensureStyles(result?.ownerDocument || root.document);
-    row?.classList?.add("leafwise-ai-score-row");
-    row?.style?.setProperty("--leafwise-score-accent", accent);
-    row?.style?.removeProperty("border-left");
+    clearRow(row);
     let badge = result?.querySelector?.(".leafwise-ai-score");
     if (!badge) {
       const ownerDocument = result?.ownerDocument || root.document;
@@ -59,11 +53,12 @@
       badge.className = "leafwise-ai-score";
     }
     badge.style.cssText =
-      "all:initial;display:inline-flex!important;align-items:center;justify-content:center;" +
-      "flex:0 0 auto!important;min-width:46px;height:24px;box-sizing:border-box!important;" +
-      "margin:0 7px;padding:0 8px;border-radius:7px!important;" +
-      `background:${accent}!important;color:#fff;font:600 13px/1 Arial,sans-serif;` +
-      "font-variant-numeric:tabular-nums;letter-spacing:.1px;white-space:nowrap;vertical-align:middle;";
+      "all:initial;display:inline-block!important;flex:0 0 auto!important;min-width:34px;" +
+      "box-sizing:border-box!important;margin:0 8px;padding:0!important;border:0!important;" +
+      "border-radius:0!important;box-shadow:none!important;background:transparent!important;" +
+      `color:${accent}!important;font:700 15px/1.2 Arial,sans-serif;` +
+      "font-variant-numeric:tabular-nums;text-align:right;letter-spacing:.1px;" +
+      "white-space:nowrap;vertical-align:middle;";
     const text = normalized.toFixed(1);
     const description = `綜合評分 ${text} / 100（視覺＋地點與日期；不是正確率）`;
     badge.setAttribute("aria-label", description);

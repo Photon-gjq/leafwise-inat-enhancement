@@ -50,7 +50,7 @@
 - 官方回應目前以 0–1 表示 combined_score；bridge 乘以 100 後交給介面。為相容既有／替代回應，>1–100 保留原值；其他型別、非有限數及範圍外值拒絕。
 - 分數不是校準後的「正確率」。介面可顯示相對分數，但文件與文案不得把它描述為真實準確率。
 - 候選和分數一律按 taxon ID 配對，不能按陣列位置或畫面順序配對。
-- 只有原生候選 isVisionResult === true 且分數是 0–100 的有限數字時才顯示／使用分數。
+- 只有原生候選 `isVisionResult === true`（或由同一欄位產生的官方 `.ac.vision` DOM 標記）且分數是 0–100 的有限數字時才顯示／使用分數。
 
 ## 3. 倉庫結構與真實來源
 
@@ -127,11 +127,11 @@ vision-score-bridge.js 在 document_start 的 MAIN world 被動包裝頁面原�
 - 只取明確的 combined_score，將 0–1 乘以 100，>1–100 保留，拒絕 vision_score、字串、非有限與範圍外值；
 - 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、taxon ID 及正規化分數的 JSON 字串。
 
-vision-score-data.js 以 taxon ID 儲存／合併分數；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。上傳 adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理。
+vision-score-data.js 以 taxon ID 儲存／合併分數；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。上傳 adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 在每個數字 ID 詳情頁保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理；若隔離環境無法讀 jQuery 候選資料，改以官方由 `isVisionResult` 產生的 `.ac.vision` DOM class 判定視覺候選，仍按 `data-taxon-id` 配對，不能替手動搜尋列補分。
 
-vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：一位小數、無百分號、約 46×24 px 膠囊、3 px 左側色條，使用紅／棕／綠三段色階。沒有有效分數時要移除 Leafwise 色條與標記，不顯示佔位。
+vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：只顯示一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，使用紅／棕／綠連續色階。沒有有效分數時要移除 Leafwise 標記，不顯示佔位。
 
-兩個 adapter 都從原生 DOM 上的 data-taxon-id 取得 ID，再與 jQuery data 的 ui-autocomplete-item 或 item.autocomplete 物件 ID 交叉驗證。不能用候選下標推算分數。
+兩個 adapter 都從原生 DOM 上的 `data-taxon-id` 取得 ID；上傳頁再與 jQuery data 的 `ui-autocomplete-item` 或 `item.autocomplete` 物件 ID 交叉驗證，觀察詳情頁在可讀時也交叉驗證，否則只接受官方 `.ac.vision` 候選。不能用候選下標推算分數。
 
 ### 6.2 上傳頁批次 AI
 
@@ -263,7 +263,7 @@ npm run test:layout -- --project=edge-layout
 - 高階分類：單地、多地、全球；目／科／屬；至少逐列核對一個 Leaf taxa。
 - 上傳 AI：高分、低分、手動 taxon、自由文字；預覽不修改；停止及外部操作中斷；新增照片的自動模式。
 - 個人次數：未登入不顯示；分類頁多個 scoped link；觀察頁原地換 taxon；慢舊請求不得污染新 taxon。
-- 觀察建議：原生選單異步出現／重畫／離開頁面後清理；無效分數不留色條。
+- 觀察建議：原生選單異步出現／重畫／離開頁面後清理；jQuery 資料可讀與不可讀兩條路徑；手動搜尋列與無效分數不留標記。
 
 報告必須區分：
 
@@ -293,7 +293,7 @@ npm run test:layout -- --project=edge-layout
 
 - .navtab.user、a.observations_link、a.profile_link
 - 上傳頁 .uploader #imageGrid、原生「全選」區域、觀察卡片與 taxon autocomplete
-- jQuery data key：ui-autocomplete-item、item.autocomplete
+- jQuery data key：ui-autocomplete-item、item.autocomplete；觀察詳情的官方 TaxonAutocomplete 也會把 `isVisionResult` 映射為 `.ac.vision`
 - 候選欄位：id、isVisionResult、visionScore／vision_score、confident、ancestor
 - fetch／XHR 的 `/v1`、`/v2` computervision score_image／score_observation URL、JSON 回應形狀與 combined_score
 

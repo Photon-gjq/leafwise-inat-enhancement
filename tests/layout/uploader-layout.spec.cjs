@@ -177,7 +177,7 @@ test('expanded panel state survives a page reload',async({page},testInfo)=>{
   await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
 });
 
-test('combined score is a compact readable chip rather than a large percentage oval',async({page},testInfo)=>{
+test('combined score is a plain colored number without a chip or row accent',async({page},testInfo)=>{
   await load(page);
   const target=testInfo.project.name.split('-')[0];
   const directory=path.resolve(__dirname,'../../build',target,'scripts');
@@ -190,6 +190,36 @@ test('combined score is a compact readable chip rather than a large percentage o
   });
   const badge=page.locator('.leafwise-ai-score');
   await expect(badge).toHaveText('81.9');
-  const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(60);expect(box.height).toBe(24);
+  const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(55);expect(box.height).toBeLessThanOrEqual(20);
+  const appearance=await badge.evaluate(element=>{const css=getComputedStyle(element);return{background:css.backgroundColor,border:css.borderTopWidth,radius:css.borderRadius,color:css.color}});
+  expect(appearance.background).toBe('rgba(0, 0, 0, 0)');expect(appearance.border).toBe('0px');expect(appearance.radius).toBe('0px');
+  expect(appearance.color).not.toBe('rgb(255, 255, 255)');
+  await expect(page.locator('#score-row')).not.toHaveClass(/leafwise-ai-score-row/);
+  await expect(page.locator('#leafwise-vision-score-css')).toHaveCount(0);
   expect(await badge.textContent()).not.toContain('%');
+});
+
+test('observation detail shows scores from the official vision DOM marker without jQuery data',async({page},testInfo)=>{
+  const detail=`<!doctype html><meta charset="utf-8"><style>
+    body{font:16px Arial;background:#fff}.id_tab{width:660px;margin:30px}.ac-menu{display:block;margin:0;padding:0;border:1px solid #ccc}
+    .ac-result{display:flex;min-height:70px;border-bottom:1px solid #ddd;list-style:none}.ac{display:flex;align-items:center;width:100%}
+    .ac-label{flex:1;padding:10px}.ac-view{margin-left:auto;padding:20px}
+  </style><body><div class="id_tab"><ul class="ac-menu taxon-autocomplete">
+    <li class="ac-result"><div class="ac vision" data-taxon-id="42"><div class="ac-label">林夜鹰 · Savanna Nightjar</div><a class="ac-view">查看</a></div></li>
+    <li class="ac-result manual"><div class="ac" data-taxon-id="43"><div class="ac-label">手动搜索结果</div><a class="ac-view">查看</a></div></li>
+  </ul></div><script>
+    window.LeafwiseVisionScores={value:(_raw,id,ids)=>id===42&&ids.join(',')==='42,43'?82.5:null};
+    window.LeafwiseUploadPageData=()=>null;
+  </script>`;
+  await page.route('https://www.inaturalist.org/observations/400958933',route=>route.fulfill({body:detail,contentType:'text/html'}));
+  await page.goto('https://www.inaturalist.org/observations/400958933');
+  const target=testInfo.project.name.split('-')[0];
+  const directory=path.resolve(__dirname,'../../build',target,'scripts');
+  await page.addScriptTag({path:path.join(directory,'vision-score-style.js')});
+  await page.addScriptTag({path:path.join(directory,'observation-ai-adapter.js')});
+  const score=page.locator('.ac.vision .leafwise-ai-score');
+  await expect(score).toHaveText('82.5');
+  await expect(page.locator('.manual .leafwise-ai-score')).toHaveCount(0);
+  const appearance=await score.evaluate(element=>{const css=getComputedStyle(element);return{background:css.backgroundColor,radius:css.borderRadius,color:css.color}});
+  expect(appearance.background).toBe('rgba(0, 0, 0, 0)');expect(appearance.radius).toBe('0px');expect(appearance.color).not.toBe('rgb(255, 255, 255)');
 });

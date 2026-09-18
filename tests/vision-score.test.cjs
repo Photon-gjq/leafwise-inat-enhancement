@@ -199,9 +199,10 @@ test('response store normalizes raw combined_score and matches taxon IDs, never 
   assert.equal(store.value({ id: 88, combinedScore: 100, visionScore: 100, vision_score: 1 }, 88, [88]), null);
 });
 
-test('compact score style uses one decimal without a percent sign', () => {
+test('score style uses a colored number without a chip, row accent, or percent sign', () => {
   const properties = new Map();
-  const row = { classList: { add() {}, remove() {} }, style: {
+  const removedClasses = [];
+  const row = { classList: { add() {}, remove: name => removedClasses.push(name) }, style: {
     setProperty: (name, value) => properties.set(name, value), removeProperty: name => properties.delete(name)
   } };
   const badge = { style: {}, setAttribute() {}, textContent: '', parentElement: null };
@@ -212,5 +213,10 @@ test('compact score style uses one decimal without a percent sign', () => {
   assert.equal(style.decorate(result, row, 81.94), badge);
   assert.equal(badge.textContent, '81.9');
   assert.equal(badge.textContent.includes('%'), false);
-  assert.match(properties.get('--leafwise-score-accent'), /^rgb\(/);
+  assert.match(badge.style.cssText, /background:transparent!important/);
+  assert.match(badge.style.cssText, /border:0!important/);
+  assert.match(badge.style.cssText, /border-radius:0!important/);
+  assert.match(badge.style.cssText, new RegExp(`color:${style.color(81.94).replace(/[()]/g, '\\$&')}!important`));
+  assert.equal(properties.has('--leafwise-score-accent'), false);
+  assert.ok(removedClasses.includes('leafwise-ai-score-row'));
 });

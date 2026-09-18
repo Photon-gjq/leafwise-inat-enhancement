@@ -13,7 +13,7 @@
 
 `src/manifest.json` 不保存版本或背景瀏覽器設定。`platforms/chrome.json` 與 `platforms/firefox.json` 覆加各自設定；頁面資料適配器是各自約十行的 `*-page-data.js`。Edge 建置目標直接共用 `platforms/chrome.json` 及 `chrome-page-data.js`，不另複製一份平台設定；Chrome／Edge 的擴充內容逐檔一致。其餘上傳判定、DOM 適配、介面、高階分類及快取均為共用程式。
 
-頁面一開始先在 MAIN 環境載入 `vision-score-bridge`。它只包裝頁面原有的 `fetch` 與 `XMLHttpRequest`，並只旁讀 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`（可帶數字 ID）回應；fetch 使用 `Response.clone()`，XHR 只讀 JSON，原請求、回應與回傳值均不改動，也不新增網路請求。舊頁面若仍暴露 `window.inaturalistjs` 可走相容包裝，但功能不依賴該全域。bridge 只取明確的 `combined_score`：0–1 乘以 100，>1–100 保留，其他值與 `vision_score` 拒絕；再以字串 CustomEvent 傳送分類 ID 與分數。介面端載入順序為：分數資料 → 共用分數樣式 → 規則 core（僅上傳）→ 平台 page-data → 頁面 adapter → panel（僅上傳）。候選始終按 ID 配對，不按顯示順序；遲到事件會觸發現有上傳選單重掃。平台 helper 只取得現有元件資料，沒有擴充通訊權限。core 仍可在 Node 測試。
+頁面一開始先在 MAIN 環境載入 `vision-score-bridge`。它只包裝頁面原有的 `fetch` 與 `XMLHttpRequest`，並只旁讀 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`（可帶數字 ID）回應；fetch 使用 `Response.clone()`，XHR 只讀 JSON，原請求、回應與回傳值均不改動，也不新增網路請求。舊頁面若仍暴露 `window.inaturalistjs` 可走相容包裝，但功能不依賴該全域。bridge 只取明確的 `combined_score`：0–1 乘以 100，>1–100 保留，其他值與 `vision_score` 拒絕；再以字串 CustomEvent 傳送分類 ID 與分數。介面端載入順序為：分數資料 → 共用分數樣式 → 規則 core（僅上傳）→ 平台 page-data → 頁面 adapter → panel（僅上傳）。候選始終按 ID 配對，不按顯示順序；遲到事件會觸發現有選單重掃。觀察詳情 adapter 優先讀原生候選資料，讀不到跨 world 的 jQuery 快取時可使用官方由 `isVisionResult` 產生的 `.ac.vision` 標記，但仍須以 DOM taxon ID 配對分數。平台 helper 只取得現有元件資料，沒有擴充通訊權限。core 仍可在 Node 測試。
 
 功能测试對 `build/chrome`、`build/edge` 和 `build/firefox` 各執行一次，包含背景事件及訊息處理。建置測試驗證相同權限、Firefox 既有 ID、manifest 引用、載入順序、版本一致及除平台差異外的功能程式一致性。
 

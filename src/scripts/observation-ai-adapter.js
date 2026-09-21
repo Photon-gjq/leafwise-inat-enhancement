@@ -8,6 +8,7 @@
   const MENU = "ul.ac-menu.taxon-autocomplete,ul.ui-autocomplete,[role='listbox']";
 
   function active() { return PATH.test(root.location?.pathname || ""); }
+  function scoreScope() { return `page:${root.location?.pathname || "/"}`; }
   function visible(element) {
     if (!element?.isConnected || element.hidden) return false;
     const css = root.getComputedStyle?.(element);
@@ -39,7 +40,7 @@
         if (!Number.isSafeInteger(id) || id <= 0) continue;
         const data = raw(item, result);
         const value = vision(data, result, id)
-          ? scores.value(data, id, ids)
+          ? scores.value(data, id, ids, scoreScope())
           : null;
         style.decorate(result, item.matches("li") ? item : result.closest("li"), value);
         if (value !== null) count++;
@@ -48,7 +49,7 @@
     return count;
   }
 
-  const api = { active, visible, vision, scan };
+  const api = { active, scoreScope, visible, vision, scan };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   if (!root.document?.body || !active()) return;
   let pending = false;

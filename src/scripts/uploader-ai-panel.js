@@ -89,16 +89,24 @@
       signal.addEventListener("abort", abort, { once: true });
     });
   }
-  async function waitForSuggestions(id, originalSignature, signal) {
+  async function waitForSuggestions(id, originalSignature, signal, requireScore = false) {
     const deadline = Date.now() + 30000;
+    let scoreDeadline = null, lastSnapshot = null;
     while (Date.now() < deadline) {
       check(signal);
       const card = a.find(id);
       if (!a.editable(card) || a.signature(card) !== originalSignature) throw new Error("卡片內容已改變，已略過以保留你的編輯");
       const snapshot = a.read(card, true);
-      if (snapshot) return snapshot;
+      if (snapshot) {
+        lastSnapshot = snapshot;
+        const best = snapshot.items.find(item => item?.vision === true && !item.ancestor);
+        if (!requireScore || !best || core.score(best.score) !== null || snapshot.scoreState === "ready") return snapshot;
+        scoreDeadline ||= Date.now() + 4000;
+        if (Date.now() >= scoreDeadline) return snapshot;
+      }
       await delay(100, signal);
     }
+    if (lastSnapshot) return lastSnapshot;
     throw new Error("30 秒內未取得建議；請檢查照片載入、登入或網路後重試");
   }
   async function run(preview = false, autoRun = false) {
@@ -125,7 +133,7 @@
         if (!a.hasPhoto(card)) { skipped++; log(id, null, "略過：沒有已載入的照片（空白／音訊卡片）"); continue; }
         try {
           a.open(card);
-          const snapshot = await waitForSuggestions(id, original, signal);
+          const snapshot = await waitForSuggestions(id, original, signal, opts.mode === "score");
           const decision = core.decide(snapshot, opts);
           check(signal);
           if (!decision.apply || preview) {

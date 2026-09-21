@@ -201,6 +201,40 @@ test('combined score is a plain colored number without a chip or row accent',asy
   expect(await badge.textContent()).not.toContain('%');
 });
 
+test('uploader v2 multipart scores stay with their card and survive reopening the cached menu',async({page},testInfo)=>{
+  const row=id=>`<li class="ac-result"><div class="ac vision" data-taxon-id="${id}"><span class="title">Taxon ${id}</span><a class="ac-view">查看</a></div></li>`;
+  const card=(id,marked='')=>`<div class="ObsCardComponent"><div class="card" data-id="${id}" ${marked}><div class="TaxonAutocomplete"><input name="taxon_name"><input name="taxon_id"><ul class="ac-menu taxon-autocomplete">${row(42)}</ul></div></div></div>`;
+  const uploader=`<!doctype html><meta charset="utf-8"><style>
+    body{font:16px Arial}.card{display:inline-block;vertical-align:top;width:380px;margin:20px}.ac-menu{display:block}.ac-result{display:flex;min-height:80px}.ac{display:flex;width:100%;align-items:flex-start}.title{flex:1}.ac-view{align-self:center}
+  </style><body>${card('a','data-leafwise-vision-request="true"')}${card('b')}
+  <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');return result?{id:Number(result.dataset.taxonId),isVisionResult:true,isCommonAncestor:false}:null}</script>`;
+  await page.route('https://www.inaturalist.org/observations/upload',route=>route.fulfill({body:uploader,contentType:'text/html'}));
+  let multipart='';
+  await page.route('https://api.inaturalist.org/v2/computervision/score_image',async route=>{
+    multipart=route.request().postData()||'';
+    const results=multipart.includes('combined_score')?[{taxon:{id:42},combined_score:0.825}]:[{taxon:{id:42},vision_score:0.9}];
+    await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
+  });
+  await page.goto('https://www.inaturalist.org/observations/upload');
+  const target=testInfo.project.name.split('-')[0];
+  const directory=path.resolve(__dirname,'../../build',target,'scripts');
+  for(const script of ['vision-score-data.js','vision-score-style.js','vision-score-bridge.js','uploader-ai-core.js','uploader-ai-adapter.js']){
+    await page.addScriptTag({path:path.join(directory,script)});
+  }
+  await page.evaluate(async()=>{
+    const body=new FormData();
+    body.append('fields',JSON.stringify({frequency_score:true,vision_score:true,taxon:{id:true}}));
+    body.append('image','thumbnail');
+    await fetch('https://api.inaturalist.org/v2/computervision/score_image',{method:'POST',body});
+  });
+  expect(multipart).toContain('combined_score');
+  const first=page.locator('.card[data-id="a"] .leafwise-ai-score');
+  await expect(first).toHaveText('82.5');
+  await expect(page.locator('.card[data-id="b"] .leafwise-ai-score')).toHaveCount(0);
+  await page.evaluate(()=>{document.querySelector('.card[data-id="a"] .leafwise-ai-score').remove();LeafwiseUploadAdapter.scanScores()});
+  await expect(first).toHaveText('82.5');
+});
+
 test('observation detail shows scores from the official vision DOM marker without jQuery data',async({page},testInfo)=>{
   const detail=`<!doctype html><meta charset="utf-8"><style>
     body{font:16px Arial;background:#fff}.id_tab{width:660px;margin:30px}.ac-menu{display:block;margin:0;padding:0;border:1px solid #ccc}

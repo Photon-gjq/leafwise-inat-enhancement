@@ -5,9 +5,11 @@
   const scores = root.LeafwiseVisionScores;
   const SCORE_EVENT = "leafwise:cv-combined-scores";
   const SCORE_LISTENER = Symbol.for("leafwise.upload.scoreListener");
+  const REQUEST_MARKER = "data-leafwise-vision-request";
   const cardSelector = ".ObsCardComponent .card[data-id]";
   const cards = () => Array.from(document.querySelectorAll(cardSelector));
   const key = card => card.getAttribute("data-id");
+  const scope = card => card && key(card) ? `card:${key(card)}` : null;
   const find = id => cards().find(card => key(card) === id);
   const chooser = card => card?.querySelector(".TaxonAutocomplete");
   const input = card => chooser(card)?.querySelector("input[name='taxon_name']");
@@ -36,10 +38,13 @@
   function close(card) {
     try { widget(card)?.close(); } catch { /* A React replacement may destroy it. */ }
     if (document.activeElement === input(card)) input(card).blur();
+    card?.removeAttribute?.(REQUEST_MARKER);
   }
   function open(card) {
     if (!editable(card)) throw new Error("卡片已移除、上傳中或尚未就緒");
     for (const other of cards()) if (other !== card && visible(menu(other))) close(other);
+    for (const other of cards()) other.removeAttribute?.(REQUEST_MARKER);
+    card.setAttribute(REQUEST_MARKER, "true");
     const field = input(card);
     const ac = widget(card);
     if (ac && typeof ac.search === "function") {
@@ -80,7 +85,7 @@
       try {
         if (raw && raw.id === id && raw.isVisionResult === true) {
           ancestor = raw.isCommonAncestor === true;
-          value = core.score(scores?.value(raw, id, visibleIds));
+          value = core.score(scores?.value(raw, id, visibleIds, scope(card)));
         }
       } catch { /* Fall back to the visible official category structure. */ }
       if (ancestor) confident = true;
@@ -92,7 +97,8 @@
       }
     }
     if (!items.length && /not confident|没有足够|沒有足夠|没有信心|沒有信心/i.test(list.textContent)) return { items: [], confident: false };
-    return items.length ? { items, confident: confident || confidentDOM } : null;
+    return items.length ? { items, confident: confident || confidentDOM,
+      scoreState: scores?.state?.(scope(card)) || "unknown" } : null;
   }
   function click(card, id) {
     const list = menu(card);
@@ -131,7 +137,7 @@
     target.addEventListener?.("pagehide", cleanup, { once: true });
     return state;
   }
-  root.LeafwiseUploadAdapter = { cards, key, find, input, taxonID, filled, signature, editable, hasPhoto,
+  root.LeafwiseUploadAdapter = { cards, key, scope, find, input, taxonID, filled, signature, editable, hasPhoto,
     menu, visible, open, close, read, click, scanScores, installScoreListener };
   if (/^\/observations\/upload\/?$/.test(root.location?.pathname || "")) installScoreListener();
 })(globalThis);

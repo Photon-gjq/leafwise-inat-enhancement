@@ -27,7 +27,21 @@
 
   function createStore(now = () => Date.now()) {
     const responses = [];
+    const scoped = new Map();
+    function touch(scope, response) {
+      scoped.delete(scope);
+      scoped.set(scope, response);
+    }
     function add(payload) {
+      const scope = typeof payload?.scope === "string" && payload.scope ? payload.scope : null;
+      const requestId = Number(payload?.requestId) || 0;
+      if (scope && payload?.state === "pending") {
+        const current = scoped.get(scope);
+        if (!current || requestId >= current.requestId) {
+          touch(scope, { state: "pending", requestId, capturedAt: Number(payload?.capturedAt) || now(), scores: new Map() });
+        }
+        return true;
+      }
       const entries = Array.isArray(payload?.scores) ? payload.scores : [];
       const scores = new Map();
       for (const entry of entries) {
@@ -35,14 +49,30 @@
         const value = score(entry?.combinedScore);
         if (Number.isSafeInteger(id) && id > 0 && value !== null) scores.set(id, value);
       }
+      const response = { state: "ready", requestId, scores, capturedAt: Number(payload?.capturedAt) || now() };
+      if (scope) {
+        const current = scoped.get(scope);
+        if (current && requestId < current.requestId) return false;
+        touch(scope, response);
+        return true;
+      }
       if (!scores.size) return false;
-      responses.unshift({ scores, capturedAt: Number(payload?.capturedAt) || now() });
+      responses.unshift(response);
       responses.splice(MAX_RESPONSES);
       return true;
     }
-    function value(raw, taxonId, visibleIds = []) {
+    function state(scope) {
+      return typeof scope === "string" ? scoped.get(scope)?.state || "unknown" : "unknown";
+    }
+    function value(raw, taxonId, visibleIds = [], scope = null) {
       const own = direct(raw, taxonId);
       if (own !== null) return own;
+      if (typeof scope === "string" && scope) {
+        const response = scoped.get(scope);
+        return response?.state === "ready" && response.scores.has(taxonId)
+          ? response.scores.get(taxonId)
+          : null;
+      }
       const visible = new Set(visibleIds.map(Number).filter(Number.isSafeInteger));
       let best = null;
       for (const response of responses) {
@@ -53,7 +83,7 @@
       }
       return best ? best.response.scores.get(taxonId) : null;
     }
-    return { add, value, direct, score, responses };
+    return { add, value, state, direct, score, responses, scoped };
   }
 
   const store = createStore();
@@ -62,6 +92,7 @@
   };
   root.addEventListener?.(EVENT_NAME, receive);
   root.addEventListener?.("pagehide", () => root.removeEventListener?.(EVENT_NAME, receive), { once: true });
-  root.LeafwiseVisionScores = Object.freeze({ add: store.add, value: store.value, direct, score, combinedScore });
+  root.LeafwiseVisionScores = Object.freeze({ add: store.add, value: store.value, state: store.state,
+    direct, score, combinedScore });
   if (typeof module !== "undefined" && module.exports) module.exports = { createStore, direct, score, combinedScore };
 })(globalThis);

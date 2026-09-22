@@ -257,6 +257,8 @@ $env:LEAFWISE_EDGE_TESTS='1'
 npm run test:layout -- --project=edge-layout
 ~~~
 
+GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，避免 Firefox 與已安裝 Edge 同時啟動時的資源競爭造成假性逾時；其他環境預設使用兩個 worker。
+
 ### 依變更範圍的最低人工驗收
 
 - 設定／儲存：三瀏覽器保存、重開、舊資料相容。

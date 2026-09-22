@@ -3,7 +3,10 @@ const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './tests/layout',
   timeout: 20000,
-  workers: 2,
+  // GitHub's Windows runner launches Firefox and installed Edge more reliably
+  // in sequence. Parallel browser startups have repeatedly exhausted the
+  // 20-second per-test budget despite the same cases passing independently.
+  workers: process.env.CI && process.platform === 'win32' ? 1 : 2,
   reporter: 'list',
   use: { headless: true, screenshot: 'only-on-failure', trace: 'retain-on-failure' },
   projects: [

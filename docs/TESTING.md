@@ -22,7 +22,7 @@ npm run package
 
 ## Edge 驗證（0.11.1 起）
 
-Edge 是獨立建置／打包目標，測試會逐檔確認它與 Chrome 擴充內容一致，包含 MAIN 注入、service worker、權限與語系。Windows CI 另外用已安裝的 Microsoft Edge 執行 19 項介面案例；加上 Chromium、Firefox 共 57 項，涵蓋上傳側欄、收合工具列與首排卡片刪除、停止後修改設定、具體觀察頁分數，以及對比、收藏、匯出和個人紀錄。Linux CI 驗證三個產物的功能與建置，介面測試使用 Chromium、Firefox。
+Edge 是獨立建置／打包目標，測試會逐檔確認它與 Chrome 擴充內容一致，包含 MAIN 注入、service worker、權限與語系。Windows CI 另外用已安裝的 Microsoft Edge 執行 19 項介面案例；加上 Chromium、Firefox 共 57 項，涵蓋上傳側欄、收合工具列與首排卡片刪除、停止後修改設定、具體觀察頁分數，以及對比、收藏、匯出和個人紀錄。Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，避免 Firefox 與 Edge 同時啟動時的資源競爭造成假性逾時；其他環境保留兩個 worker。Linux CI 驗證三個產物的功能與建置，介面測試使用 Chromium、Firefox。
 
 本機已安裝 Edge 時，在 PowerShell 可單獨執行：
 

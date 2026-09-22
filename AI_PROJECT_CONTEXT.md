@@ -146,7 +146,7 @@ uploader-ai-adapter.js 只透過真實原生建議列完成選取，不直接偽
 
 uploader-ai-panel.js：
 
-- 預設收合在原生「全選」右側；快捷按鈕直接執行，不同時展開。
+- 預設收合在原生「全選」右側；收合 host 直接掛在 `.nav_add_obs` 並以絕對定位脫離排版流，不能插入內層窄版 navbar form 而撐高高層級工具列、遮住首排卡片控制項；快捷按鈕直接執行，不同時展開。
 - 展開後移回 .uploader #imageGrid；狀態存在頁面 localStorage 的 leafwise-upload-ai-panel-open。
 - 順序處理，項目間隔約 1.2 秒，單項建議等候上限 30 秒。
 - 支援預覽、停止、自動處理、明細；執行中完整按鈕與快捷按鈕都禁用。

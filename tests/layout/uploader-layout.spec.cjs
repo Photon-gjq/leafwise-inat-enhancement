@@ -8,8 +8,9 @@ const fixture = `<!doctype html><meta charset="utf-8"><title>Uploader layout reg
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eee;font:14px Arial;color:#333}
 .site-header{position:fixed;top:0;height:52px;left:0;right:0;background:white;z-index:1001;padding:15px;font-size:20px}
-.nav_add_obs{position:fixed;top:52px;height:50px;left:0;right:0;z-index:1000;background:white;padding:12px 20px}
-.uploader{margin-top:100px}.uploader>.container-fluid{margin-top:20px;padding:0 20px}
+.nav_add_obs{position:fixed;top:52px;min-height:50px;left:0;right:0;z-index:1000;background:white;padding:0 20px}
+.nav_add_obs>.container-fluid{min-height:50px}.nav_add_obs ul{list-style:none;margin:0;padding:0}.nav_add_obs .select{float:left;width:120px}.navbar-form{margin:9px 0}
+.uploader{margin-top:140px}.uploader>.container-fluid{margin-top:20px;padding:0 20px}
 .row-fluid .col-fixed-250{width:250px;overflow:visible;position:fixed;z-index:10}
 .row-fluid .col-offset-290{margin-left:275px;position:inherit}
 .left-col-padding{padding-left:5px;padding-right:10px}.head{font-size:18px}
@@ -18,11 +19,11 @@ input,button{font:inherit}input{height:32px;padding:5px;width:100%}.field{margin
 .days{display:grid;grid-template-columns:repeat(7,1fr)}.days button{height:34px;border:0;background:white;cursor:pointer}
 .time-fields{display:flex;gap:8px}.time-fields input{width:60px}.calendar[hidden]{display:none}
 #imageGridObs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px;padding:3px}
-.card{height:260px;background:white;border:3px solid #74ac00;border-radius:5px;padding:15px}
+.card{position:relative;height:260px;background:white;border:3px solid #74ac00;border-radius:5px;padding:15px}.remove-card{position:absolute;right:-12px;top:-12px;width:28px;height:28px;border:0;border-radius:50%;background:#555;color:white;z-index:2}
 .photo{height:150px;background:#dce8d4;display:grid;place-items:center}
 </style><body>
 <header class="site-header">iNaturalist · layout test</header><div class="uploader">
-<nav class="nav_add_obs"><label><input style="width:auto;height:auto" id="select-all" type="checkbox" checked>全選 410 份觀察</label></nav>
+<nav class="nav_add_obs"><div class="container-fluid"><ul><li class="select"><form class="navbar-form"><input style="width:auto;height:auto" id="select-all" type="checkbox" checked><label for="select-all">全選 410 份觀察</label></form></li></ul></div></nav>
 <div class="container-fluid"><div class="row-fluid">
 <aside class="col-fixed-250 leftColumn"><div class="left-col-padding"><p class="head">正在編輯 410 份觀察</p><p>詳情</p>
 <div class="field"><input aria-label="物種名稱" value="手動保留"></div>
@@ -30,13 +31,14 @@ input,button{font:inherit}input{height:32px;padding:5px;width:100%}.field{margin
 <div class="calendar" hidden><p>八月 2026</p><div class="days">${Array.from({length:31},(_,i)=>`<button type="button" data-day="${i+1}">${i+1}</button>`).join('')}</div>
 <div class="time-fields"><label>時<input aria-label="小時" value="18"></label><label>分<input aria-label="分鐘" value="30"></label><button id="save-time" type="button">確定</button></div></div></div>
 <div class="field"><input aria-label="批次地點" placeholder="位置"></div></div></aside>
-<div id="imageGrid" class="col-offset-290 col-md-12"><div id="imageGridObs">${Array.from({length:410},(_,i)=>`<div class="ObsCardComponent"><div class="card" data-id="${i}"><div class="photo">測試觀察 ${i+1}</div><p>物種名稱</p></div></div>`).join('')}</div></div>
+<div id="imageGrid" class="col-offset-290 col-md-12"><div id="imageGridObs">${Array.from({length:410},(_,i)=>`<div class="ObsCardComponent"><div class="card" data-id="${i}"><button class="remove-card" type="button" aria-label="移除觀察 ${i+1}">×</button><div class="photo">測試觀察 ${i+1}</div><p>物種名稱</p></div></div>`).join('')}</div></div>
 </div></div></div>
 <script>
 const date = document.querySelector('#batch-date');
 date.addEventListener('click',()=>document.querySelector('.calendar').hidden=false);
 document.querySelectorAll('[data-day]').forEach(button=>button.addEventListener('click',()=>date.value='2026/08/'+button.dataset.day.padStart(2,'0')+' 18:30'));
 document.querySelector('#save-time').addEventListener('click',()=>{date.value=date.value.slice(0,10)+' '+document.querySelector('[aria-label=小時]').value+':'+document.querySelector('[aria-label=分鐘]').value;document.querySelector('.calendar').hidden=true});
+document.querySelector('#imageGridObs').addEventListener('click',event=>event.target.closest('.remove-card')?.closest('.ObsCardComponent')?.remove());
 // Like the uploader's unselectAll: shadow controls retarget to their host.
 document.body.addEventListener('click',event=>{if(!event.target.closest('a,.card,button,.leftColumn,.calendar,.nav_add_obs,input,.form-group,select'))document.querySelector('#select-all').checked=false});
 // Reproduce the uploader's jQuery UI selectable mousedown cancellation.
@@ -166,6 +168,27 @@ test('collapsed quick action runs directly without opening the full panel',async
   await panel.getByRole('button',{name:'一鍵套用 AI 首選',exact:true}).click();
   await expect(panel).toHaveAttribute('data-open','false');
   await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
+});
+
+test('collapsed toolbar stays one row high and does not cover first-row remove controls',async({page},testInfo)=>{
+  await page.setViewportSize({width:1280,height:720});
+  await load(page);
+  const toolbarBefore=await page.locator('.nav_add_obs').boundingBox();
+  await inject(page,testInfo);
+  const panel=page.locator('#leafwise-upload-ai');
+  await expect(panel).toHaveAttribute('data-open','false');
+  await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
+  const toolbar=await page.locator('.nav_add_obs').boundingBox();
+  expect(toolbar.height).toBeLessThanOrEqual(toolbarBefore.height+1);
+  const remove=page.getByRole('button',{name:'移除觀察 1',exact:true});
+  const hit=await remove.evaluate(button=>{
+    const box=button.getBoundingClientRect();
+    const target=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
+    return target===button||button.contains(target);
+  });
+  expect(hit).toBe(true);
+  await remove.click();
+  await expect(page.locator('.ObsCardComponent')).toHaveCount(409);
 });
 
 test('expanded panel state survives a page reload',async({page},testInfo)=>{

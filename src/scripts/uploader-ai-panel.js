@@ -23,8 +23,8 @@
       .scroll{max-height:280px;overflow:auto;margin-top:7px}table{width:100%;border-collapse:collapse;font-size:12px;background:white}
       td,th{padding:6px 8px;border-bottom:1px solid #dde5d6;text-align:left;overflow-wrap:anywhere}th{position:sticky;top:0;background:#e8eedf}
       #count{font-size:12px;margin-left:10px;font-weight:normal}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #608d32;outline-offset:2px}
-      :host([data-open="false"]){display:inline-block;margin:0 0 0 12px;vertical-align:middle}
-      :host([data-open="false"]) section{padding:4px 7px;background:#f5f8ef}
+      :host([data-open="false"]){display:inline-block;position:absolute;z-index:1;left:var(--leafwise-collapsed-left,160px);top:50%;transform:translateY(-50%);margin:0;vertical-align:middle}
+      :host([data-open="false"]) section{padding:4px 7px;background:#f5f8ef;white-space:nowrap}
       :host([data-open="false"]) h2{font-size:13px}:host([data-open="false"]) #count,:host([data-open="false"]) .body{display:none}
       :host([data-open="true"]) #quick-apply{display:none}
       @media(max-width:600px){.controls{align-items:flex-start}label{flex-wrap:wrap}section{padding:10px}}
@@ -218,10 +218,21 @@
     // Only occupy the right-hand image column, and wait if it is not ready.
     const grid = document.querySelector(".uploader #imageGrid");
     const selectAll = findSelectAll();
+    const toolbar = selectAll?.closest?.(".nav_add_obs");
     if (panelOpen) {
+      host.style.removeProperty("--leafwise-collapsed-left");
       if (grid && host.parentElement !== grid) grid.prepend(host);
-    } else if (selectAll) {
-      if (host.previousElementSibling !== selectAll) selectAll.after(host);
+    } else if (toolbar && selectAll) {
+      // The select-all label lives inside a narrow navbar form. Inserting the
+      // panel beside that label makes the form wrap and increases the height
+      // of the full-width, high-z-index toolbar, which then intercepts clicks
+      // on first-row card controls. Keep the host out of that form and out of
+      // normal layout while aligning it immediately after the label.
+      if (host.parentElement !== toolbar) toolbar.append(host);
+      const toolbarRect = toolbar.getBoundingClientRect();
+      const selectRect = selectAll.getBoundingClientRect();
+      const left = Math.max(0, Math.round(selectRect.right - toolbarRect.left + 12));
+      host.style.setProperty("--leafwise-collapsed-left", `${left}px`);
     }
     const text = `本頁 ${a.cards().length} 份觀察`;
     if ($("#count").textContent !== text) $("#count").textContent = text;
@@ -238,6 +249,10 @@
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
-  window.addEventListener("pagehide", () => { cancel("頁面已離開。"); observer.disconnect(); clearTimeout(scanTimer); }, { once: true });
+  window.addEventListener("resize", mount);
+  window.addEventListener("pagehide", () => {
+    cancel("頁面已離開。"); observer.disconnect(); clearTimeout(scanTimer);
+    window.removeEventListener("resize", mount);
+  }, { once: true });
   mount(); controls();
 })();

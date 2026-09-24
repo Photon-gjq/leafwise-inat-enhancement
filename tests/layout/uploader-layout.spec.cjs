@@ -209,11 +209,11 @@ test('combined score is a plain colored number without a chip or row accent',asy
     const row=document.createElement('div');row.id='score-row';row.style.cssText='display:flex;align-items:center;width:520px;height:70px;background:white;margin:16px;padding:10px';
     row.innerHTML='<div id="score-result" style="display:flex;align-items:flex-start;flex:1;height:100%"><span class="ac-label" style="width:250px;line-height:24px">雉鸡 · Common Pheasant<br><i>Phasianus colchicus</i><br>视觉类似</span><a class="ac-view" style="align-self:center;margin-left:auto">查看</a></div>';
     document.querySelector('#imageGrid').prepend(row);
-    LeafwiseVisionScoreStyle.decorate(document.querySelector('#score-result'),row,81.94);
+    LeafwiseVisionScoreStyle.decorate(document.querySelector('#score-result'),row,{combined:81.94,vision:76.24});
   });
   const badge=page.locator('.leafwise-ai-score');
-  await expect(badge).toHaveText('81.9');
-  const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(55);expect(box.height).toBeLessThanOrEqual(20);
+  await expect(badge).toHaveText('81.9(76.2)');
+  const box=await badge.boundingBox();expect(box.width).toBeLessThanOrEqual(100);expect(box.height).toBeLessThanOrEqual(20);
   const resultBox=await page.locator('#score-result').boundingBox();
   expect(Math.abs((box.y+box.height/2)-(resultBox.y+resultBox.height/2))).toBeLessThanOrEqual(1.5);
   const appearance=await badge.evaluate(element=>{const css=getComputedStyle(element);return{background:css.backgroundColor,border:css.borderTopWidth,radius:css.borderRadius,color:css.color}});
@@ -230,12 +230,12 @@ test('uploader v2 multipart scores stay with their card and survive reopening th
   const uploader=`<!doctype html><meta charset="utf-8"><style>
     body{font:16px Arial}.card{display:inline-block;vertical-align:top;width:380px;margin:20px}.ac-menu{display:block}.ac-result{display:flex;min-height:80px}.ac{display:flex;width:100%;align-items:flex-start}.title{flex:1}.ac-view{align-self:center}
   </style><body>${card('a','data-leafwise-vision-request="true"')}${card('b')}
-  <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');return result?{id:Number(result.dataset.taxonId),isVisionResult:true,isCommonAncestor:false}:null}</script>`;
+  <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');return result?{id:Number(result.dataset.taxonId),isVisionResult:true,isCommonAncestor:false,visionScore:0.91}:null}</script>`;
   await page.route('https://www.inaturalist.org/observations/upload',route=>route.fulfill({body:uploader,contentType:'text/html'}));
   let multipart='';
   await page.route('https://api.inaturalist.org/v2/computervision/score_image',async route=>{
     multipart=route.request().postData()||'';
-    const results=multipart.includes('combined_score')?[{taxon:{id:42},combined_score:0.825}]:[{taxon:{id:42},vision_score:0.9}];
+    const results=multipart.includes('combined_score')?[{taxon:{id:42},combined_score:0.825,vision_score:0.91}]:[{taxon:{id:42},vision_score:0.91}];
     await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
   });
   await page.goto('https://www.inaturalist.org/observations/upload');
@@ -252,10 +252,41 @@ test('uploader v2 multipart scores stay with their card and survive reopening th
   });
   expect(multipart).toContain('combined_score');
   const first=page.locator('.card[data-id="a"] .leafwise-ai-score');
-  await expect(first).toHaveText('82.5');
+  await expect(first).toHaveText('82.5(91.0)');
   await expect(page.locator('.card[data-id="b"] .leafwise-ai-score')).toHaveCount(0);
   await page.evaluate(()=>{document.querySelector('.card[data-id="a"] .leafwise-ai-score').remove();LeafwiseUploadAdapter.scanScores()});
-  await expect(first).toHaveText('82.5');
+  await expect(first).toHaveText('82.5(91.0)');
+});
+
+test('uploader displays paired same-photo scores even when combined values do not match menu order',async({page},testInfo)=>{
+  const uploader=`<!doctype html><meta charset="utf-8"><style>
+    body{font:16px Arial}.card{width:440px;margin:20px}.ac-menu{display:block}.ac-result{display:flex;min-height:80px}.ac{display:flex;width:100%;align-items:flex-start}.title{flex:1}.ac-view{align-self:center}
+  </style><body><div class="ObsCardComponent"><div class="card" data-id="a"><div class="TaxonAutocomplete">
+    <input name="taxon_name"><input name="taxon_id"><ul class="ac-menu taxon-autocomplete">
+      <li class="ac-result"><div class="ac vision" data-taxon-id="7"><span class="title">Taxon 7</span><a class="ac-view">查看</a></div></li>
+      <li class="ac-result"><div class="ac vision" data-taxon-id="8"><span class="title">Taxon 8</span><a class="ac-view">查看</a></div></li>
+      <li class="ac-result"><div class="ac vision" data-taxon-id="9"><span class="title">Taxon 9</span><a class="ac-view">查看</a></div></li>
+    </ul></div></div></div>
+    <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');if(!result)return null;const id=Number(result.dataset.taxonId);return{id,isVisionResult:true,isCommonAncestor:false,visionScore:{7:0.013,8:0.283,9:0.077}[id]}}</script>`;
+  await page.route('https://www.inaturalist.org/observations/upload',route=>route.fulfill({body:uploader,contentType:'text/html'}));
+  await page.goto('https://www.inaturalist.org/observations/upload');
+  const target=testInfo.project.name.split('-')[0];
+  const directory=path.resolve(__dirname,'../../build',target,'scripts');
+  for(const script of ['vision-score-data.js','vision-score-style.js','uploader-ai-core.js','uploader-ai-adapter.js']){
+    await page.addScriptTag({path:path.join(directory,script)});
+  }
+  await page.evaluate(()=>{
+    LeafwiseVisionScores.add({scope:'page:/observations/upload',requestId:30,state:'ready',scores:[
+      {id:7,combinedScore:82,visionScore:1.3},{id:8,combinedScore:71,visionScore:28.3},{id:9,combinedScore:38,visionScore:7.7}
+    ]});
+    LeafwiseVisionScores.add({scope:'card:a',requestId:31,state:'ready',scores:[
+      {id:7,combinedScore:15.9,visionScore:1.3},{id:8,combinedScore:3.5,visionScore:28.3},{id:9,combinedScore:78.5,visionScore:7.7}
+    ]});
+    LeafwiseUploadAdapter.scanScores();
+  });
+  await expect(page.locator('[data-taxon-id="7"] .leafwise-ai-score')).toHaveText('15.9(1.3)');
+  await expect(page.locator('[data-taxon-id="8"] .leafwise-ai-score')).toHaveText('3.5(28.3)');
+  await expect(page.locator('[data-taxon-id="9"] .leafwise-ai-score')).toHaveText('78.5(7.7)');
 });
 
 test('observation detail shows scores from the official vision DOM marker without jQuery data',async({page},testInfo)=>{
@@ -272,7 +303,7 @@ test('observation detail shows scores from the official vision DOM marker withou
   await page.route(`https://api.inaturalist.org/v2/computervision/score_observation/${uuid}*`,async route=>{
     const fields=new URL(route.request().url()).searchParams.get('fields')||'';
     const results=fields.includes('combined_score:!t')
-      ? [{taxon:{id:42},combined_score:0.825},{taxon:{id:43},combined_score:0.034}]
+      ? [{taxon:{id:42},combined_score:0.825,vision_score:0.91},{taxon:{id:43},combined_score:0.034,vision_score:0.8}]
       : [{taxon:{id:42},vision_score:0.9},{taxon:{id:43},vision_score:0.8}];
     await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
   });
@@ -288,7 +319,7 @@ test('observation detail shows scores from the official vision DOM marker withou
     await fetch(`https://api.inaturalist.org/v2/computervision/score_observation/${uuid}?fields=${encodeURIComponent(fields)}`);
   },{uuid,fields});
   const score=page.locator('.ac.vision .leafwise-ai-score');
-  await expect(score).toHaveText('82.5');
+  await expect(score).toHaveText('82.5(91.0)');
   await expect(page.locator('.manual .leafwise-ai-score')).toHaveCount(0);
   const scoreBox=await score.boundingBox();
   const resultBox=await page.locator('.ac.vision').boundingBox();

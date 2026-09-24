@@ -37,7 +37,7 @@ function target(extra = {}) {
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const ready = events => events.find(event => event.state === 'ready');
 
-test('bridge normalizes only explicit combined_score values and preserves response objects', () => {
+test('bridge keeps paired combined and vision scores but requires explicit combined_score', () => {
   const page = target();
   const events = [];
   page.addEventListener(bridge.EVENT_NAME, event => events.push(JSON.parse(event.detail)));
@@ -51,7 +51,9 @@ test('bridge normalizes only explicit combined_score values and preserves respon
   assert.equal(bridge.capture(response, page), response);
   assert.equal(response.results[0].taxon.leafwiseCombinedScore, undefined);
   assert.deepEqual(events[0].scores, [
-    { id: 11, combinedScore: 81.94 }, { id: 12, combinedScore: 0 }, { id: 13, combinedScore: 72 }
+    { id: 11, combinedScore: 81.94, visionScore: 99 },
+    { id: 12, combinedScore: 0, visionScore: 99 },
+    { id: 13, combinedScore: 72 }
   ]);
   assert.equal(bridge.validScore(1), 100);
   assert.equal(bridge.validScore(1.01), 1.01);
@@ -110,7 +112,7 @@ test('API v2 observation field projections gain combined_score without an extra 
 test('API v2 observation JSON field projections are cloned and augmented without mutating caller input', async () => {
   const uuid = '9fd4c85a-95e3-4fc7-ae61-c46675021754';
   const url = `https://api.inaturalist.org/v2/computervision/score_observation/${uuid}`;
-  const body = JSON.stringify({ locale: 'zh-CN', fields: { frequency_score: true, vision_score: true, taxon: { id: true } } });
+  const body = JSON.stringify({ locale: 'zh-CN', fields: { frequency_score: true, taxon: { id: true } } });
   const init = { method: 'post', headers: { 'X-HTTP-Method-Override': 'GET' }, body };
   let calls = 0;
   const response = { clone() { return { json: async () => ({ results: [] }) }; } };
@@ -119,7 +121,7 @@ test('API v2 observation JSON field projections are cloned and augmented without
     assert.equal(input, url);
     assert.notEqual(options, init);
     assert.deepEqual(JSON.parse(options.body).fields, {
-      frequency_score: true, vision_score: true, taxon: { id: true }, combined_score: true
+      frequency_score: true, taxon: { id: true }, combined_score: true, vision_score: true
     });
     assert.equal(options.headers, init.headers);
     return Promise.resolve(response);
@@ -129,6 +131,7 @@ test('API v2 observation JSON field projections are cloned and augmented without
   assert.equal(calls, 1);
   assert.equal(init.body, body);
   assert.equal(JSON.parse(init.body).fields.combined_score, undefined);
+  assert.equal(JSON.parse(init.body).fields.vision_score, undefined);
 });
 
 test('API v2 score_image multipart fields gain combined_score and retain their card scope', async () => {
@@ -139,8 +142,8 @@ test('API v2 score_image multipart fields gain combined_score and retain their c
   const page = target({
     FormData,
     document: {
-      activeElement: { closest: selector => selector.includes('.card[data-id]') ? card : null },
-      querySelector: () => null,
+      activeElement: null,
+      querySelector: selector => selector.includes('[data-leafwise-vision-request]') ? card : null,
       querySelectorAll: () => []
     },
     fetch(input, options) {
@@ -151,7 +154,7 @@ test('API v2 score_image multipart fields gain combined_score and retain their c
       });
       assert.equal(options.body.get('image'), 'thumbnail');
       return Promise.resolve({
-        clone() { return { json: async () => ({ results: [{ taxon: { id: 7 }, combined_score: 0.713 }] }) }; }
+        clone() { return { json: async () => ({ results: [{ taxon: { id: 7 }, combined_score: 0.713, vision_score: 0.884 }] }) }; }
       });
     }
   });
@@ -166,7 +169,7 @@ test('API v2 score_image multipart fields gain combined_score and retain their c
   assert.equal(events[0].scope, 'card:card-7');
   assert.equal(events[0].state, 'pending');
   assert.equal(ready(events).scope, 'card:card-7');
-  assert.deepEqual(ready(events).scores, [{ id: 7, combinedScore: 71.3 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 7, combinedScore: 71.3, visionScore: 88.4 }]);
 });
 
 test('the explicit uploader request marker wins over stale focus on another card', () => {
@@ -190,6 +193,19 @@ test('the explicit uploader request marker wins over stale focus on another card
     }
   });
   assert.equal(bridge.requestScope(page), 'card:target-card');
+});
+
+test('an explicit uploader request marker is consumed by one request context only', () => {
+  let marked = true;
+  const card = {
+    getAttribute: name => name === 'data-id' ? 'target-card' : null,
+    removeAttribute: name => { if (name === 'data-leafwise-vision-request') marked = false; }
+  };
+  const page = target({
+    document: { querySelector: () => marked ? card : null }
+  });
+  assert.equal(bridge.requestContext(page).scope, 'card:target-card');
+  assert.equal(bridge.requestContext(page).scope, 'page:/observations/upload');
 });
 
 test('fetch capture works without window.inaturalistjs, sends once, and returns the original response unchanged', async () => {
@@ -260,7 +276,7 @@ test('XHR reads JSON CV responses without altering the request, response, or ret
   assert.equal(xhr.response, payload);
   assert.equal(opens, 1); assert.equal(sends, 1);
   assert.equal(events[0].state, 'pending');
-  assert.deepEqual(ready(events).scores, [{ id: 44, combinedScore: 90 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 44, combinedScore: 90, visionScore: 100 }]);
 });
 
 test('XHR augments API v2 observation UUID field projections and still sends once', () => {
@@ -285,7 +301,7 @@ test('XHR augments API v2 observation UUID field projections and still sends onc
   });
 });
 
-test('XHR ignores non-JSON and non-CV responses and never converts vision_score', () => {
+test('XHR ignores non-JSON and non-CV responses and never exposes vision_score without combined_score', () => {
   let responseTextReads = 0;
   class FakeXHR {
     constructor(contentType, responseType = '') {
@@ -368,7 +384,83 @@ test('scoped response scores cannot leak across uploader cards and persist until
   assert.equal(store.value({ id: 7 }, 7, [7], 'card:a'), null);
 });
 
-test('score style uses a colored number without a chip, row accent, or percent sign', () => {
+test('uploader page-level responses bind once to the card whose taxon and vision-score fingerprint matches', () => {
+  let now = 1000;
+  const store = data.createStore(() => now);
+  store.add({ scope: data.UPLOAD_PAGE_SCOPE, requestId: 10, state: 'pending', capturedAt: now });
+  store.add({ scope: data.UPLOAD_PAGE_SCOPE, requestId: 11, state: 'pending', capturedAt: now });
+  // Finish out of order to reproduce uploader prefetch races.
+  store.add({ scope: data.UPLOAD_PAGE_SCOPE, requestId: 11, state: 'ready', capturedAt: now,
+    scores: [{ id: 7, combinedScore: 21, visionScore: 12 }, { id: 8, combinedScore: 11, visionScore: 8 }] });
+  store.add({ scope: data.UPLOAD_PAGE_SCOPE, requestId: 10, state: 'ready', capturedAt: now,
+    scores: [{ id: 7, combinedScore: 81, visionScore: 92 }, { id: 9, combinedScore: 41, visionScore: 45 }] });
+  const cardA = [{ id: 7, visionScore: 92 }, { id: 9, visionScore: 45 }];
+  const cardB = [{ id: 7, visionScore: 12 }, { id: 8, visionScore: 8 }];
+  assert.deepEqual(store.values({ id: 7 }, 7, cardA, 'card:a', data.UPLOAD_PAGE_SCOPE), { combined: 81, vision: 92 });
+  assert.deepEqual(store.values({ id: 7 }, 7, cardB, 'card:b', data.UPLOAD_PAGE_SCOPE), { combined: 21, vision: 12 });
+  assert.equal(store.pooled.find(entry => entry.requestId === 10).claimedBy, 'card:a');
+  assert.equal(store.pooled.find(entry => entry.requestId === 11).claimedBy, 'card:b');
+  // A third card cannot reuse either already-bound response.
+  assert.equal(store.values({ id: 7 }, 7, cardA, 'card:c', data.UPLOAD_PAGE_SCOPE), null);
+});
+
+test('paired scores remain visible even when their combined values do not follow the native menu order', () => {
+  const store = data.createStore(() => 1000);
+  // A page response may have the same image fingerprint as an explicit card
+  // response. Default display favors the explicit response instead of hiding
+  // all numbers solely because the combined values appear out of order.
+  store.add({ scope: data.UPLOAD_PAGE_SCOPE, requestId: 30, state: 'ready', capturedAt: 1000,
+    scores: [
+      { id: 7, combinedScore: 82, visionScore: 1.3 },
+      { id: 8, combinedScore: 71, visionScore: 28.3 },
+      { id: 9, combinedScore: 60, visionScore: 10.8 },
+      { id: 10, combinedScore: 49, visionScore: 8.0 },
+      { id: 11, combinedScore: 38, visionScore: 7.7 }
+    ] });
+  store.add({ scope: 'card:a', requestId: 31, state: 'ready', capturedAt: 1000,
+    scores: [
+      { id: 7, combinedScore: 15.9, visionScore: 1.3 },
+      { id: 8, combinedScore: 3.5, visionScore: 28.3 },
+      { id: 9, combinedScore: 1.5, visionScore: 10.8 },
+      { id: 10, combinedScore: 1.0, visionScore: 8.0 },
+      { id: 11, combinedScore: 78.5, visionScore: 7.7 }
+    ] });
+  const visibleMenu = [
+    { id: 7, visionScore: 1.3 }, { id: 8, visionScore: 28.3 },
+    { id: 9, visionScore: 10.8 }, { id: 10, visionScore: 8.0 },
+    { id: 11, visionScore: 7.7 }
+  ];
+  assert.deepEqual(
+    store.values({ id: 7 }, 7, visibleMenu, 'card:a', data.UPLOAD_PAGE_SCOPE),
+    { combined: 15.9, vision: 1.3 }
+  );
+  assert.equal(store.pooled[0].claimedBy, null);
+});
+
+test('observation pages display paired scoped scores without enforcing menu sort order', () => {
+  const store = data.createStore(() => 1000);
+  store.add({ scope: 'page:/observations/123', requestId: 40, state: 'ready', scores: [
+    { id: 7, combinedScore: 4, visionScore: 20 },
+    { id: 8, combinedScore: 90, visionScore: 10 }
+  ] });
+  const visibleMenu = [{ id: 7, visionScore: 20 }, { id: 8, visionScore: 10 }];
+  assert.deepEqual(store.values({ id: 7 }, 7, visibleMenu, 'page:/observations/123'),
+    { combined: 4, vision: 20 });
+  assert.equal(store.state('page:/observations/123', visibleMenu), 'ready');
+});
+
+test('an older explicit response arriving late cannot replace the latest paired card response', () => {
+  const store = data.createStore(() => 1000);
+  store.add({ scope: 'card:a', requestId: 20, state: 'pending' });
+  store.add({ scope: 'card:a', requestId: 21, state: 'pending' });
+  store.add({ scope: 'card:a', requestId: 21, state: 'ready',
+    scores: [{ id: 7, combinedScore: 77, visionScore: 88 }] });
+  assert.equal(store.add({ scope: 'card:a', requestId: 20, state: 'ready',
+    scores: [{ id: 7, combinedScore: 99, visionScore: 99 }] }), false);
+  assert.deepEqual(store.values({ id: 7 }, 7, [{ id: 7 }], 'card:a'), { combined: 77, vision: 88 });
+});
+
+test('score style shows combined(vision) as a colored number without a chip, row accent, or percent sign', () => {
   const properties = new Map();
   const removedClasses = [];
   const row = { classList: { add() {}, remove: name => removedClasses.push(name) }, style: {
@@ -379,8 +471,8 @@ test('score style uses a colored number without a chip, row accent, or percent s
     querySelector: selector => selector === '.leafwise-ai-score' ? badge : null,
     querySelectorAll: () => [], append: node => { node.parentElement = result; }
   };
-  assert.equal(style.decorate(result, row, 81.94), badge);
-  assert.equal(badge.textContent, '81.9');
+  assert.equal(style.decorate(result, row, { combined: 81.94, vision: 76.24 }), badge);
+  assert.equal(badge.textContent, '81.9(76.2)');
   assert.equal(badge.textContent.includes('%'), false);
   assert.match(badge.style.cssText, /background:transparent!important/);
   assert.match(badge.style.cssText, /border:0!important/);

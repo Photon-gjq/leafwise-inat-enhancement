@@ -12,9 +12,9 @@ npm run package
 
 同一套自動測試對 Chrome、Edge 和 Firefox 產物各執行一次；另檢查三個產物的 JavaScript 語法、所有 manifest 及 options script 引用、平台讀取機制與版本一致性。
 
-高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序與無效設定。分數橋接另驗證沒有 `window.inaturalistjs` 時的 fetch／XHR、iNaturalist URL 白名單（含 observation UUID）、API v2 Rison URL／JSON body 欄位投影補入 `combined_score`、非 CV 不解析、原請求只發一次、原 Response／XHR 不變、重複安裝不多重包裝、原始 0–1 `combined_score` 正規化、>1–100 相容、拒絕 `vision_score`、taxon ID 配對、上傳選單遲到事件重掃及 `pagehide` 清理；同一套功能測試對三個建置執行。另驗證分數是無框彩色數字且沒有百分號或候選列色條、在單行／多行候選列上下居中、觀察頁在讀不到 jQuery 資料時仍以官方 `.ac.vision` 標記顯示視覺候選分數、手動搜尋列不補分、MutationObserver／低頻掃描／清理保留，以及個人次數強制刷新。分數模式下，首選嚴格高於門檻才選首選；等於或低於門檻時必須回退到可選的官方確定類群，兩者都不符合則保留原值。
+高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序與無效設定。分數橋接另驗證沒有 `window.inaturalistjs` 時的 fetch／XHR、iNaturalist URL 白名單（含 observation UUID）、API v2 Rison URL／JSON body／multipart 欄位投影補入 `combined_score` 與 `vision_score`、非 CV 不解析、原請求只發一次、原 Response／XHR 不變、重複安裝不多重包裝、兩種原始 0–1 分數正規化、>1–100 相容、純 `vision_score` 不冒充綜合分數、taxon ID 配對、卡片明確作用域、頁面預取依 taxon ID＋視覺分數指紋一次性綁定、明確作用域仍須通過同一指紋驗證、快取選單不發請求時卡片標記自動失效、舊回應晚到不覆蓋、上傳選單遲到事件重掃及 `pagehide` 清理；同一套功能測試對三個建置執行。另驗證上傳與觀察頁即使 paired combined values 不符合畫面排序仍預設顯示 `combined(vision)`，分數是無框彩色數字，沒有百分號或候選列色條、在單行／多行候選列上下居中、觀察頁在讀不到 jQuery 資料時仍以官方 `.ac.vision` 標記顯示配對分數、手動搜尋列不補分、MutationObserver／低頻掃描／清理保留，以及個人次數強制刷新。分數模式下，首選仍只用 combined score，嚴格高於門檻才選首選；等於或低於門檻時必須回退到可選的官方確定類群，兩者都不符合則保留原值。
 
-瀏覽器版面測試同時驗證面板預設在「全選」右側收合、收合時不撐高固定工具列且首排卡片叉號仍可命中並刪除、快捷執行不會展開、展開後回到照片欄、網站替換照片欄後重新掛載，以及上傳／具體觀察頁的綜合分數只顯示彩色數字，不產生背景框、邊框、列色條或百分號。
+瀏覽器版面測試同時驗證面板預設在「全選」右側收合、收合時不撐高固定工具列且首排卡片叉號仍可命中並刪除、快捷執行不會展開、展開後回到照片欄、網站替換照片欄後重新掛載，以及上傳／具體觀察頁的 `combined(vision)` 只顯示彩色數字，不產生背景框、邊框、列色條或百分號。
 
 觀察詳情 fixture 依據 iNaturalist `0d8074c09ee177b50603c0ed1fcb5405a4f6835b` 的 [ActivityCreatePanel](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/show/components/activity_create_panel.jsx) 與 [TaxonAutocomplete](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/uploader/components/taxon_autocomplete.jsx)：詳情頁傳入 observation ID，視覺候選由 `isVisionResult` 產生 `.ac.vision[data-taxon-id]`。測試覆蓋 jQuery 資料不可讀時仍顯示、手動搜尋列不補分；這是受控 DOM 回歸，不等同登入正式頁面的人工驗收。
 
@@ -22,7 +22,7 @@ npm run package
 
 ## Edge 驗證（0.11.1 起）
 
-Edge 是獨立建置／打包目標，測試會逐檔確認它與 Chrome 擴充內容一致，包含 MAIN 注入、service worker、權限與語系。Windows CI 另外用已安裝的 Microsoft Edge 執行 19 項介面案例；加上 Chromium、Firefox 共 57 項，涵蓋上傳側欄、收合工具列與首排卡片刪除、停止後修改設定、具體觀察頁分數，以及對比、收藏、匯出和個人紀錄。Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，避免 Firefox 與 Edge 同時啟動時的資源競爭造成假性逾時；其他環境保留兩個 worker。Linux CI 驗證三個產物的功能與建置，介面測試使用 Chromium、Firefox。
+Edge 是獨立建置／打包目標，測試會逐檔確認它與 Chrome 擴充內容一致，包含 MAIN 注入、service worker、權限與語系。Windows CI 另外用已安裝的 Microsoft Edge 執行 20 項介面案例；加上 Chromium、Firefox 共 60 項，涵蓋上傳側欄、收合工具列與首排卡片刪除、停止後修改設定、分數請求與選單指紋綁定、具體觀察頁分數，以及對比、收藏、匯出和個人紀錄。Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，避免 Firefox 與 Edge 同時啟動時的資源競爭造成假性逾時；其他環境保留兩個 worker。Linux CI 驗證三個產物的功能與建置，介面測試使用 Chromium、Firefox。
 
 本機已安裝 Edge 時，在 PowerShell 可單獨執行：
 

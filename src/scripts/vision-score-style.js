@@ -22,6 +22,11 @@
     return `rgb(${channels.join(", ")})`;
   }
 
+  function values(value) {
+    if (typeof value === "number") return { combined: score(value), vision: null };
+    return { combined: score(value?.combined), vision: score(value?.vision) };
+  }
+
   function clearRow(row) {
     row?.classList?.remove("leafwise-ai-score-row");
     row?.style?.removeProperty("--leafwise-score-accent");
@@ -36,13 +41,13 @@
   }
 
   function decorate(result, row, value) {
-    const normalized = score(value);
-    if (normalized === null) {
+    const pair = values(value);
+    if (pair.combined === null) {
       clearRow(row);
       result?.querySelector?.(".leafwise-ai-score")?.remove();
       return null;
     }
-    const accent = color(normalized);
+    const accent = color(pair.combined);
     ensureStyles(result?.ownerDocument || root.document);
     clearRow(row);
     let badge = result?.querySelector?.(".leafwise-ai-score");
@@ -59,8 +64,12 @@
       `color:${accent}!important;font:700 15px/1.2 Arial,sans-serif;` +
       "font-variant-numeric:tabular-nums;text-align:right;letter-spacing:.1px;" +
       "white-space:nowrap;vertical-align:middle;";
-    const text = normalized.toFixed(1);
-    const description = `綜合評分 ${text} / 100（視覺＋地點與日期；不是正確率）`;
+    const combinedText = pair.combined.toFixed(1);
+    const visionText = pair.vision === null ? null : pair.vision.toFixed(1);
+    const text = `${combinedText}${visionText === null ? "" : `(${visionText})`}`;
+    const description = visionText === null
+      ? `綜合評分 ${combinedText} / 100（視覺＋地點與日期；不是正確率）`
+      : `綜合評分 ${combinedText} / 100；括號內為視覺評分 ${visionText} / 100（兩者都不是正確率）`;
     badge.setAttribute("aria-label", description);
     badge.setAttribute("title", description);
     if (badge.textContent !== text) badge.textContent = text;
@@ -71,6 +80,6 @@
     return badge;
   }
 
-  root.LeafwiseVisionScoreStyle = Object.freeze({ score, color, clearRow, decorate, ensureStyles });
+  root.LeafwiseVisionScoreStyle = Object.freeze({ score, color, values, clearRow, decorate, ensureStyles });
   if (typeof module !== "undefined" && module.exports) module.exports = root.LeafwiseVisionScoreStyle;
 })(globalThis);

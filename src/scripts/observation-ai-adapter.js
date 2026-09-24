@@ -26,24 +26,31 @@
     return (data && Number(data.id) === id && data.isVisionResult === true) ||
       result?.classList?.contains("vision") === true;
   }
+
+  function candidateEntries(menu) {
+    const entries = [];
+    for (const item of menu.querySelectorAll("li")) {
+      const result = item.matches("[data-taxon-id]") ? item : item.querySelector("[data-taxon-id]");
+      if (!result) continue;
+      const id = Number(result.getAttribute("data-taxon-id"));
+      if (!Number.isSafeInteger(id) || id <= 0) continue;
+      const data = raw(item, result);
+      if (vision(data, result, id)) entries.push({ item, result, id, data });
+      else style.decorate(result, item.matches("li") ? item : result.closest("li"), null);
+    }
+    return entries;
+  }
+
   function scan(doc = root.document) {
     if (!active() || !style || !scores) return 0;
     let count = 0;
     for (const menu of Array.from(doc.querySelectorAll(MENU)).filter(visible)) {
-      const rows = Array.from(menu.querySelectorAll("li"));
-      const ids = rows.map(item => Number((item.matches("[data-taxon-id]") ? item : item.querySelector("[data-taxon-id]"))?.getAttribute("data-taxon-id")))
-        .filter(id => Number.isSafeInteger(id) && id > 0);
-      for (const item of rows) {
-        const result = item.matches("[data-taxon-id]") ? item : item.querySelector("[data-taxon-id]");
-        if (!result) continue;
-        const id = Number(result.getAttribute("data-taxon-id"));
-        if (!Number.isSafeInteger(id) || id <= 0) continue;
-        const data = raw(item, result);
-        const value = vision(data, result, id)
-          ? scores.value(data, id, ids, scoreScope())
-          : null;
-        style.decorate(result, item.matches("li") ? item : result.closest("li"), value);
-        if (value !== null) count++;
+      const entries = candidateEntries(menu);
+      const candidates = entries.map(entry => scores.candidate?.(entry.data, entry.id) || { id: entry.id, visionScore: null });
+      for (const { item, result, id, data } of entries) {
+        const pair = scores.values?.(data, id, candidates, scoreScope()) || null;
+        style.decorate(result, item.matches("li") ? item : result.closest("li"), pair);
+        if (pair?.combined !== null && pair?.combined !== undefined) count++;
       }
     }
     return count;

@@ -107,8 +107,8 @@
   const $ = selector => shadow.querySelector(selector);
   const fieldIDs = ["user", "place", "taxon", "rank", "quality", "comparison", "year", "months", "d1", "d2", "project"];
   for (const [rank, label] of Object.entries(core.rankNames)) $("#rank").add(new Option(`${label} · ${rank}`, rank));
-  for (const [value,label] of Object.entries(core.comparisonNames)) $("#comparison").add(new Option(label,value));
-  let library = {queries:[],groups:[]};
+  for (const [value, label] of Object.entries(core.comparisonNames)) $("#comparison").add(new Option(label, value));
+  let library = { queries: [], groups: [] };
   let usernames = [];
   let userSettings = {};
   let commonTaxa = [];
@@ -123,7 +123,10 @@
   const verified = new Map();
   const checking = new Set();
   const fmt = n => n.toLocaleString();
-  function status(text, error = false) { $("#status").textContent = text; $("#status").classList.toggle("error", error); }
+  function status(text, error = false) {
+    $("#status").textContent = text;
+    $("#status").classList.toggle("error", error);
+  }
   function fallbackUser() {
     const href = document.querySelector(".navtab.user a.observations_link[href]")?.getAttribute("href");
     if (href) {
@@ -167,7 +170,7 @@
     select.disabled = busy;
   }
   function setFields(values) {
-    values = {comparison:"lifetime",year:new Date().getFullYear(),...values};
+    values = { comparison: "lifetime", year: new Date().getFullYear(), ...values };
     fieldIDs.forEach(key => {
       if (key === "user") populateUser(values[key]);
       else if (key === "taxon") populateTaxon(values[key]);
@@ -177,56 +180,107 @@
   }
   function updateScope() { $("#year-label").hidden = !["year","first"].includes($("#comparison").value); }
   function values() {
-    const data = Object.fromEntries(fieldIDs.map(key=>[key,$(`#${key}`).value]));
+    const data = Object.fromEntries(fieldIDs.map(key => [key, $(`#${key}`).value]));
     if (!data.place.trim()) data.place = $("#place").placeholder;
     return core.normalize(data);
   }
   function populatePlaces(selected) {
-    const select=$("#place-choice"); select.replaceChildren(new Option("自訂 ID…",""),new Option("全球","any"));
-    for(const group of [...tools.groups,...library.groups]) select.add(new Option(group.name,group.id));
-    let canonical;try{canonical=core.placeIDs($("#place").value).join(",");}catch{}
-    const group=[...tools.groups,...library.groups].find(group=>group.place===canonical);
-    select.value=selected??($("#place").value==="any"?"any":group?.id||"");
-    $("#place-members").textContent=canonical?String(canonical).split(",").map(id=>`${tools.places[id]||"地點"}（${id}）`).join("、"):"";
+    const select = $("#place-choice");
+    select.replaceChildren(new Option("自訂 ID…", ""), new Option("全球", "any"));
+    for (const group of [...tools.groups, ...library.groups]) select.add(new Option(group.name, group.id));
+    let canonical;
+    try { canonical = core.placeIDs($("#place").value).join(","); } catch {}
+    const group = [...tools.groups, ...library.groups].find(item => item.place === canonical);
+    select.value = selected ?? ($("#place").value === "any" ? "any" : group?.id || "");
+    $("#place-members").textContent = canonical
+      ? String(canonical).split(",").map(id => `${tools.places[id] || "地點"}（${id}）`).join("、")
+      : "";
   }
-  function populateQueries(selected="") {
-    $("#query-choice").replaceChildren(new Option("新增查詢收藏…",""));
-    for(const item of library.queries) $("#query-choice").add(new Option(item.name,item.id));
-    $("#query-choice").value=selected;
+  function populateQueries(selected = "") {
+    $("#query-choice").replaceChildren(new Option("新增查詢收藏…", ""));
+    for (const item of library.queries) $("#query-choice").add(new Option(item.name, item.id));
+    $("#query-choice").value = selected;
   }
-  async function libraryAction(action,entry) {
-    const reply=await chrome.runtime.sendMessage({type:"leafwise-explore-library",action,entry});
-    if(!reply?.ok)throw new Error(reply?.error||"無法讀取收藏。");
-    library=reply.library; return library;
+  async function libraryAction(action, entry) {
+    const reply = await chrome.runtime.sendMessage({ type: "leafwise-explore-library", action, entry });
+    if (!reply?.ok) throw new Error(reply?.error || "無法讀取收藏。");
+    library = reply.library;
+    return library;
   }
-  function handleLibrary(id, callback) { $(id).addEventListener("click",async()=>{
-    if(busy)return;
-    const button=$(id);button.disabled=true;
-    try{await callback();}catch(error){status(error.message,true);}finally{button.disabled=false;}
-  }); }
-  $("#place-choice").addEventListener("change",()=>{
-    const group=[...tools.groups,...library.groups].find(group=>group.id===$("#place-choice").value);
-    if(group){$("#place").value=group.place;$("#place-name").value=group.name;}
-    else $("#place").value=$("#place-choice").value==="any"?"any":"";
-    populatePlaces(group?.id);dirty=true;invalidate();status("地點已修改，請開始對比。");
+  function handleLibrary(id, callback) {
+    $(id).addEventListener("click", async () => {
+      if (busy) return;
+      const button = $(id);
+      button.disabled = true;
+      try { await callback(); }
+      catch (error) { status(error.message, true); }
+      finally { button.disabled = false; }
+    });
+  }
+  $("#place-choice").addEventListener("change", () => {
+    const group = [...tools.groups, ...library.groups]
+      .find(item => item.id === $("#place-choice").value);
+    if (group) {
+      $("#place").value = group.place;
+      $("#place-name").value = group.name;
+    } else {
+      $("#place").value = $("#place-choice").value === "any" ? "any" : "";
+    }
+    populatePlaces(group?.id);
+    dirty = true;
+    invalidate();
+    status("地點已修改，請開始對比。");
   });
-  $("#query-choice").addEventListener("change",()=>{$("#query-name").value=library.queries.find(item=>item.id===$("#query-choice").value)?.name||"";});
-  handleLibrary("#save-query",async()=>{
-    const entry={id:$("#query-choice").value||undefined,name:$("#query-name").value,url:location.href,options:values()};
-    await libraryAction("save-query",entry);populateQueries(entry.id||library.queries.at(-1).id);status("已保存完整搜尋網址與對比條件。");
+  $("#query-choice").addEventListener("change", () => {
+    $("#query-name").value = library.queries
+      .find(item => item.id === $("#query-choice").value)?.name || "";
   });
-  handleLibrary("#load-query",async()=>{
-    const entry=library.queries.find(item=>item.id===$("#query-choice").value);if(!entry)throw new Error("請先選擇查詢收藏。");
-    const url=new URL(tools.searchURL(entry.url));
-    if(url.href!==tools.searchURL(location.href)){url.searchParams.set("leafwise_query",entry.id);location.assign(url.href);return;}
-    invalidate();setFields(entry.options);dirty=true;status("已還原收藏，請開始對比。");
+  handleLibrary("#save-query", async () => {
+    const entry = {
+      id: $("#query-choice").value || undefined,
+      name: $("#query-name").value,
+      url: location.href,
+      options: values()
+    };
+    await libraryAction("save-query", entry);
+    populateQueries(entry.id || library.queries.at(-1).id);
+    status("已保存完整搜尋網址與對比條件。");
   });
-  handleLibrary("#remove-query",async()=>{await libraryAction("remove-query",{id:$("#query-choice").value});populateQueries();$("#query-name").value="";status("已刪除查詢收藏。");});
-  handleLibrary("#save-place",async()=>{
-    const entry={id:library.groups.find(group=>group.id===$("#place-choice").value)?.id,name:$("#place-name").value,place:$("#place").value};
-    await libraryAction("save-place",entry);populatePlaces(entry.id||library.groups.at(-1).id);status("已保存自訂地點組合。");
+  handleLibrary("#load-query", async () => {
+    const entry = library.queries.find(item => item.id === $("#query-choice").value);
+    if (!entry) throw new Error("請先選擇查詢收藏。");
+    const url = new URL(tools.searchURL(entry.url));
+    if (url.href !== tools.searchURL(location.href)) {
+      url.searchParams.set("leafwise_query", entry.id);
+      location.assign(url.href);
+      return;
+    }
+    invalidate();
+    setFields(entry.options);
+    dirty = true;
+    status("已還原收藏，請開始對比。");
   });
-  handleLibrary("#remove-place",async()=>{await libraryAction("remove-place",{id:$("#place-choice").value});populatePlaces();status("已刪除自訂地點組合，當前 ID 保留。");});
+  handleLibrary("#remove-query", async () => {
+    await libraryAction("remove-query", { id: $("#query-choice").value });
+    populateQueries();
+    $("#query-name").value = "";
+    status("已刪除查詢收藏。");
+  });
+  handleLibrary("#save-place", async () => {
+    const entry = {
+      id: library.groups.find(group => group.id === $("#place-choice").value)?.id,
+      name: $("#place-name").value,
+      place: $("#place").value
+    };
+    await libraryAction("save-place", entry);
+    populatePlaces(entry.id || library.groups.at(-1).id);
+    status("已保存自訂地點組合。");
+  });
+  handleLibrary("#remove-place", async () => {
+    await libraryAction("remove-place", { id: $("#place-choice").value });
+    populatePlaces();
+    status("已刪除自訂地點組合，當前 ID 保留。");
+  });
   async function openSettings() {
     try {
       const reply = await chrome.runtime.sendMessage({ type: "qg-open-options" });
@@ -500,18 +554,36 @@
   $("#next").addEventListener("click", () => { page++; renderRows(); });
   $("#refresh-names").addEventListener("click", () => loadNames(true));
   function exportText(delimiter) {
-    return tools.exportTable(filteredRows().map(row=>({...row,leaves:verified.get(row.id)?.count??row.leaves})),result.options,core,delimiter);
+    const rows = filteredRows().map(row => ({
+      ...row,
+      leaves: verified.get(row.id)?.count ?? row.leaves
+    }));
+    return tools.exportTable(rows, result.options, core, delimiter);
   }
-  $("#copy-results").addEventListener("click",async()=>{
-    if(!result)return;
-    const text=exportText("\t");
-    try{await navigator.clipboard.writeText(text);status(`已複製 ${filteredRows().length} 項結果。`);}
-    catch{$("#copy-fallback").value=text;$("#copy-fallback").hidden=false;$("#copy-fallback").focus();$("#copy-fallback").select();status("瀏覽器未允許直接複製；結果已選取，請按 Ctrl/Cmd+C。");}
+  $("#copy-results").addEventListener("click", async () => {
+    if (!result) return;
+    const text = exportText("\t");
+    try {
+      await navigator.clipboard.writeText(text);
+      status(`已複製 ${filteredRows().length} 項結果。`);
+    } catch {
+      $("#copy-fallback").value = text;
+      $("#copy-fallback").hidden = false;
+      $("#copy-fallback").focus();
+      $("#copy-fallback").select();
+      status("瀏覽器未允許直接複製；結果已選取，請按 Ctrl/Cmd+C。");
+    }
   });
-  $("#export-results").addEventListener("click",()=>{
-    if(!result)return;
-    const url=URL.createObjectURL(new Blob(["\uFEFF",exportText(",")],{type:"text/csv;charset=utf-8"}));
-    const download=document.createElement("a");download.href=url;download.download=`Leafwise-${result.options.rank}-${new Date().toISOString().slice(0,10)}.csv`;shadow.append(download);download.click();download.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  $("#export-results").addEventListener("click", () => {
+    if (!result) return;
+    const url = URL.createObjectURL(new Blob(["\uFEFF", exportText(",")], { type: "text/csv;charset=utf-8" }));
+    const download = document.createElement("a");
+    download.href = url;
+    download.download = `Leafwise-${result.options.rank}-${new Date().toISOString().slice(0, 10)}.csv`;
+    shadow.append(download);
+    download.click();
+    download.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
     status(`已匯出 ${filteredRows().length} 項結果。`);
   });
   function mountPanel() {

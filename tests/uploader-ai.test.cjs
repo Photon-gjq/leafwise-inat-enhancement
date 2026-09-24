@@ -95,6 +95,53 @@ test('browser initialization works with an isolated window and preserves page Co
   }
 });
 
+test('a cached autocomplete menu expires its request marker before a later CV request can claim the card', () => {
+  const attributes = new Map([['data-id', 'card-1']]);
+  const queued = [];
+  const field = {
+    value: '', disabled: false,
+    focus() {}, click() {}
+  };
+  const menu = { isConnected: true, getClientRects: () => [1] };
+  const chooser = { querySelector(selector) {
+    if (selector === "ul.ac-menu.taxon-autocomplete") return menu;
+    if (selector === "input[name='taxon_name']") return field;
+    if (selector === "input[name='taxon_id']") return { value: '' };
+    return null;
+  } };
+  const card = {
+    isConnected: true,
+    matches: () => false,
+    querySelector: selector => selector === '.TaxonAutocomplete' ? chooser : null,
+    querySelectorAll: () => [],
+    getAttribute: name => attributes.get(name) || null,
+    setAttribute: (name, value) => attributes.set(name, value),
+    removeAttribute: name => attributes.delete(name)
+  };
+  let searches = 0;
+  const context = vm.createContext({
+    location: { pathname: '/other' },
+    document: { querySelectorAll: () => [card], activeElement: null },
+    getComputedStyle: () => ({ visibility: 'visible' }),
+    queueMicrotask: callback => queued.push(callback),
+    LeafwiseUploadCore: {}, LeafwiseVisionScoreStyle: {}, LeafwiseVisionScores: {},
+    LeafwiseUploadPageData: (_element, key) => key === 'uiAutocomplete' ? { search() { searches++; } } : null
+  });
+  vm.runInContext(fs.readFileSync(path.join(extension, 'scripts/uploader-ai-adapter.js'), 'utf8'), context);
+  context.LeafwiseUploadAdapter.open(card);
+  assert.equal(searches, 1);
+  assert.ok(attributes.has('data-leafwise-vision-request'));
+  assert.equal(queued.length, 1);
+  queued.shift()();
+  assert.equal(attributes.has('data-leafwise-vision-request'), false);
+
+  // Expiring an old marker must never clear a newer request marker.
+  attributes.set('data-leafwise-vision-request', 'newer');
+  context.LeafwiseUploadAdapter.expireMarker(card, 'older');
+  queued.shift()();
+  assert.equal(attributes.get('data-leafwise-vision-request'), 'newer');
+});
+
 test('a late score event immediately rescans an existing uploader menu and the listener cleans up once', () => {
   const listeners = new Map();
   const addEventListener = (type, listener, options = {}) => {
@@ -145,7 +192,11 @@ test('a late score event immediately rescans an existing uploader menu and the l
     addEventListener, removeEventListener,
     LeafwiseUploadCore: { score: value => value },
     LeafwiseVisionScoreStyle: { decorate: (_result, _item, value) => decorated.push(value) },
-    LeafwiseVisionScores: { value: () => lateScore },
+    LeafwiseVisionScores: {
+      candidate: (_raw, id) => ({ id, visionScore: null }), bind: () => null,
+      values: () => lateScore === null ? null : { combined: lateScore, vision: 95 },
+      state: () => lateScore === null ? 'pending' : 'ready'
+    },
     LeafwiseUploadPageData: () => ({ id: 42, isVisionResult: true, isCommonAncestor: false })
   });
   vm.runInContext(fs.readFileSync(path.join(extension, 'scripts/uploader-ai-adapter.js'), 'utf8'), context);
@@ -157,9 +208,9 @@ test('a late score event immediately rescans an existing uploader menu and the l
   assert.equal((listeners.get('leafwise:cv-combined-scores') || []).length, 1);
   lateScore = 90;
   dispatch('leafwise:cv-combined-scores');
-  assert.deepEqual(decorated, [90]);
+  assert.deepEqual(decorated, [{ combined: 90, vision: 95 }]);
   dispatch('pagehide');
   assert.equal((listeners.get('leafwise:cv-combined-scores') || []).length, 0);
   dispatch('leafwise:cv-combined-scores');
-  assert.deepEqual(decorated, [90]);
+  assert.deepEqual(decorated, [{ combined: 90, vision: 95 }]);
 });

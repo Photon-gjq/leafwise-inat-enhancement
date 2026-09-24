@@ -62,13 +62,6 @@
     return `page:${target.location?.pathname || "/"}`;
   }
 
-  function visible(element, target = root) {
-    if (!element?.isConnected) return false;
-    const css = target.getComputedStyle?.(element);
-    return (!css || (css.display !== "none" && css.visibility !== "hidden")) &&
-      (typeof element.getClientRects !== "function" || element.getClientRects().length > 0);
-  }
-
   function requestScope(target = root) {
     const doc = target.document;
     if (!doc || !/^\/observations\/upload\/?$/.test(target.location?.pathname || "")) {
@@ -76,30 +69,38 @@
     }
     const marked = doc.querySelector(`${CARD_SELECTOR}[${REQUEST_MARKER}]`);
     if (marked?.getAttribute("data-id")) return `card:${marked.getAttribute("data-id")}`;
-    const activeCard = doc.activeElement?.closest?.(CARD_SELECTOR);
-    if (activeCard?.getAttribute("data-id")) return `card:${activeCard.getAttribute("data-id")}`;
-    const openCards = Array.from(doc.querySelectorAll(CARD_SELECTOR)).filter(card =>
-      visible(card.querySelector("ul.ac-menu.taxon-autocomplete"), target));
-    if (openCards.length === 1 && openCards[0].getAttribute("data-id")) {
-      return `card:${openCards[0].getAttribute("data-id")}`;
-    }
+    // Focus and an open menu are not request identities: uploader prefetches
+    // can overlap with user interaction. Unmarked requests enter the page pool
+    // and are claimed later only by a matching candidate fingerprint.
     return pageScope(target);
   }
 
   function requestContext(target = root) {
-    return { requestId: ++requestSequence, scope: requestScope(target) };
+    const scope = requestScope(target);
+    // The marker identifies one explicit autocomplete request. Consuming it
+    // here prevents a later background CV request from inheriting the card
+    // merely because its menu remained open.
+    if (scope.startsWith("card:")) {
+      target.document?.querySelector?.(`${CARD_SELECTOR}[${REQUEST_MARKER}]`)
+        ?.removeAttribute?.(REQUEST_MARKER);
+    }
+    return { requestId: ++requestSequence, scope };
   }
 
-  function risonFieldsWithCombined(fields) {
+  function risonFieldsWithScores(fields) {
     if (typeof fields !== "string" || fields.length < 2 || fields[0] !== "(" || fields.at(-1) !== ")") return fields;
-    if (/(?:^\(|,)combined_score:/.test(fields)) return fields;
+    const additions = [];
+    if (!/(?:^\(|,)combined_score:/.test(fields)) additions.push("combined_score:!t");
+    if (!/(?:^\(|,)vision_score:/.test(fields)) additions.push("vision_score:!t");
+    if (!additions.length) return fields;
     const body = fields.slice(1, -1);
-    return `(combined_score:!t${body ? `,${body}` : ""})`;
+    return `(${additions.join(",")}${body ? `,${body}` : ""})`;
   }
 
-  function fieldsWithCombined(fields) {
-    if (!fields || typeof fields !== "object" || Array.isArray(fields) || fields.combined_score === true) return fields;
-    return { ...fields, combined_score: true };
+  function fieldsWithScores(fields) {
+    if (!fields || typeof fields !== "object" || Array.isArray(fields)) return fields;
+    if (fields.combined_score === true && fields.vision_score === true) return fields;
+    return { ...fields, combined_score: true, vision_score: true };
   }
 
   function inputWithURL(input, url, target = root) {
@@ -114,37 +115,36 @@
   }
 
   // Current API v2 clients request an explicit response-field projection that
-  // omits combined_score. Add only that response field to the existing query
-  // or multipart request so the bridge can keep using the canonical combined
-  // score without issuing another CV request.
-  function URLWithCombinedScore(input, target = root) {
+  // omits one or both scores. Add only those response fields to the existing
+  // query or multipart request without issuing another CV request.
+  function URLWithScores(input, target = root) {
     if (!isV2VisionURL(input, target)) return input;
     const url = requestURL(input, target);
     const fields = url?.searchParams?.get("fields");
-    const augmented = risonFieldsWithCombined(fields);
+    const augmented = risonFieldsWithScores(fields);
     if (!url || augmented === fields) return input;
     url.searchParams.set("fields", augmented);
     return inputWithURL(input, url, target);
   }
 
-  function JSONBodyWithCombinedScore(body) {
+  function JSONBodyWithScores(body) {
     if (typeof body !== "string") return body;
     try {
       const value = JSON.parse(body);
       if (!value || typeof value !== "object" || Array.isArray(value)) return body;
-      const fields = fieldsWithCombined(value.fields);
+      const fields = fieldsWithScores(value.fields);
       return fields === value.fields ? body : JSON.stringify({ ...value, fields });
     } catch { return body; }
   }
 
-  function formDataWithCombinedScore(body, target = root) {
+  function formDataWithScores(body, target = root) {
     const FormDataCtor = target.FormData;
     if (!FormDataCtor || !(body instanceof FormDataCtor) || typeof body.get !== "function") return body;
     const encoded = body.get("fields");
     if (typeof encoded !== "string") return body;
     let value;
     try { value = JSON.parse(encoded); } catch { return body; }
-    const fields = fieldsWithCombined(value);
+    const fields = fieldsWithScores(value);
     if (fields === value) return body;
     const copy = new FormDataCtor();
     for (const [key, entry] of body.entries()) {
@@ -154,16 +154,16 @@
     return copy;
   }
 
-  function bodyWithCombinedScore(body, target = root) {
-    return formDataWithCombinedScore(JSONBodyWithCombinedScore(body), target);
+  function bodyWithScores(body, target = root) {
+    return formDataWithScores(JSONBodyWithScores(body), target);
   }
 
-  function fetchArgsWithCombinedScore(args, target = root) {
+  function fetchArgsWithScores(args, target = root) {
     const input = args[0];
     if (!isV2VisionURL(input, target)) return args;
-    const rewrittenInput = URLWithCombinedScore(input, target);
+    const rewrittenInput = URLWithScores(input, target);
     const init = args[1];
-    const rewrittenBody = bodyWithCombinedScore(init?.body, target);
+    const rewrittenBody = bodyWithScores(init?.body, target);
     if (rewrittenInput === input && rewrittenBody === init?.body) return args;
     const rewritten = [...args];
     rewritten[0] = rewrittenInput;
@@ -176,7 +176,10 @@
     for (const result of resultList(response)) {
       const id = Number(result?.taxon?.id ?? result?.taxon_id);
       const combinedScore = validScore(result?.combined_score);
-      if (Number.isSafeInteger(id) && id > 0 && combinedScore !== null) scores.push({ id, combinedScore });
+      const visionScore = validScore(result?.vision_score);
+      if (Number.isSafeInteger(id) && id > 0 && combinedScore !== null) {
+        scores.push({ id, combinedScore, ...(visionScore === null ? {} : { visionScore }) });
+      }
     }
     return scores;
   }
@@ -210,7 +213,7 @@
     if (typeof original !== "function") return false;
     if (original[FETCH_WRAPPED]) return true;
     function wrappedFetch(...args) {
-      const requestArgs = fetchArgsWithCombinedScore(args, target);
+      const requestArgs = fetchArgsWithScores(args, target);
       const shouldInspect = isVisionURL(requestArgs[0], target);
       const context = shouldInspect ? requestContext(target) : null;
       if (context) announce(context, target);
@@ -247,7 +250,7 @@
     if (typeof prototype.open === "function" && !prototype.open[XHR_OPEN_WRAPPED]) {
       const originalOpen = prototype.open;
       function wrappedOpen(method, url, ...rest) {
-        const requestURL = URLWithCombinedScore(url, target);
+        const requestURL = URLWithScores(url, target);
         urls.set(this, requestURL);
         if (isVisionURL(requestURL, target)) contexts.set(this, requestContext(target));
         return originalOpen.call(this, method, requestURL, ...rest);
@@ -263,7 +266,7 @@
           this.addEventListener("loadend", () => inspectXHR(this, target, contexts.get(this)), { once: true });
         }
         const requestArgs = isV2VisionURL(urls.get(this), target) && args.length
-          ? [bodyWithCombinedScore(args[0], target), ...args.slice(1)]
+          ? [bodyWithScores(args[0], target), ...args.slice(1)]
           : args;
         return originalSend.apply(this, requestArgs);
       }
@@ -330,8 +333,8 @@
 
   const api = { EVENT_NAME, validScore, resultList, requestURL, isVisionURL, isV2ObservationURL,
     isV2VisionURL, pageScope, requestScope, requestContext,
-    risonFieldsWithCombined, fieldsWithCombined, URLWithCombinedScore, JSONBodyWithCombinedScore,
-    formDataWithCombinedScore, bodyWithCombinedScore, fetchArgsWithCombinedScore, scoreEntries,
+    risonFieldsWithScores, fieldsWithScores, URLWithScores, JSONBodyWithScores,
+    formDataWithScores, bodyWithScores, fetchArgsWithScores, scoreEntries,
     dispatch, announce, capture, inspectFetchResponse, installFetch, inspectXHR,
     installXHR, wrap, installLegacy, install, start };
   if (typeof module !== "undefined" && module.exports) {

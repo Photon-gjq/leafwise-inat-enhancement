@@ -6,6 +6,8 @@
   const SCORE_EVENT = "leafwise:cv-combined-scores";
   const SCORE_LISTENER = Symbol.for("leafwise.upload.scoreListener");
   const REQUEST_MARKER = "data-leafwise-vision-request";
+  const FALLBACK_SCOPE = "page:/observations/upload";
+  let markerSequence = 0;
   const cardSelector = ".ObsCardComponent .card[data-id]";
   const cards = () => Array.from(document.querySelectorAll(cardSelector));
   const key = card => card.getAttribute("data-id");
@@ -40,11 +42,20 @@
     if (document.activeElement === input(card)) input(card).blur();
     card?.removeAttribute?.(REQUEST_MARKER);
   }
+  function expireMarker(card, marker) {
+    const clear = () => {
+      if (card?.getAttribute?.(REQUEST_MARKER) === marker) card.removeAttribute(REQUEST_MARKER);
+    };
+    if (typeof root.queueMicrotask === "function") root.queueMicrotask(clear);
+    else if (typeof root.setTimeout === "function") root.setTimeout(clear, 0);
+    else clear();
+  }
   function open(card) {
     if (!editable(card)) throw new Error("卡片已移除、上傳中或尚未就緒");
     for (const other of cards()) if (other !== card && visible(menu(other))) close(other);
     for (const other of cards()) other.removeAttribute?.(REQUEST_MARKER);
-    card.setAttribute(REQUEST_MARKER, "true");
+    const marker = String(++markerSequence);
+    card.setAttribute(REQUEST_MARKER, marker);
     const field = input(card);
     const ac = widget(card);
     if (ac && typeof ac.search === "function") {
@@ -55,20 +66,22 @@
       // An explicit empty query requests CV even when replacing an existing ID.
       // Preserve both the current name and hidden ID until a qualifying click.
       ac.search("");
+      // A cached native menu does not issue a CV request. Do not let its stale
+      // marker claim a later prefetch or another card's request.
+      expireMarker(card, marker);
     } else {
       if (filled(card)) throw new Error("無法讀取建議元件，已保留原分類");
       field.focus({ preventScroll: true });
       field.click();
+      expireMarker(card, marker);
     }
   }
-  function read(card, decorate = false) {
-    const list = menu(card);
-    if (!visible(list)) return null;
-    const items = [];
-    const visibleIds = Array.from(list.querySelectorAll("[data-taxon-id]"))
-      .map(element => Number(element.getAttribute("data-taxon-id")))
-      .filter(id => Number.isSafeInteger(id) && id > 0);
-    let confident = false, section = 0, confidentDOM = false;
+
+  function candidateRows(list) {
+    const rows = [];
+    let confident = false;
+    let section = 0;
+    let confidentDOM = false;
     for (const li of list.children) {
       if (li.matches(".header-category")) {
         section++;
@@ -80,25 +93,39 @@
       const id = Number(result.getAttribute("data-taxon-id"));
       if (!Number.isSafeInteger(id) || id <= 0) continue;
       const raw = data(li, "ui-autocomplete-item") || data(li, "item.autocomplete");
-      let value = null, ancestor = confidentDOM && section === 1;
+      let ancestor = confidentDOM && section === 1;
       // Copy only these primitives. Ignore unrelated jQuery state and functions.
       try {
         if (raw && raw.id === id && raw.isVisionResult === true) {
           ancestor = raw.isCommonAncestor === true;
-          value = core.score(scores?.value(raw, id, visibleIds, scope(card)));
         }
       } catch { /* Fall back to the visible official category structure. */ }
       if (ancestor) confident = true;
+      rows.push({ li, result, id, raw, ancestor });
+    }
+    return { rows, confident: confident || confidentDOM };
+  }
+
+  function read(card, decorate = false) {
+    const list = menu(card);
+    if (!visible(list)) return null;
+    const { rows, confident } = candidateRows(list);
+    const items = [];
+    const candidates = rows.map(entry => scores?.candidate?.(entry.raw, entry.id) || { id: entry.id, visionScore: null });
+    scores?.bind?.(scope(card), candidates, FALLBACK_SCOPE);
+    for (const { li, result, id, raw, ancestor } of rows) {
+      const pair = scores?.values?.(raw, id, candidates, scope(card), FALLBACK_SCOPE) || null;
+      const value = core.score(pair?.combined);
       const name = (result.querySelector(".title")?.textContent || result.textContent).trim().slice(0,250);
-      const item = { id, name, vision: true, ancestor, score: value };
+      const item = { id, name, vision: true, ancestor, score: value, visionScore: pair?.vision ?? null };
       items.push(item);
       if (decorate) {
-        scoreStyle?.decorate(result, li, value);
+        scoreStyle?.decorate(result, li, pair);
       }
     }
     if (!items.length && /not confident|没有足够|沒有足夠|没有信心|沒有信心/i.test(list.textContent)) return { items: [], confident: false };
-    return items.length ? { items, confident: confident || confidentDOM,
-      scoreState: scores?.state?.(scope(card)) || "unknown" } : null;
+    return items.length ? { items, confident,
+      scoreState: scores?.state?.(scope(card), candidates, FALLBACK_SCOPE) || "unknown" } : null;
   }
   function click(card, id) {
     const list = menu(card);
@@ -138,6 +165,6 @@
     return state;
   }
   root.LeafwiseUploadAdapter = { cards, key, scope, find, input, taxonID, filled, signature, editable, hasPhoto,
-    menu, visible, open, close, read, click, scanScores, installScoreListener };
+    menu, visible, open, close, expireMarker, read, click, scanScores, installScoreListener };
   if (/^\/observations\/upload\/?$/.test(root.location?.pathname || "")) installScoreListener();
 })(globalThis);

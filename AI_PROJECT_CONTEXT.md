@@ -40,14 +40,14 @@
 
 - 不提交帳號、憑證、瀏覽器 profile、私人照片、完整 API 回應或個人本機絕對路徑。
 - 擴充目前沒有分析、廣告或遙測，也不把照片送到第三方 AI。
-- AI 分數來自 iNaturalist 頁面原本已發出的辨識請求；Leafwise 不應另行呼叫 `/computervision/score_image` 或 `/computervision/score_observation`。若 API v2 觀察請求使用明確 `fields` 投影卻省略 `combined_score`，bridge 只可在同一請求的回傳欄位投影補入 `combined_score: true`，不得改動照片、觀察、位置、日期、驗證或其他請求語意。
+- AI 分數來自 iNaturalist 頁面原本已發出的辨識請求；Leafwise 不應另行呼叫 `/computervision/score_image` 或 `/computervision/score_observation`。若 API v2 請求使用明確 `fields` 投影卻省略 `combined_score` 或 `vision_score`，bridge 只可在同一請求的回傳欄位投影補入缺少的布林欄位，不得改動照片、觀察、位置、日期、驗證或其他請求語意。
 - 公開 API 背景請求使用 credentials: omit。
 - 上傳功能只修改草稿，不可自動發布觀察。使用者的手動分類或文字優先；停止／手動操作後，遲到結果不得覆蓋草稿。
 
 ### 分數語義
 
-- 使用 combined_score（iNaturalist 原生請求已結合可用的照片、地點、時間上下文），不要退回 vision_score。
-- 官方回應目前以 0–1 表示 combined_score；bridge 乘以 100 後交給介面。為相容既有／替代回應，>1–100 保留原值；其他型別、非有限數及範圍外值拒絕。
+- 自動選擇與門檻只使用 combined_score（iNaturalist 原生請求已結合可用的照片、地點、時間上下文），不得退回 vision_score；介面可把同一候選的 vision_score 作為括號內的第二個參考數字。
+- 官方回應目前以 0–1 表示 combined_score／vision_score；bridge 乘以 100 後交給介面。為相容既有／替代回應，>1–100 保留原值；其他型別、非有限數及範圍外值拒絕。沒有 combined_score 時不得單獨顯示 vision_score。
 - 分數不是校準後的「正確率」。介面可顯示相對分數，但文件與文案不得把它描述為真實準確率。
 - 候選和分數一律按 taxon ID 配對，不能按陣列位置或畫面順序配對。
 - 只有原生候選 `isVisionResult === true`（或由同一欄位產生的官方 `.ac.vision` DOM 標記）且分數是 0–100 的有限數字時才顯示／使用分數。
@@ -122,14 +122,14 @@ taxon-status.js
 vision-score-bridge.js 在 document_start 的 MAIN world 包裝頁面原有的 fetch 與 XMLHttpRequest，不依賴 `window.inaturalistjs`（官方 uploader 已把 inaturalistjs 作為 ES module 區域變數使用）。它只匹配 iNaturalist HTTPS 主機下 `/v1`／`/v2` 的 `computervision/score_image`、`score_observation`，端點可帶數字 ID 或嚴格的 observation UUID：
 
 - fetch 只用 `Response.clone().json()` 旁讀；XHR 只在 `responseType=json` 或 JSON Content-Type 時讀取；
-- 原方法只呼叫一次，Promise、Response／XHR 與回傳值不改動，不新增辨識請求；API v2 `score_observation` 已有欄位投影但欠缺 `combined_score` 時，只把該布林回傳欄位補入 Rison URL 或 JSON body，其他參數及資料不改；
+- 原方法只呼叫一次，Promise、Response／XHR 與回傳值不改動，不新增辨識請求；API v2 已有欄位投影但欠缺 `combined_score`／`vision_score` 時，只把缺少的布林回傳欄位補入 Rison URL、JSON body 或 multipart `fields`，其他參數及資料不改；
 - 重複注入不會多重包裝；舊頁面若仍暴露 `window.inaturalistjs`，保留不依賴的相容 fallback；
-- 只取明確的 combined_score，將 0–1 乘以 100，>1–100 保留，拒絕 vision_score、字串、非有限與範圍外值；
-- 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、taxon ID 及正規化分數的 JSON 字串。
+- 只有明確的 combined_score 才建立候選分數，並同時保留可用的 vision_score；兩者將 0–1 乘以 100，>1–100 保留，拒絕字串、非有限與範圍外值；
+- 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、requestId、scope、taxon ID 及正規化配對分數的 JSON 字串。
 
-vision-score-data.js 以 taxon ID 儲存／合併分數；最多保留 24 份回應，最長 2 分鐘，並以可見選單重疊範圍避免舊結果污染新選單。上傳 adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 在每個數字 ID 詳情頁保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理；若隔離環境無法讀 jQuery 候選資料，改以官方由 `isVisionResult` 產生的 `.ac.vision` DOM class 判定視覺候選，仍按 `data-taxon-id` 配對，不能替手動搜尋列補分。
+vision-score-data.js 以 taxon ID 儲存配對分數。明確卡片／觀察作用域使用 requestId 的 latest-wins，遲到舊回應不得覆蓋；但明確作用域也必須與目前候選的 taxon ID／原生 vision score 指紋相符，不能只因分類 ID 重疊就採用。上傳頁早於選單發生的頁面級預取／快取回應最多保留 24 份、最長 2 分鐘，以同一指紋一次性綁定到一張卡片，歧義時不顯示，已綁定回應不得跨卡片重用。combined score 不以畫面排序作額外拒絕條件；取得配對分數後預設顯示 `combined(vision)`。上傳 adapter 的明確請求標記只供同步發起的單次請求使用；網站直接重用快取選單、沒有發出請求時，標記在目前任務結束前失效。adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 在每個數字 ID 詳情頁保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理；若隔離環境無法讀 jQuery 候選資料，改以官方由 `isVisionResult` 產生的 `.ac.vision` DOM class 判定視覺候選，仍按 `data-taxon-id` 配對，不能替手動搜尋列補分。
 
-vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：只顯示一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，使用紅／棕／綠連續色階，並在多行候選列中上下居中。沒有有效分數時要移除 Leafwise 標記，不顯示佔位。
+vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：以 `combined(vision)` 顯示兩個一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，顏色由 combined score 的紅／棕／綠連續色階決定，並在多行候選列中上下居中。沒有有效 combined score 時要移除 Leafwise 標記，不顯示佔位或單獨的 vision score。
 
 兩個 adapter 都從原生 DOM 上的 `data-taxon-id` 取得 ID；上傳頁再與 jQuery data 的 `ui-autocomplete-item` 或 `item.autocomplete` 物件 ID 交叉驗證，觀察詳情頁在可讀時也交叉驗證，否則只接受官方 `.ac.vision` 候選。不能用候選下標推算分數。
 
@@ -297,7 +297,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 - 上傳頁 .uploader #imageGrid、原生「全選」區域、觀察卡片與 taxon autocomplete
 - jQuery data key：ui-autocomplete-item、item.autocomplete；觀察詳情的官方 TaxonAutocomplete 也會把 `isVisionResult` 映射為 `.ac.vision`
 - 候選欄位：id、isVisionResult、visionScore／vision_score、confident、ancestor
-- fetch／XHR 的 `/v1`、`/v2` computervision score_image／score_observation URL、JSON 回應形狀與 combined_score
+- fetch／XHR 的 `/v1`、`/v2` computervision score_image／score_observation URL、JSON 回應形狀與 combined_score／vision_score
 
 碰到「突然全部沒顯示」「選錯 taxon」「分數對不上」時，先在正式頁面只讀檢查上述介面，再修改 adapter。不能以候選順序、ancestor 或舊 screenshot 推測新結構。
 
@@ -317,7 +317,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 ## 13. 典型修改路徑
 
 - 改分數外觀：只改 src/scripts/vision-score-style.js 和相應測試，確保上傳／觀察頁共用。
-- 改分數抓取：先讀 bridge + data store + 兩個 adapter；保持原生請求單次、taxon ID 配對、combined score、跨 world 相容。
+- 改分數抓取：先讀 bridge + data store + 兩個 adapter；保持原生請求單次、taxon ID 配對、combined 為自動判定唯一依據、vision 只作配對顯示、跨 world 相容。
 - 改批次規則：優先改 uploader-ai-core.js，先補純邏輯測試，再改 adapter／panel。
 - 改上傳版面：只在 uploader-ai-panel.js 掛載 Shadow DOM；重跑 layout 測試，確認沒有推動官方固定側欄。
 - 改個人次數：同時檢查 taxon-status.js、background.js、cache 測試與觀察頁競態測試。
@@ -331,7 +331,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 - Firefox 隔離環境曾暴露 window／全域與 Chromium 不同；不要用只在 Chrome 成功作為跨瀏覽器完成標準。
 - 上傳頁官方固定批次欄曾被面板推低；目前收合面板與 Shadow DOM 定位有專門 layout 回歸，修改掛載點時務必重跑。
 - jQuery UI selectable 會在父層阻止 mousedown；Shadow DOM 控制項的焦點與事件隔離有專門回歸，不要簡化掉。
-- combined_score 的設計選擇是「重用 iNaturalist 自己的 fetch／XHR 請求與回應」；API v2 欄位投影欠缺此欄位時只擴充同一請求的回傳投影。它不依賴頁面全域變數，不自行重算，也不發第二次請求。
+- combined_score／vision_score 的設計選擇是「重用 iNaturalist 自己的 fetch／XHR 請求與回應」；API v2 欄位投影欠缺分數欄位時只擴充同一請求的回傳投影。它不依賴頁面全域變數，不自行重算，也不發第二次請求；只有 combined score 參與自動判定。
 - iNaturalist uploader 已把 inaturalistjs 作為 ES module 區域變數使用；只查 `window.inaturalistjs` 會完全漏掉分數。修改橋接時必須保留無該全域的 fetch／XHR 回歸。
 
 ## 15. 完成一項工作的交付格式

@@ -5,12 +5,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const extension = require('./extension-path.cjs');
 
-test('observation suggestions use combined-score storage and reject visual-score fallback', () => {
+test('observation suggestions display paired scores while retaining combined score as the primary value', () => {
   const code = fs.readFileSync(path.join(extension, 'scripts/observation-ai-adapter.js'), 'utf8');
   assert.match(code, /LeafwiseVisionScores/);
   assert.match(code, /Number\(data\.id\) === id/);
   assert.match(code, /classList\?\.contains\("vision"\)/);
-  assert.doesNotMatch(code, /visionScore/);
+  assert.match(code, /scores\.values/);
+  assert.match(code, /scores\.candidate/);
   assert.match(code, /new root\.MutationObserver\(schedule\)/);
   assert.match(code, /setInterval\?\.\(scan, 1200\)/);
   assert.match(code, /addEventListener\?\.\("leafwise:cv-combined-scores", schedule\)/);
@@ -67,15 +68,18 @@ test('observation detail decorates official DOM vision rows without page jQuery 
       decorate: (entry, _row, value) => decorated.push({ id: entry.id, value })
     },
     LeafwiseVisionScores: {
-      value: (_data, id, ids) => id === 42 && ids.join(',') === '42,43' ? 82.5 : null
+      candidate: (_data, id) => ({ id, visionScore: id === 42 ? 91 : null }),
+      values: (_data, id, candidates) => id === 42 && candidates.map(entry => entry.id).join(',') === '42'
+        ? { combined: 82.5, vision: 91 }
+        : null
     },
     LeafwiseUploadPageData: () => null
   });
   vm.runInContext(fs.readFileSync(path.join(extension, 'scripts/observation-ai-adapter.js'), 'utf8'), context);
-  assert.deepEqual(decorated, [{ id: 42, value: 82.5 }, { id: 43, value: null }]);
+  assert.deepEqual(decorated, [{ id: 43, value: null }, { id: 42, value: { combined: 82.5, vision: 91 } }]);
   decorated.length = 0;
   dispatch('leafwise:cv-combined-scores');
-  assert.deepEqual(decorated, [{ id: 42, value: 82.5 }, { id: 43, value: null }]);
+  assert.deepEqual(decorated, [{ id: 43, value: null }, { id: 42, value: { combined: 82.5, vision: 91 } }]);
   dispatch('pagehide');
   assert.equal(disconnected, true);
   assert.equal(clearedTimer, 73);

@@ -23,7 +23,10 @@ async function prepare(page) {
     let ids=Array.from({length:66},(_,i)=>1001+i);
     if(u.searchParams.has('user_id'))ids=u.searchParams.has('d1')?[1001]:u.searchParams.has('d2')?[1002]:u.searchParams.has('place_id')?[1001]:[1001,1002];
     data=tree(ids);
-   }else if(u.pathname==='/v1/observations/species_counts')data={total_results:2};
+   }else if(u.pathname==='/v1/observations/species_counts'){
+    if(window.failDiversity)return {ok:false,status:503};
+    data={total_results:4};
+   }else if(u.pathname==='/v1/observations/observers')data={results:[{user_id:7,observation_count:7,species_count:2}]};
    else if(u.pathname==='/v1/observations'){
     if(window.failRecords&&u.searchParams.has('order'))return {ok:false,status:503};
     data={total_results:7,results:[{id:u.searchParams.get('order')==='asc'?11:22,observed_on:u.searchParams.get('order')==='asc'?'2020-01-01':'2026-09-01',place_guess:'公開測試地點'}]};
@@ -49,6 +52,12 @@ async function open(page,testInfo,url='https://www.inaturalist.org/observations?
 
 test('named regions show members and a custom place group survives reload',async({page},testInfo)=>{
  const panel=await open(page,testInfo);
+ await expect(panel.locator('#rank option[value="species"]')).toHaveText('种 · species');
+ await panel.locator('#place-choice').selectOption('builtin:mainland-hk-mo');
+ await expect(panel.locator('#place-members')).toContainText('中國大陸（6903）');
+ await expect(panel.locator('#place-members')).toContainText('香港（7613）');
+ await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
+ await expect(panel.locator('#place-members')).not.toContainText('臺灣');
  await panel.locator('#place-choice').selectOption('builtin:south');
  await expect(panel.locator('#place-members')).toContainText('香港（7613）');await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
  await panel.locator('#place-choice').selectOption('builtin:east');await expect(panel.locator('#place-members')).not.toContainText('臺灣');
@@ -100,13 +109,31 @@ test('CSV includes every filtered result across pages and clipboard failure offe
 
 test('personal records load only when requested, show first/latest, cache, and clear on SPA navigation',async({page},testInfo)=>{
  await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');await inject(page,testInfo,true);
- const marker=page.locator('#taxon_page #qg-inat-own-taxon-status');await expect(marker).toHaveText('(7)');
+ const marker=page.locator('#taxon_page #qg-inat-own-taxon-status');await expect(marker).toHaveText('(7|4|2)');
  expect(await page.evaluate(()=>window.testRequests.filter(url=>new URL(url).searchParams.has('order')).length)).toBe(0);
  await marker.click();const card=page.locator('#leafwise-personal-records');await expect(card.locator('#records')).toContainText('2020-01-01');await expect(card.locator('#records')).toContainText('2026-09-01');await expect(card.locator('#all a')).toHaveAttribute('href',/user_id=observer/);
  await page.screenshot({path:testInfo.outputPath('personal-records.png')});
  await card.getByRole('button',{name:'關閉我的紀錄'}).click();await marker.click();await expect(card.locator('#records')).toContainText('2020-01-01');
  expect(await page.evaluate(()=>window.testRequests.filter(url=>new URL(url).searchParams.has('order')).length)).toBe(2);
  await page.evaluate(()=>history.pushState({},'', '/taxa/4'));await expect(card).toHaveCount(0);
+});
+
+test('taxon page shows observations, leaf taxa and species rank counts in that order',async({page},testInfo)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');
+ await page.locator('main').evaluate(main=>{main.insertAdjacentHTML('beforeend','<section id="taxonomy"><ul><li class="current"><div class="row-content"><div class="SplitTaxon"><a href="/taxa/3">Current taxon</a><a class="secondary-name" href="/taxa/3">Animals</a></div></div></li><li><a href="/taxa/41">Test order</a></li></ul></section>')});
+ await inject(page,testInfo,true);
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveText('(7|4|2)');
+ await expect(page.locator('#taxonomy li.current .qg-inat-taxonomy-status')).toHaveText('(7|4|2)');
+ await expect(page.locator('#taxonomy li:not(.current) .qg-inat-taxonomy-status')).toHaveText('(7|4|2)');
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveAttribute('title',/最低分類單元.*種級分類單元/);
+});
+
+test('taxon page keeps the observation count when diversity statistics fail',async({page},testInfo)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');
+ await page.evaluate(()=>{window.failDiversity=true});await inject(page,testInfo,true);
+ const marker=page.locator('#qg-inat-own-taxon-status');await expect(marker).toHaveText('(7)');
+ await expect.poll(()=>page.evaluate(()=>window.testRequests.filter(url=>new URL(url).pathname==='/v1/observations/species_counts').length)).toBe(1);
+ await expect(marker).toHaveText('(7)');
 });
 
 test('failed personal record requests show retry instead of inventing an empty history',async({page},testInfo)=>{

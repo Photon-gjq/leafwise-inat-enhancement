@@ -2,7 +2,7 @@
 
 在 GitHub [Releases](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest) 下載所需版本。每次 Release 同時提供 Chrome、Edge、Firefox ZIP 與未簽章 XPI，版本號相同。
 
-套件另附 `USAGE.md` 與 `REGIONS.md`。0.11.0 的搜尋頁入口是「類群對比」；日期、收藏等工具可展開使用，個人紀錄小卡從觀察／類群頁的個人次數開啟。
+套件另附 `USAGE.md`、`REGIONS.md` 與英語操作指南 `GUIDE.en.md`。搜尋頁入口是「類群對比」；日期、收藏等工具可展開使用，個人紀錄小卡從觀察／類群頁的個人次數開啟。
 
 ## Chrome
 

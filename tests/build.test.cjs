@@ -15,14 +15,18 @@ test('built version has one source and all manifest/HTML script references resol
   const referenced = manifest.content_scripts.flatMap(group => group.js);
   referenced.push(...(manifest.background.scripts || [manifest.background.service_worker]), manifest.options_page);
   for (const file of referenced) assert.ok(fs.existsSync(path.join(extension, file)), file);
+  for (const file of Object.values(manifest.icons || {})) assert.ok(fs.existsSync(path.join(extension, file)), file);
+  for (const file of Object.values(manifest.action?.default_icon || {})) assert.ok(fs.existsSync(path.join(extension, file)), file);
   const html = read(path.join(extension, manifest.options_page));
   for (const [, script] of html.matchAll(/<script src="([^"]+)"/g)) {
     assert.ok(fs.existsSync(path.resolve(extension, path.dirname(manifest.options_page), script)), script);
   }
   const bridge = manifest.content_scripts.find(group => group.js.includes('scripts/vision-score-bridge.js'));
+  const notifications = manifest.content_scripts.find(group => group.js.includes('scripts/notification-tabs.js'));
   const uploader = manifest.content_scripts.find(group => group.js.includes('scripts/uploader-ai-panel.js'));
   const observation = manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js'));
   assert.deepEqual(bridge.js, ['scripts/vision-score-bridge.js']);
+  assert.deepEqual(notifications.matches, ['https://www.inaturalist.org/*', 'https://inaturalist.org/*']);
   assert.equal(bridge.world, 'MAIN');
   assert.deepEqual(uploader.js.slice(0, 5), ['scripts/vision-score-data.js', 'scripts/vision-score-style.js', 'scripts/uploader-ai-core.js', 'scripts/uploader-page-data.js', 'scripts/uploader-ai-adapter.js']);
   assert.ok(observation.js.includes('scripts/vision-score-style.js'));

@@ -195,6 +195,18 @@
     return marker;
   }
 
+  function validDiversity(counts) {
+    return Number.isSafeInteger(counts?.leafTaxa) && counts.leafTaxa >= 0
+      && Number.isSafeInteger(counts?.species) && counts.species >= 0;
+  }
+
+  function setDiversityText(marker, count, username, counts) {
+    if (!marker || count <= 0 || !validDiversity(counts)) return;
+    const label = `(${count}|${counts.leafTaxa}|${counts.species})`;
+    if (marker.textContent !== label) marker.textContent = label;
+    marker.title = `${username}：${count} 次觀察 | ${counts.leafTaxa} 個最低分類單元 | ${counts.species} 個種級分類單元；點擊查看`;
+  }
+
   function taxonomyRow(link) {
     return link.closest?.(".SplitTaxon,.name-row,.row-content,li") || link.parentElement;
   }
@@ -204,8 +216,16 @@
     const row = taxonomyRow(entry.link);
     if (row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) return true;
     const browseHref = ownObservationsURL(location.href, user.username, entry.taxonId);
-    entry.link.after(makeTaxonomyMarker(doc, count, browseHref, user.username));
+    const marker = makeTaxonomyMarker(doc, count, browseHref, user.username);
+    marker.dataset.taxonId = String(entry.taxonId);
+    entry.link.after(marker);
     return true;
+  }
+
+  function updateTaxonomyDiversity(entry, count, user, counts) {
+    if (entry.link.isConnected === false) return;
+    const marker = taxonomyRow(entry.link)?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}[data-taxon-id="${entry.taxonId}"]`);
+    setDiversityText(marker, count, user.username, counts);
   }
 
   function placeCurrentTaxonomyStatus(doc, currentTaxonId, count, browseHref, username) {
@@ -218,7 +238,9 @@
       if (!target) continue;
       const row = taxonomyRow(target);
       if (!row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) {
-        target.after(makeTaxonomyMarker(doc, count, browseHref, username));
+        const marker = makeTaxonomyMarker(doc, count, browseHref, username);
+        marker.dataset.taxonId = String(currentTaxonId);
+        target.after(marker);
       }
       return true;
     }
@@ -228,16 +250,25 @@
   function watchTaxonomyStatuses(doc, user, currentTaxonId, currentCount, currentBrowseHref, ancestorIds, isActive = () => true) {
     const queue = createPriorityQueue(async entry => {
       if (!isActive() || entry.link.isConnected === false) return;
-      const row = taxonomyRow(entry.link);
-      if (row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) return;
-      const result = await chrome.runtime.sendMessage({
-        type: "qg-taxon-observation-count",
+      let count = entry.cachedCount;
+      if (count === undefined) {
+        const result = await chrome.runtime.sendMessage({
+          type: "qg-taxon-observation-count",
+          userId: user.userId,
+          taxonId: entry.taxonId
+        });
+        if (!result?.ok || !Number.isSafeInteger(result.count) || result.count < 0) return;
+        count = result.count;
+      }
+      if (!isActive() || entry.link.isConnected === false) return;
+      placeTaxonomyMarker(doc, entry, count, user);
+      if (count === 0) return;
+      const diversity = await chrome.runtime.sendMessage({
+        type: "qg-taxon-diversity",
         userId: user.userId,
         taxonId: entry.taxonId
       });
-      if (!isActive() || !result?.ok || !Number.isSafeInteger(result.count) || result.count < 0 || entry.link.isConnected === false) return;
-      if (row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) return;
-      placeTaxonomyMarker(doc, entry, result.count, user);
+      if (isActive() && diversity?.ok) updateTaxonomyDiversity(entry, count, user, diversity.counts);
     }, 3);
     const seenLinks = new Set();
     let scanning = false;
@@ -271,14 +302,15 @@
         for (const entry of fresh) {
           const count = Number(cachedCounts[entry.taxonId]);
           if (Object.hasOwn(cachedCounts, entry.taxonId) && Number.isSafeInteger(count) && count >= 0) {
+            entry.cachedCount = count;
             placeTaxonomyMarker(doc, entry, count, user);
           }
         }
         for (const entry of descendants) {
-          if (!Object.hasOwn(cachedCounts, entry.taxonId)) queue.enqueue(entry, "high");
+          queue.enqueue(entry, "high");
         }
         for (const entry of ancestors) {
-          if (!Object.hasOwn(cachedCounts, entry.taxonId)) queue.enqueue(entry);
+          queue.enqueue(entry);
         }
       } finally {
         scanning = false;
@@ -492,6 +524,7 @@
     const result = await chrome.runtime.sendMessage({ type: "qg-taxon-observation-count", userId: user.userId, taxonId, force: forceCount });
     if (!isActive() || !result?.ok || !Number.isSafeInteger(result.count) || result.count < 0) return;
     const browseHref = ownObservationsURL(location.href, user.username, taxonId);
+    let diversity = null;
     let statusScheduled = false;
     const ensureStatus = () => {
       if (statusScheduled || !isActive()) return;
@@ -499,7 +532,14 @@
       requestAnimationFrame(() => {
         statusScheduled = false;
         if (info.kind === "observation" && currentObservationTaxonId(document, location.href) !== taxonId) return;
-        if (isActive()) placeStatus(document, info, user, taxonId, result.count, browseHref);
+        if (!isActive()) return;
+        placeStatus(document, info, user, taxonId, result.count, browseHref);
+        if (info.kind === "taxon" && diversity) {
+          setDiversityText(document.getElementById(MARKER_ID), result.count, user.username, diversity);
+          for (const root of taxonomyRoots(document)) {
+            setDiversityText(root.querySelector(`.${TAXONOMY_MARKER_CLASS}[data-taxon-id="${taxonId}"]`), result.count, user.username, diversity);
+          }
+        }
       });
     };
     placeStatus(document, info, user, taxonId, result.count, browseHref);
@@ -508,6 +548,14 @@
       attributes: true, attributeFilter: ["href", "data-taxon-id", "data-taxonid"] });
     registerCleanup(() => statusObserver.disconnect());
     if (info.kind === "taxon") {
+      if (result.count > 0) {
+        chrome.runtime.sendMessage({ type: "qg-taxon-diversity", userId: user.userId, taxonId })
+          .then(reply => {
+            if (!isActive() || !reply?.ok || !validDiversity(reply.counts)) return;
+            diversity = reply.counts;
+            ensureStatus();
+          }).catch(() => {});
+      }
       registerCleanup(watchYoursCounts(document, user, taxonId, result.count, isActive));
       const ancestorsResult = await chrome.runtime.sendMessage({ type: "qg-taxon-ancestors", taxonId });
       if (!isActive()) return;

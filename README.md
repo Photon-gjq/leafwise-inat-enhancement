@@ -2,6 +2,8 @@
 
 [![Build, test and release](https://github.com/Photon-gjq/leafwise-inat-enhancement/actions/workflows/build.yml/badge.svg)](https://github.com/Photon-gjq/leafwise-inat-enhancement/actions/workflows/build.yml)
 
+[English README](README.en.md) · [English guide](docs/GUIDE.en.md)
+
 iNaturalist 網頁增強插件。**一份核心原始碼，同時建置 Chrome、Edge 和 Firefox 三個版本。**
 
 提供類群對比、季節目標清單、查詢與地點組合收藏、個人紀錄小卡，以及上傳頁的批次 AI 建議助手。不是 iNaturalist 官方產品。
@@ -20,10 +22,11 @@ Firefox 目前是未簽章測試包，重新啟動後需再次暫時載入；正
 
 ## 功能
 
-- **類群對比**：生涯未見、已見但該年未見、已見但此地未見、該年首次記錄；彙總目／科／屬等整個分支，顯示當地後代觀察數與可核驗的 Leaf taxa。全部生物 ID 為 `48460`，鳥類為 `3`。
+- **類群對比**：生涯未見、已見但該年未見、已見但此地未見、該年首次記錄；可從界彙總到種，顯示當地後代觀察數與可核驗的 Leaf taxa。全部生物 ID 為 `48460`，鳥類為 `3`。
 - **季節目標**：歷年月份、日期與項目條件只限制當地候選清單；一鍵設定本月，按記錄數排序。
-- **地點組合及查詢收藏**：內建「中國大陸+港澳臺」（`6903,7613,7887,10301`）與華南（含港澳）等分區；`any` 表示全球。可保存自訂組合、完整搜尋網址與面板條件。[查看分區成員](docs/REGIONS.md)
-- **個人紀錄小卡**：在觀察／類群頁點擊個人次數，按需查看首次、最近與全部觀察。沿用常用使用者、類群及中文名管理。
+- **地點組合及查詢收藏**：內建「中國大陸+港澳」（`6903,7613,10301`）、「中國大陸+港澳臺」（`6903,7613,7887,10301`）與華南（含港澳）等分區；`any` 表示全球。可保存自訂組合、完整搜尋網址與面板條件。[查看分區成員](docs/REGIONS.md)
+- **個人紀錄小卡與分類頁統計**：在分類頁以 `(觀察數|最低分類單元數|種級數)` 顯示個人紀錄；點擊數字可查看首次、最近與全部觀察。觀察詳情頁保留個人觀察次數。沿用常用使用者、類群及中文名管理。
+- **通知批次開啟**：右上「新動態」清單可一鍵在背景分頁打開各個觀察；同一觀察的多則通知只開一頁。
 - **複製及 CSV**：匯出所有符合目前名稱篩選的對比結果，保留排序、核驗後 Leaf taxa 與範圍資訊。
 - **AI 建議增強**：上傳頁及每個具體觀察詳情頁的原生 AI 建議選單，以無框彩色數字顯示 `綜合分數(視覺分數)`，例如 `86.0(75.2)`；上傳助手預設收合在「全選」旁，支援預覽、批次套用、自動處理、停止與明細。
 
@@ -54,7 +57,7 @@ npm run test:layout
 npm run package
 ```
 
-`check` 會先建置，再對三個瀏覽器產物執行語法和功能測試。`test:layout` 在獨立 Chromium／Firefox 中驗證上傳頁及對比功能；設定 `LEAFWISE_EDGE_TESTS=1` 時也會用本機 Microsoft Edge 測試 Edge 產物，Windows CI 已啟用。Linux 安裝瀏覽器時可用 `--with-deps` 一併安裝系統依賴。`package` 會同步產出 Chrome ZIP、Edge ZIP、Firefox ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。
+`check` 會先建置，再對三個瀏覽器產物執行語法和功能測試。`test:layout` 在獨立 Chromium／Firefox 中驗證上傳頁及對比功能；設定 `LEAFWISE_EDGE_TESTS=1` 時也會用本機 Microsoft Edge 測試 Edge 產物，Windows CI 已啟用。Linux 安裝瀏覽器時可用 `--with-deps` 一併安裝系統依賴。`package` 會同步產出三個瀏覽器安裝 ZIP、Chrome／Edge 商店專用 ZIP、未簽章 XPI 及校驗碼；壓縮檔會自動解壓比對每個檔案，確認未遺漏或改變內容。執行期間不登入 iNaturalist，也不發布觀察。商店首次上架及後續自動更新的設定見 [商店上架指南](docs/STORE_PUBLISHING.md)。
 
 ## 之後如何更新
 

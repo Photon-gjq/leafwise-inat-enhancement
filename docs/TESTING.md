@@ -16,6 +16,8 @@ npm run package
 
 瀏覽器版面測試同時驗證面板預設在「全選」右側收合、收合時不撐高固定工具列且首排卡片叉號仍可命中並刪除、快捷執行不會展開、展開後回到照片欄、網站替換照片欄後重新掛載，以及上傳／具體觀察頁的 `combined(vision)` 只顯示彩色數字，不產生背景框、邊框、列色條或百分號。
 
+通知按鈕的受控 DOM 測試採用官方 `#updatesnav #updatessubnav` 結構及 `/users/new_updates` 的直接 `ul > li > a` 通知列：異步載入後才顯示按鈕，按觀察 ID 去重並略過站外、搜尋及儀表板連結；背景單元測試確認只接受 iNaturalist 頂層頁面、在同一視窗開不啟用的新分頁，且三個建置共用相同行為。它不會登入真實帳號或標記真實通知。
+
 觀察詳情 fixture 依據 iNaturalist `0d8074c09ee177b50603c0ed1fcb5405a4f6835b` 的 [ActivityCreatePanel](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/show/components/activity_create_panel.jsx) 與 [TaxonAutocomplete](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/uploader/components/taxon_autocomplete.jsx)：詳情頁傳入 observation ID，視覺候選由 `isVisionResult` 產生 `.ac.vision[data-taxon-id]`。測試覆蓋 jQuery 資料不可讀時仍顯示、手動搜尋列不補分；這是受控 DOM 回歸，不等同登入正式頁面的人工驗收。
 
 打包程序解壓比對每個檔案，確認 manifest 版本與內容一致。CI 也在 Windows 和 Linux 上執行，離線功能測試不向 iNaturalist 發送請求。

@@ -2,9 +2,9 @@
 (function (root) {
   "use strict";
   const ranks = { kingdom: 70, phylum: 60, class: 50, order: 40, suborder: 37,
-    superfamily: 33, family: 30, subfamily: 27, tribe: 25, genus: 20, subgenus: 15 };
+    superfamily: 33, family: 30, subfamily: 27, tribe: 25, genus: 20, subgenus: 15, species: 10 };
   const rankNames = { kingdom: "界", phylum: "门", class: "纲", order: "目", suborder: "亚目",
-    superfamily: "总科", family: "科", subfamily: "亚科", tribe: "族", genus: "属", subgenus: "亚属" };
+    superfamily: "总科", family: "科", subfamily: "亚科", tribe: "族", genus: "属", subgenus: "亚属", species: "种" };
   const iconicIDs = { Aves: 3, Amphibia: 20978, Reptilia: 26036, Mammalia: 40151,
     Actinopterygii: 47178, Animalia: 1, Insecta: 47158, Arachnida: 47119,
     Mollusca: 47115, Plantae: 47126, Fungi: 47170, Protozoa: 47686, Chromista: 48222 };
@@ -42,7 +42,7 @@
   function normalize(input) {
     const user = String(input.user ?? "").trim();
     if (!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,99}$/.test(user)) throw new Error("请输入单个 iNaturalist 用户名或数字用户 ID。");
-    if (!Object.hasOwn(ranks, input.rank)) throw new Error("请选择支持的非物种级 rank。");
+    if (!Object.hasOwn(ranks, input.rank)) throw new Error("请选择支持的 rank。");
     const quality = input.quality || "any";
     if (!["any", "verifiable", "research"].includes(quality)) throw new Error("观察质量选项无效。");
     const placeValue = String(input.place ?? "").trim();

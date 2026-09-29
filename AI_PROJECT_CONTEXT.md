@@ -60,19 +60,21 @@
 | src/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
+| src/scripts/notification-tabs.js | iNaturalist 各頁右上「新動態」下拉清單的去重開啟按鈕；僅從官方通知列讀取觀察連結 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | platforms/chrome.json | Chrome／Edge 的 MV3 service worker 與最低版本設定 |
 | platforms/firefox.json | Firefox 背景 scripts、Gecko ID 與最低版本設定 |
 | platforms/*-page-data.js | 取得 iNaturalist 頁面 jQuery 資料的最小平台橋接 |
 | scripts/build.mjs | 由共同來源產生三個瀏覽器建置 |
 | scripts/package.mjs | 可重現打包、解壓比對、SHA256 產生 |
+| scripts/store-publish.mjs | Chrome Web Store API v2／Edge Add-ons API v1.1 既有項目更新；憑證只從 CI 環境變數讀取 |
 | scripts/release-notes.mjs | 驗證標籤、版本、CHANGELOG 並產生發版說明 |
 | scripts/amo-version-status.mjs | 發佈前檢查 AMO 是否已有相同版本 |
 | tests/ | 建置、功能、回歸和瀏覽器版面測試 |
-| .github/workflows/build.yml | Windows／Linux CI、GitHub Release、Firefox AMO 提交 |
+| .github/workflows/build.yml | Windows／Linux CI、GitHub Release、Firefox AMO 與 Chrome／Edge 既有商店項目更新 |
 | build/、dist/ | 生成物；不要手改或把它們當來源 |
 
-更多原則見 docs/ARCHITECTURE.md；使用方式、隱私、測試、分區和發版分別見 docs/USAGE.md、docs/PRIVACY.md、docs/TESTING.md、docs/REGIONS.md、CONTRIBUTING.md。
+更多原則見 docs/ARCHITECTURE.md；中文使用方式、英語指南、隱私、測試、分區和發版分別見 docs/USAGE.md、docs/GUIDE.en.md、docs/PRIVACY.md、docs/TESTING.md、docs/REGIONS.md、CONTRIBUTING.md。
 
 ## 4. 建置時的瀏覽器差異
 
@@ -112,6 +114,10 @@ url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-ta
 ### 分類單元詳情 /taxa/<id>
 
 taxon-status.js
+
+### 全站右上「新動態」清單
+
+notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析清單直屬通知列的 HTTPS 觀察詳情連結，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。使用者按鈕點擊後傳送 `leafwise-open-update-observations`，背景程序再次驗證發件頁及 ID，以不啟用的新分頁在原視窗打開對應觀察。清單載入前不顯示按鈕；沒有可開啟觀察時禁用。此功能只處理目前顯示的清單，不抓歷史分頁、不改通知已讀狀態。
 
 腳本順序是功能的一部分。調整順序時要同步改 manifest/build 測試，並重新驗證三個瀏覽器。
 
@@ -160,9 +166,9 @@ taxon-status.js 只信任目前 iNaturalist 頁面右上使用者選單：
 - username：.navtab.user a.observations_link 的 /observations/<username>；
 - numeric user ID：.navtab.user a.profile_link 的 /people/<id>。
 
-兩者缺一、未登入或解析失敗就退出；不能回退到設定頁的常用使用者，也不能顯示個人狀態。成功時：有紀錄顯示半角 (n) 並可開啟紀錄卡；沒有紀錄顯示 🆕；API 失敗不應當成 0。
+兩者缺一、未登入或解析失敗就退出；不能回退到設定頁的常用使用者，也不能顯示個人狀態。分類頁成功時：有紀錄先顯示半角 (n)，再從 `/observations/species_counts` 讀取最低已觀察分類單元數、從 `/observations/observers` 該使用者的 `species_count` 讀取種級數，組成 `(觀察數|最低分類單元數|種級數)`；觀察詳情頁仍只顯示 (n)。無紀錄顯示 🆕；API 失敗保留已知觀察數，不把未知值當成 0。點擊標記仍開啟紀錄卡。
 
-分類頁的多個「查看您的」連結必須各自解析 user_id、taxon_id、place_id、verifiable、view、rank 等參數並分別統計。分類列表由下級先於上級處理，最多 3 個並發；頂部已取得的次數可重用。
+分類頁的多個「查看您的」連結必須各自解析 user_id、taxon_id、place_id、verifiable、view、rank 等參數並分別統計。分類列表由下級先於上級處理，最多 3 個並發；頂部已取得的次數可重用。新增的多樣性 API 請求共用節流傳輸器，兩個請求起始至少間隔 1.1 秒，並以使用者及 taxon ID 快取 5 分鐘。
 
 觀察詳情的 URL 可能在鑑定後不變，但目前 taxon 會變。程式用 DOM 監聽與低頻輪詢發現變更，清除舊 marker，對新 taxon 強制繞過 5 分鐘快取，並以 generation／目前 taxon 檢查阻止舊請求寫回。
 
@@ -170,7 +176,7 @@ taxon-status.js 只信任目前 iNaturalist 頁面右上使用者選單：
 
 higher-taxa-core.js 處理驗證、分類樹與比較純邏輯：
 
-- 階級範圍 kingdom 到 subgenus；模式為 lifetime／year／local／first。
+- 階級範圍 kingdom 到 species；種下分類在種級比較及 Leaf taxa 計數時歸入 species；模式為 lifetime／year／local／first。
 - 地點 ID 最多 20 個，也允許 any；本地條件包含月份、d1、d2、project、quality。
 - 個人基準與公開比較條件分離，不能意外繼承月份等局部條件。
 - 分類樹採 fail-closed 驗證：祖先、循環、計數聚合不確定時不猜。
@@ -195,6 +201,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - qg-open-options
 - qg-observation-taxon
 - qg-taxon-observation-count（支援 force）
+- qg-taxon-diversity（返回 leafTaxa、species；TTL 5 分鐘）
 - qg-cached-taxon-observation-counts
 - qg-scoped-observation-count
 - qg-taxon-ancestors
@@ -204,6 +211,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - qg-higher-taxa-names
 - leafwise-explore-library
 - leafwise-personal-records
+- leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID；返回實際開啟數）
 
 更名或改 payload 形狀前，先搜尋所有 sender、listener 和測試；通常要保持向後相容。
 
@@ -219,6 +227,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 - qgObservationTaxon:<observation-id>
 - qgTaxonCount:<user-id>:<taxon-id>
+- qgTaxonDiversity:<user-id>:<taxon-id>
 - qgScopedCount:<endpoint>:<sorted-query>
 - qgTaxonAncestors:<taxon-id>
 
@@ -231,6 +240,8 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 新增權限是高風險變更，必須有明確功能理由、同步隱私文件、三平台 manifest 測試和發版說明。不要為方便存取頁面狀態而增加寬泛權限；優先沿用頁面既有資料與小型平台橋接。
 
+通知按鈕的 content script 需匹配 iNaturalist 各頁的共用 header；只讀取 `#updatessubnav` 已載入的觀察連結，不讀取私訊。建立分頁由背景 `tabs.create` 完成，Chrome／Firefox 均無須新增 `tabs` permission；這不是 host permission 的擴張，也沒有新增背景網路請求。
+
 ## 10. 驗證矩陣
 
 ### 每次程式變更至少執行
@@ -241,7 +252,7 @@ npm run check
 npm run package
 ~~~
 
-npm run check 會先建置再跑功能測試；同一套測試會針對 Chrome、Edge、Firefox 產物執行。npm run package 再建置，固定 ZIP 內時間戳、解壓逐檔比對並輸出 SHA256。
+npm run check 會先建置再跑功能測試；同一套測試會針對 Chrome、Edge、Firefox 產物執行。npm run package 再建置，固定 ZIP 內時間戳、解壓逐檔比對並輸出 SHA256。Chrome／Edge 同時產生根目錄包含 manifest 的 `-store.zip`，供官方商店上傳；原本供 GitHub 手動安裝的 ZIP 保持 `extension/` 目錄結構。
 
 ### 介面、DOM、上傳或觀察 AI 變更另執行
 
@@ -262,7 +273,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 ### 依變更範圍的最低人工驗收
 
 - 設定／儲存：三瀏覽器保存、重開、舊資料相容。
-- 高階分類：單地、多地、全球；目／科／屬；至少逐列核對一個 Leaf taxa。
+- 類群對比：單地、多地、全球；目／科／屬／種；至少逐列核對一個 Leaf taxa。
 - 上傳 AI：高分、低分、手動 taxon、自由文字；預覽不修改；停止及外部操作中斷；新增照片的自動模式。
 - 個人次數：未登入不顯示；分類頁多個 scoped link；觀察頁原地換 taxon；慢舊請求不得污染新 taxon。
 - 觀察建議：原生選單異步出現／重畫／離開頁面後清理；jQuery 資料可讀與不可讀兩條路徑；手動搜尋列與無效分數不留標記。
@@ -282,8 +293,9 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 3. 跑完整驗證矩陣和相應人工驗收。
 4. 提交並推送 main，確認 Windows／Linux CI 都成功。
 5. 建立並推送唯一的 vX.Y.Z 標籤。
-6. 標籤 workflow 重新驗證版本與 CHANGELOG，產出並發布 Chrome ZIP、Edge ZIP、Firefox ZIP、未簽名 XPI、SHA256SUMS.txt。
+6. 標籤 workflow 重新驗證版本與 CHANGELOG，產出並發布 Chrome／Edge／Firefox 手動安裝 ZIP、Chrome／Edge 商店專用 ZIP、未簽名 XPI、SHA256SUMS.txt。
 7. 倉庫變數 AMO_AUTO_PUBLISH=true 且 secrets 存在時，CI 會先查 AMO 是否已有該版本，再用既有 Gecko ID 提交 listed Firefox 更新；相同版本重跑應安全跳過。
+8. 已有 Chrome／Edge 商店項目後，在倉庫設定各自的 ID 與 API secrets，分別以 `CWS_AUTO_PUBLISH=true`、`EDGE_AUTO_PUBLISH=true` 啟用標籤後自動提交更新；首次項目建立及商店資料仍由官方後台完成。工作流先確保跨平台檢查與 GitHub Release 成功；Chrome 以 API v2 跳過已公開／送審版本，Edge 以 v1.1 API key 等候上傳及送審操作成功。詳細手動設定見 docs/STORE_PUBLISHING.md。
 
 不要為三個瀏覽器建立不同版本號或不同標籤。不要手工編輯 Release 中的套件來製造與標籤不同的內容。
 

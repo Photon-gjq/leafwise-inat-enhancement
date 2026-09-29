@@ -54,13 +54,20 @@ test('query parameters isolate the global baseline and never send rank or unobse
   assert.deepEqual(core.regionParams(defaults), { place_id: 6903, taxon_id: 3, verifiable: 'any', d1:'2025-01-01' });
   assert.deepEqual(core.userParams(defaults, 123), { user_id: 123, taxon_id: 3, verifiable: 'any' });
   assert.equal(core.pageDefaults('https://www.inaturalist.org/observations', 'saved').user, 'saved');
-  assert.equal(core.pageDefaults('https://www.inaturalist.org/observations?rank=species').rank, 'order');
+  assert.equal(core.pageDefaults('https://www.inaturalist.org/observations?rank=species').rank, 'species');
   assert.equal(new URL(core.observationsURL(options, 41)).searchParams.has('user_id'), false);
 });
 test('reject invalid inputs and multiple users before network work', () => {
-  for (const changes of [{ user: '' }, { user: 'a,b' }, { user: '../users' }, { place: 0 }, { place: '6903,wrong' }, { taxon: 'Aves' }, { rank: 'species' }, { quality: 'false' }]) {
+  for (const changes of [{ user: '' }, { user: 'a,b' }, { user: '../users' }, { place: 0 }, { place: '6903,wrong' }, { taxon: 'Aves' }, { rank: 'subspecies' }, { quality: 'false' }]) {
     assert.throws(() => core.normalize({ ...options, ...changes }));
   }
+});
+test('species is a supported comparison rank and infraspecies roll up to one species leaf', () => {
+  const input = core.normalize({ ...options, rank: 'species' });
+  const result = core.compare(core.tree(regionData), core.tree(data([])), input, { rank_level: 50 });
+  assert.deepEqual(result.rows.map(row => [row.id, row.count, row.leaves]), [[10, 5, 1]]);
+  assert.equal(result.total, 1);
+  assert.equal(core.rankNames.species, '种');
 });
 function fakeAPI(calls, overrides = {}) {
   return async url => {
@@ -82,6 +89,7 @@ test('integration: 5 initial requests, no new requests for rank changes, one opt
   const global = calls.find(u => u.searchParams.has('user_id'));
   assert.equal(global.searchParams.get('user_id'), '123'); assert.equal(global.searchParams.has('place_id'), false);
   await service.compare({ ...options, rank: 'family' }); assert.equal(calls.length, 5);
+  await service.compare({ ...options, rank: 'species' }); assert.equal(calls.length, 5);
   const verified = await service.verifyLeaf(options, 41); assert.equal(verified.count, 1); assert.equal(calls.length, 6);
   assert.equal(calls.at(-1).searchParams.get('per_page'), '1'); assert.equal(calls.at(-1).searchParams.has('rank'), false);
   await service.verifyLeaf(options, 41); assert.equal(calls.length, 6);
@@ -233,14 +241,20 @@ test('browser background loads dependencies and responds to asynchronous message
     assert.equal(manifest.background.service_worker, 'scripts/background.js');
     assert.equal(manifest.browser_specific_settings, undefined);
   }
-  let listener, click; const local = {}, session = {}; let opened = 0, fetches = 0;
+  let listener, click; const local = {}, session = {}; let opened = 0, fetches = 0; const requested = [];
   const area = data => ({ get: async key => key ? Object.fromEntries((Array.isArray(key) ? key : [key]).map(k => [k, data[k]])) : { ...data }, set: async value => Object.assign(data, value), remove: async keys => keys.forEach(key => delete data[key]) });
   const chrome = {
     storage: { local: area(local), session: area(session) },
     action: { onClicked: { addListener: callback => { click = callback; } } },
     runtime: { id: 'test-chrome-extension', openOptionsPage: async () => { opened++; }, onMessage: { addListener: callback => { listener = callback; } } }
   };
-  const context = vm.createContext({ chrome, browser: chrome, URL, URLSearchParams, setTimeout, clearTimeout, AbortController, fetch: async () => { fetches++; return { ok: true, json: async () => ({ total_results: 7 }) }; } });
+  const context = vm.createContext({ chrome, browser: chrome, URL, URLSearchParams, setTimeout, clearTimeout, AbortController, fetch: async url => {
+    fetches++; const request = new URL(url); requested.push(request);
+    const data = request.pathname.endsWith('/species_counts') ? { total_results: 4 }
+      : request.pathname.endsWith('/observers') ? { results: [{ user_id: 123, observation_count: 7, species_count: 2 }] }
+      : { total_results: 7 };
+    return { ok: true, json: async () => data };
+  } });
   context.importScripts = (...files) => { for (const file of files) vm.runInContext(fs.readFileSync(path.join(extension, 'scripts', file), 'utf8'), context, {filename:file}); };
   for (const file of manifest.background.scripts || [manifest.background.service_worker]) {
     vm.runInContext(fs.readFileSync(path.join(extension, file), 'utf8'), context);
@@ -255,6 +269,17 @@ test('browser background loads dependencies and responds to asynchronous message
   assert.equal((await send(message)).count, 7); assert.equal(fetches, 1);
   assert.equal((await send({ ...message, force: true })).count, 7); assert.equal(fetches, 2);
   assert.equal((await send(message)).count, 7); assert.equal(fetches, 2);
+  const diversity = { type: 'qg-taxon-diversity', userId: 123, taxonId: 3 };
+  assert.deepEqual(JSON.parse(JSON.stringify((await send(diversity)).counts)), { leafTaxa: 4, species: 2 });
+  assert.equal(fetches, 4);
+  assert.equal(requested.at(-2).pathname, '/v1/observations/species_counts');
+  assert.equal(requested.at(-1).pathname, '/v1/observations/observers');
+  for (const request of requested.slice(-2)) {
+    assert.equal(request.searchParams.get('user_id'), '123');
+    assert.equal(request.searchParams.get('taxon_id'), '3');
+    assert.equal(request.searchParams.get('verifiable'), 'any');
+  }
+  assert.equal((await send(diversity)).counts.species, 2); assert.equal(fetches, 4);
   const cached = await send({ type: 'qg-cached-taxon-observation-counts', userId: 123, taxonIds: [3, 4] });
   assert.equal(cached.counts[3], 7); assert.equal(cached.counts[4], undefined);
   const invalid = await send({ ...message, taxonId: -1 });

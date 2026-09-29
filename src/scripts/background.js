@@ -21,6 +21,7 @@ chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
 const API_ROOT = "https://api.inaturalist.org/v1";
 const CACHE_TTL = 5 * 60 * 1000;
+const diversityFetchJSON = QGInatHigherTaxaService.createTransport();
 
 async function cached(key, load) {
   try {
@@ -78,6 +79,25 @@ async function taxonObservationCount(userId, taxonId, force = false) {
     return value;
   }
   return cached(key, load);
+}
+
+async function taxonDiversityCounts(userId, taxonId) {
+  const user = positiveInteger(userId);
+  const taxon = positiveInteger(taxonId);
+  if (!user || !taxon) throw new Error("Invalid user or taxon id");
+  return cached(`qgTaxonDiversity:${user}:${taxon}`, async () => {
+    const params = { user_id: user, taxon_id: taxon, verifiable: "any", per_page: 1 };
+    // The search-page "species" total counts leaf taxa of any rank.
+    const leaves = await diversityFetchJSON(QGInatHigherTaxa.apiURL("observations/species_counts", params));
+    const leafTaxa = leaves.total_results;
+    if (!Number.isSafeInteger(leafTaxa) || leafTaxa < 0) throw new Error("Invalid leaf taxon count");
+    // The observer table's species_count counts species-rank taxa only.
+    const observers = await diversityFetchJSON(QGInatHigherTaxa.apiURL("observations/observers", params));
+    const observer = observers.results?.find(row => Number(row.user_id) === user);
+    const species = observer?.species_count;
+    if (!Number.isSafeInteger(species) || species < 0) throw new Error("Invalid observer species count");
+    return { leafTaxa, species };
+  });
 }
 
 function scopedCountRequest(endpoint, rawParams) {
@@ -146,14 +166,45 @@ async function taxonAncestorIds(taxonId) {
   });
 }
 
+async function openUpdateObservations(rawIds, sender) {
+  const page = new URL(sender.url || "about:blank");
+  if (page.protocol !== "https:" || !["inaturalist.org", "www.inaturalist.org"].includes(page.hostname)
+    || !Number.isInteger(sender.tab?.id) || !Number.isInteger(sender.tab?.windowId)
+    || (sender.frameId != null && sender.frameId !== 0) || !Array.isArray(rawIds)) {
+    throw new Error("Invalid notification tab request");
+  }
+  const ids = [...new Set(rawIds.map(value => {
+    if ((typeof value !== "number" && typeof value !== "string") || !/^[1-9]\d*$/.test(String(value))) return null;
+    const id = Number(value);
+    return Number.isSafeInteger(id) ? id : null;
+  }))];
+  if (ids.includes(null)) throw new Error("Invalid observation id");
+  let opened = 0;
+  for (const id of ids) {
+    try {
+      await chrome.tabs.create({
+        url: `https://${page.hostname}/observations/${id}`,
+        active: false,
+        windowId: sender.tab.windowId
+      });
+      opened++;
+    } catch { /* Report a partial result without retrying successful tabs. */ }
+  }
+  return { ok: opened === ids.length, opened, requested: ids.length };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return;
   let task;
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
-  else if (message?.type === "qg-observation-taxon") {
+  else if (message?.type === "leafwise-open-update-observations") {
+    task = openUpdateObservations(message.observationIds, sender);
+  } else if (message?.type === "qg-observation-taxon") {
     task = observationTaxon(message.observationId).then(taxonId => ({ ok: true, taxonId }));
   } else if (message?.type === "qg-taxon-observation-count") {
     task = taxonObservationCount(message.userId, message.taxonId, message.force === true).then(count => ({ ok: true, count }));
+  } else if (message?.type === "qg-taxon-diversity") {
+    task = taxonDiversityCounts(message.userId, message.taxonId).then(counts => ({ ok: true, counts }));
   } else if (message?.type === "qg-cached-taxon-observation-counts") {
     task = cachedTaxonObservationCounts(message.userId, message.taxonIds).then(counts => ({ ok: true, counts }));
   } else if (message?.type === "qg-scoped-observation-count") {

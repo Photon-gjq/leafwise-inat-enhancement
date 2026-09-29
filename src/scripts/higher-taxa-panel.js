@@ -66,7 +66,7 @@
     <div class="qg">
       <section id="panel" class="panel" aria-label="類群對比" hidden>
         <div class="heading"><h2>類群對比</h2><button type="button" class="close" aria-label="收起面板">×</button></div>
-        <p class="muted">比較當地已記錄的目、科、屬等。使用者在該單元或任一後代有記錄，即視為見過；年份以觀察日期計算，無日期記錄不參與年份對比。</p>
+        <p class="muted">比較當地已記錄的目、科、屬、種等。使用者在該單元或任一後代有記錄，即視為見過；年份以觀察日期計算，無日期記錄不參與年份對比。</p>
         <form>
           <div class="fields">
             <label>对比用户<select id="user-choice" aria-label="选择对比用户" disabled></select><input id="user" aria-label="指定其他对比用户" placeholder="用户名或用户 ID" required autocomplete="off" spellcheck="false" hidden><span class="hint">個人基準包含 Casual</span></label>

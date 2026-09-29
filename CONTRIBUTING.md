@@ -52,7 +52,7 @@ git tag -a vX.Y.Z -m "Leafwise X.Y.Z"
 git push origin vX.Y.Z
 ```
 
-GitHub Actions 先測試與建置，再發布同一標籤的 Chrome ZIP、Edge ZIP、Firefox ZIP、未簽章 XPI 及 SHA256。若標籤、版本或更新紀錄不一致，發佈會失敗。Firefox AMO 自動提交啟用後，同一工作流程會把 `build/firefox` 以 `listed` 渠道提交至既有公開頁面；Chrome Web Store 與 Microsoft Edge Add-ons 仍未設定商店發布。
+GitHub Actions 先測試與建置，再發布同一標籤的 Chrome／Edge／Firefox 安裝 ZIP、Chrome／Edge 商店專用 ZIP、未簽章 XPI 及 SHA256。若標籤、版本或更新紀錄不一致，發佈會失敗。Firefox AMO 自動提交啟用後，同一工作流程會把 `build/firefox` 以 `listed` 渠道提交至既有公開頁面。Chrome／Edge 只在各自已有商店項目、憑證配置完成且自動發布變數設為 `true` 後，才會從版本標籤自動提交更新。首次商店上架仍須在各自開發者後台完成，詳見 [商店上架與自動更新](docs/STORE_PUBLISHING.md)。
 
 Firefox 提交使用 Mozilla 的 `web-ext sign`。在倉庫 Actions secrets 設定 `AMO_JWT_ISSUER`、`AMO_JWT_SECRET`，再把 Actions variable `AMO_AUTO_PUBLISH` 設為 `true`。憑證從 AMO Developer Hub 的 API key 頁面建立，只能保存於 GitHub Secrets，不能寫進檔案、Issue、Actions variable 或日誌。manifest 的 Gecko ID 會讓 AMO 把套件識別為既有 Leafwise 更新。首次啟用時可在 Actions 手動執行 `Build, test and release` 並勾選 `publish_firefox`，提交目前版本；往後推送版本標籤會在三瀏覽器測試與 GitHub Release 成功後自動送交 AMO。工作流會先查詢 AMO 公開版本 API，已存在的版本會安全跳過。
 

@@ -31,6 +31,8 @@ test('regional seasonal/date/project filters stay out of personal baselines and 
 test('named place presets cover all 31 mainland provincial units once, with the agreed memberships',()=>{
  assert.equal(tools.groups.find(g=>g.id==='builtin:all').name,'中國大陸+港澳臺');
  assert.equal(tools.groups.find(g=>g.id==='builtin:all').place,'6903,7613,7887,10301');
+ assert.equal(tools.groups.find(g=>g.id==='builtin:mainland-hk-mo').name,'中國大陸+港澳');
+ assert.equal(tools.groups.find(g=>g.id==='builtin:mainland-hk-mo').place,'6903,7613,10301');
  const ids=name=>tools.groups.find(g=>g.id==='builtin:'+name).place.split(',').map(Number);
  assert.ok(ids('south').includes(7613)&&ids('south').includes(10301));
  assert.equal(ids('east').includes(7887),false);
@@ -38,6 +40,7 @@ test('named place presets cover all 31 mainland provincial units once, with the 
  assert.equal(all.length,31);assert.equal(new Set(all).size,31);
  for(const group of tools.groups)assert.ok(core.placeIDs(group.place).length<=20);
  assert.equal(tools.placeLabel('10301,7887,7613,6903'),'中國大陸+港澳臺');
+ assert.equal(tools.placeLabel('10301,7613,6903'),'中國大陸+港澳');
  assert.equal(tools.placeLabel('53101'),'廣東');
 });
 

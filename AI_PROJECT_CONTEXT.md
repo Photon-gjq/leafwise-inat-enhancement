@@ -72,6 +72,7 @@
 | scripts/amo-version-status.mjs | 發佈前檢查 AMO 是否已有相同版本 |
 | tests/ | 建置、功能、回歸和瀏覽器版面測試 |
 | .github/workflows/build.yml | Windows／Linux CI、GitHub Release、Firefox AMO 與 Chrome／Edge 既有商店項目更新 |
+| site/、.github/workflows/pages.yml | 純靜態首頁與隱私政策；獨立 GitHub Pages 部署，與插件建置／商店發版隔離 |
 | build/、dist/ | 生成物；不要手改或把它們當來源 |
 
 更多原則見 docs/ARCHITECTURE.md；中文使用方式、英語指南、隱私、測試、分區和發版分別見 docs/USAGE.md、docs/GUIDE.en.md、docs/PRIVACY.md、docs/TESTING.md、docs/REGIONS.md、CONTRIBUTING.md。
@@ -298,6 +299,10 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 8. 已有 Chrome／Edge 商店項目後，在倉庫設定各自的 ID 與 API secrets，分別以 `CWS_AUTO_PUBLISH=true`、`EDGE_AUTO_PUBLISH=true` 啟用標籤後自動提交更新；首次項目建立及商店資料仍由官方後台完成。工作流先確保跨平台檢查與 GitHub Release 成功；Chrome 以 API v2 跳過已公開／送審版本，Edge 以 v1.1 API key 等候上傳及送審操作成功。詳細手動設定見 docs/STORE_PUBLISHING.md。
 
 不要為三個瀏覽器建立不同版本號或不同標籤。不要手工編輯 Release 中的套件來製造與標籤不同的內容。
+
+### 公開網站（不屬於插件套件）
+
+`site/index.html` 與 `site/privacy.html` 是 Google OAuth 品牌資料用的公開首頁／隱私政策；樣式只用本地 `site/styles.css`，沒有 JavaScript、表單或追蹤。`pages.yml` 只在 main 的網站／自身工作流改變或手動觸發時，部署 `site/` 到 GitHub Pages，不能把整個倉庫、憑證或生成套件上傳為網站。網站使用 GitHub 自動提供的部署 token，不讀任何商店 secrets；不改 `build.yml`、插件版本或發版標籤。隱私政策分別說明插件資料及維護者專用 OAuth 發佈用途；兩者不是同一個使用者登入功能。
 
 ## 12. 高風險修改檢查表
 

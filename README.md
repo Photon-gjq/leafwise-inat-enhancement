@@ -4,6 +4,8 @@
 
 [English README](README.en.md) · [English guide](docs/GUIDE.en.md)
 
+[專案首頁](https://photon-gjq.github.io/leafwise-inat-enhancement/) · [隱私政策](https://photon-gjq.github.io/leafwise-inat-enhancement/privacy.html)
+
 iNaturalist 網頁增強插件。**一份核心原始碼，同時建置 Chrome、Edge 和 Firefox 三個版本。**
 
 提供類群對比、季節目標清單、查詢與地點組合收藏、個人紀錄小卡，以及上傳頁的批次 AI 建議助手。不是 iNaturalist 官方產品。

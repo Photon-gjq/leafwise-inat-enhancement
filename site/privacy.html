@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy policy for Leafwise and its maintainer-only store publishing automation.">
+  <title>Privacy policy · Leafwise</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <a href="./">← Leafwise home</a>
+      <h1>Privacy policy</h1>
+      <p class="muted">Last updated: 30 September 2026</p>
+    </header>
+
+    <section aria-labelledby="extension-data">
+      <h2 id="extension-data">Browser extension</h2>
+      <p>Leafwise uses iNaturalist page content, public usernames and observation IDs, search filters, and AI suggestion scores to provide its features. Preferences and saved searches are stored in browser storage; some settings may sync through your browser. Public API results are cached briefly.</p>
+      <p>Selected public usernames, taxon IDs, place IDs, and filters are sent to the public iNaturalist API. iNaturalist itself handles photo identification; Leafwise reads the same request's scores and does not send photos to a separate AI service. The extension does not access passwords, authentication tokens, private coordinates, private messages, or unrelated websites.</p>
+      <p>There are no ads, analytics, or telemetry in the extension. The developer does not receive your photos, scores, or notification contents, and does not sell user data. Upload assistance modifies drafts only; it never automatically submits observations.</p>
+    </section>
+
+    <section aria-labelledby="oauth-data">
+      <h2 id="oauth-data">Leafwise Store Automation (maintainer only)</h2>
+      <p>When configured, the companion OAuth application uses the Chrome Web Store permission to read the maintainer's listing metadata and publishing status, upload extension packages, and submit updates for review. It is not a Google sign-in feature for extension users and does not request access to Gmail, contacts, or Google Drive.</p>
+      <p>The maintainer's OAuth client secret and refresh token are stored in GitHub Actions secrets and used only by the publishing workflow to obtain access tokens for Google. Credentials are never bundled with the extension or published on this site. Google and GitHub process the requests needed to operate this workflow; publishing logs may contain listing IDs, versions, and operation statuses, not credentials. This information is not sold, used for advertising, or used to train AI models.</p>
+      <p>Use of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements. The maintainer can stop automation, delete the GitHub secrets, and <a href="https://myaccount.google.com/connections">revoke Google's authorization</a>. Credentials are retained in those secrets until removed or replaced.</p>
+    </section>
+
+    <section aria-labelledby="website-data">
+      <h2 id="website-data">Website, controls, and contact</h2>
+      <p>This static site has no forms, JavaScript, analytics, or tracking code. GitHub Pages hosts it and may process standard request logs under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>.</p>
+      <p>Extension users can remove saved items in Leafwise and clear extension data using their browser's storage and sync controls. For questions, contact the maintainer through <a href="https://github.com/Photon-gjq/leafwise-inat-enhancement/issues">GitHub issues</a>; do not post credentials or private data. The <a href="https://github.com/Photon-gjq/leafwise-inat-enhancement/blob/main/docs/PRIVACY.en.md">extension's detailed privacy policy</a> is also available.</p>
+    </section>
+
+    <footer><a href="./">Leafwise home</a></footer>
+  </main>
+</body>
+</html>

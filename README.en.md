@@ -4,6 +4,8 @@
 
 [繁體中文](README.md) · [English user guide](docs/GUIDE.en.md)
 
+[Project website](https://photon-gjq.github.io/leafwise-inat-enhancement/) · [Privacy policy](https://photon-gjq.github.io/leafwise-inat-enhancement/privacy.html)
+
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
 The extension interface is currently in Chinese. The [English user guide](docs/GUIDE.en.md) translates the main controls and explains each workflow.

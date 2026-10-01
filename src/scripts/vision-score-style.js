@@ -1,5 +1,6 @@
 (function (root) {
   "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
   if (root.LeafwiseVisionScoreStyle) return;
 
   function score(value) {
@@ -68,8 +69,8 @@
     const visionText = pair.vision === null ? null : pair.vision.toFixed(1);
     const text = `${combinedText}${visionText === null ? "" : `(${visionText})`}`;
     const description = visionText === null
-      ? `綜合評分 ${combinedText} / 100（視覺＋地點與日期；不是正確率）`
-      : `綜合評分 ${combinedText} / 100；括號內為視覺評分 ${visionText} / 100（兩者都不是正確率）`;
+      ? t("綜合評分 {0} / 100（視覺＋地點與日期；不是正確率）", combinedText)
+      : t("綜合評分 {0} / 100；括號內為視覺評分 {1} / 100（兩者都不是正確率）", combinedText, visionText);
     badge.setAttribute("aria-label", description);
     badge.setAttribute("title", description);
     if (badge.textContent !== text) badge.textContent = text;

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeTranslations } from './i18n.mjs';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const targets = ['chrome', 'edge', 'firefox'];
@@ -20,6 +21,7 @@ export function build(target) {
   if (!targets.some(name => destination === path.join(root, 'build', name))) throw new Error('Invalid build path');
   fs.rmSync(destination, { force: true, recursive: true });
   fs.cpSync(path.join(root, 'src'), destination, { recursive: true });
+  writeTranslations(root, destination);
   // Edge uses the same Chromium manifest and page adapter as Chrome.
   const platform = target === 'edge' ? 'chrome' : target;
   const manifest = { ...readJSON('src/manifest.json'), ...readJSON(`platforms/${platform}.json`), version };

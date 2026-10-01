@@ -7,3 +7,5 @@
 iNaturalist 是獨立第三方服務，本插件不由 iNaturalist 官方提供或認可。執行時沿用網站現有 API、jQuery 與 React 元件，擴充包沒有內嵌官方 React／jQuery 原始碼或測試照片。
 
 開發用壓縮函式庫 fflate 使用 MIT 授權，安裝時保留其自身授權檔；不會被打包進擴充的執行程式。GitHub 官方 Actions 的授權由各自倉庫提供。
+
+開發用 opencc-js 1.4.2（The nk2028 Project，MIT）只用於建置簡中／繁中／香港繁中文案；安裝時保留其 LICENSE，擴充不包含 OpenCC 程式或字典，只包含轉換後的插件文案。

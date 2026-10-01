@@ -1,5 +1,8 @@
 (() => {
   "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
+  const html = text => globalThis.LeafwiseI18n?.html(text) ?? text;
+  const localizedError = text => globalThis.LeafwiseI18n?.legacy(text) ?? text;
   const core = globalThis.QGInatHigherTaxa;
   const tools = globalThis.LeafwiseExploreTools;
   const filters = globalThis.QGInatFilters;
@@ -7,7 +10,7 @@
   const triggerHost = document.createElement("span");
   triggerHost.id = "qg-inat-higher-taxa-trigger";
   const triggerShadow = triggerHost.attachShadow({ mode: "open" });
-  triggerShadow.innerHTML = `
+  triggerShadow.innerHTML = html(`
     <style>
       :host { display: inline-flex; margin-left: 8px; vertical-align: middle; }
       :host([hidden]) { display: none; }
@@ -15,7 +18,7 @@
       button:hover { border-color: #66834f; background: #eaf1e4; }
       button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
     </style>
-    <button type="button">類群對比</button>`;
+    <button type="button">類群對比</button>`);
   const trigger = triggerShadow.querySelector("button");
   trigger.setAttribute("aria-expanded", "false");
   trigger.setAttribute("aria-controls", "qg-inat-higher-taxa");
@@ -23,7 +26,7 @@
   host.id = "qg-inat-higher-taxa";
   const shadow = host.attachShadow({ mode: "open" });
   // Only this constant template uses innerHTML. API and user text use textContent.
-  shadow.innerHTML = `
+  shadow.innerHTML = html(`
     <style>
       :host { display: block; clear: both; color-scheme: light; }
       :host([hidden]), [hidden] { display: none !important; }
@@ -103,11 +106,11 @@
         </div>
         <details><summary class="muted">統計口徑與請求說明</summary><p class="muted">對比只使用面板顯示的條件；「讀取目前頁面」帶入月份、日期、數字項目 ID，地圖框及排除條件等不參與對比，完整網址仍可收藏。月份、日期、項目與品質只篩選當地候選清單。「已見但該年／此地未見」只列出生涯已見的類群，再排除該年／該地記錄；首次記錄模式比較該年與該年以前的全球記錄，並只列出當地候選清單中的類群。若日後補上更早的記錄或分類變更，首次記錄結果也會改變。</p><p class="muted">Rank 只用於彙總，不作為鑑定等級篩選。多地點取聯集，不直接相加。每個分組成員明列於地點欄；最多 20 個不同 ID，any＝全球。有記錄不等於當地原生或野生分布，個人基準僅指公開可讀的記錄。Leaf taxa 把亞種等歸併到種；每行核驗另請求一次 species_counts。生涯未見使用兩棵分類樹，其他模式最多三棵；分類樹快取 10 分鐘、中文名 30 天，換 rank 共用快取。錯誤不當作零筆，匯出不增加 API 請求。</p></details>
       </section>
-    </div>`;
+    </div>`);
   const $ = selector => shadow.querySelector(selector);
   const fieldIDs = ["user", "place", "taxon", "rank", "quality", "comparison", "year", "months", "d1", "d2", "project"];
-  for (const [rank, label] of Object.entries(core.rankNames)) $("#rank").add(new Option(`${label} · ${rank}`, rank));
-  for (const [value, label] of Object.entries(core.comparisonNames)) $("#comparison").add(new Option(label, value));
+  for (const [rank, label] of Object.entries(core.rankNames)) $("#rank").add(new Option(`${t(label)} · ${rank}`, rank));
+  for (const [value, label] of Object.entries(core.comparisonNames)) $("#comparison").add(new Option(t(label), value));
   let library = { queries: [], groups: [] };
   let usernames = [];
   let userSettings = {};
@@ -124,7 +127,7 @@
   const checking = new Set();
   const fmt = n => n.toLocaleString();
   function status(text, error = false) {
-    $("#status").textContent = text;
+    $("#status").textContent = localizedError(text);
     $("#status").classList.toggle("error", error);
   }
   function fallbackUser() {
@@ -143,8 +146,8 @@
     const input = $("#user");
     select.replaceChildren();
     usernames.forEach(username => select.add(new Option(username, `user:${username}`)));
-    select.add(new Option("指定其他用户…", "custom"));
-    select.add(new Option("管理常用用户…", "settings"));
+    select.add(new Option(t("指定其他用户…"), "custom"));
+    select.add(new Option(t("管理常用用户…"), "settings"));
     const saved = usernames.find(username => username.toLowerCase() === current.toLowerCase());
     select.value = saved ? `user:${saved}` : "custom";
     input.value = saved || current;
@@ -157,9 +160,9 @@
     const select = $("#taxon-choice");
     const input = $("#taxon");
     select.replaceChildren();
-    commonTaxa.forEach(taxon => select.add(new Option(`${taxon.name || `类群 ${taxon.id}`}（${taxon.id}）`, `taxon:${taxon.id}`)));
-    select.add(new Option("指定其他类群…", "custom"));
-    select.add(new Option("管理常用类群…", "settings"));
+    commonTaxa.forEach(taxon => select.add(new Option(`${taxon.name || t("类群 {0}", taxon.id)}（${taxon.id}）`, `taxon:${taxon.id}`)));
+    select.add(new Option(t("指定其他类群…"), "custom"));
+    select.add(new Option(t("管理常用类群…"), "settings"));
     const saved = commonTaxa.find(taxon => String(taxon.id) === current);
     const allLife = !current && commonTaxa.find(taxon => taxon.id === 48460);
     const selected = saved || allLife;
@@ -186,24 +189,24 @@
   }
   function populatePlaces(selected) {
     const select = $("#place-choice");
-    select.replaceChildren(new Option("自訂 ID…", ""), new Option("全球", "any"));
-    for (const group of [...tools.groups, ...library.groups]) select.add(new Option(group.name, group.id));
+    select.replaceChildren(new Option(t("自訂 ID…"), ""), new Option(t("全球"), "any"));
+    for (const group of [...tools.groups, ...library.groups]) select.add(new Option(group.id.startsWith("builtin:") ? t(group.name) : group.name, group.id));
     let canonical;
     try { canonical = core.placeIDs($("#place").value).join(","); } catch {}
     const group = [...tools.groups, ...library.groups].find(item => item.place === canonical);
     select.value = selected ?? ($("#place").value === "any" ? "any" : group?.id || "");
     $("#place-members").textContent = canonical
-      ? String(canonical).split(",").map(id => `${tools.places[id] || "地點"}（${id}）`).join("、")
+      ? String(canonical).split(",").map(id => `${tools.places[id] ? t(tools.places[id]) : t("地點")}（${id}）`).join("、")
       : "";
   }
   function populateQueries(selected = "") {
-    $("#query-choice").replaceChildren(new Option("新增查詢收藏…", ""));
+    $("#query-choice").replaceChildren(new Option(t("新增查詢收藏…"), ""));
     for (const item of library.queries) $("#query-choice").add(new Option(item.name, item.id));
     $("#query-choice").value = selected;
   }
   async function libraryAction(action, entry) {
     const reply = await chrome.runtime.sendMessage({ type: "leafwise-explore-library", action, entry });
-    if (!reply?.ok) throw new Error(reply?.error || "無法讀取收藏。");
+    if (!reply?.ok) throw new Error(reply?.error || t("無法讀取收藏。"));
     library = reply.library;
     return library;
   }
@@ -229,7 +232,7 @@
     populatePlaces(group?.id);
     dirty = true;
     invalidate();
-    status("地點已修改，請開始對比。");
+    status(t("地點已修改，請開始對比。"));
   });
   $("#query-choice").addEventListener("change", () => {
     $("#query-name").value = library.queries
@@ -244,11 +247,11 @@
     };
     await libraryAction("save-query", entry);
     populateQueries(entry.id || library.queries.at(-1).id);
-    status("已保存完整搜尋網址與對比條件。");
+    status(t("已保存完整搜尋網址與對比條件。"));
   });
   handleLibrary("#load-query", async () => {
     const entry = library.queries.find(item => item.id === $("#query-choice").value);
-    if (!entry) throw new Error("請先選擇查詢收藏。");
+    if (!entry) throw new Error(t("請先選擇查詢收藏。"));
     const url = new URL(tools.searchURL(entry.url));
     if (url.href !== tools.searchURL(location.href)) {
       url.searchParams.set("leafwise_query", entry.id);
@@ -258,13 +261,13 @@
     invalidate();
     setFields(entry.options);
     dirty = true;
-    status("已還原收藏，請開始對比。");
+    status(t("已還原收藏，請開始對比。"));
   });
   handleLibrary("#remove-query", async () => {
     await libraryAction("remove-query", { id: $("#query-choice").value });
     populateQueries();
     $("#query-name").value = "";
-    status("已刪除查詢收藏。");
+    status(t("已刪除查詢收藏。"));
   });
   handleLibrary("#save-place", async () => {
     const entry = {
@@ -274,18 +277,18 @@
     };
     await libraryAction("save-place", entry);
     populatePlaces(entry.id || library.groups.at(-1).id);
-    status("已保存自訂地點組合。");
+    status(t("已保存自訂地點組合。"));
   });
   handleLibrary("#remove-place", async () => {
     await libraryAction("remove-place", { id: $("#place-choice").value });
     populatePlaces();
-    status("已刪除自訂地點組合，當前 ID 保留。");
+    status(t("已刪除自訂地點組合，當前 ID 保留。"));
   });
   async function openSettings() {
     try {
       const reply = await chrome.runtime.sendMessage({ type: "qg-open-options" });
       if (!reply?.ok) throw new Error("options");
-    } catch { status("无法打开设置，请点击浏览器工具栏中的扩展图标。", true); }
+    } catch { status(t("无法打开设置，请点击浏览器工具栏中的扩展图标。"), true); }
   }
   function invalidate() {
     generation++;
@@ -301,7 +304,7 @@
     setFields(core.pageDefaults(location.href, fallbackUser()));
     dirty = false;
     lastHref = location.href;
-    status("已读取页面条件。请检查对比用户及地点／类群 ID，再开始对比。");
+    status(t("已读取页面条件。请检查对比用户及地点／类群 ID，再开始对比。"));
   }
   function expand(open) {
     if (open) mountPanel();
@@ -325,12 +328,12 @@
     invalidate();
     setFields({ user: $("#user").value.trim(), place: "6903,7613,7887,10301", taxon: 3, rank: "order", quality: "any" });
     dirty = true;
-    status("已填入中國大陸+港澳臺鳥類示例；全部觀察包含 Casual，可能有圈養記錄。");
+    status(t("已填入中國大陸+港澳臺鳥類示例；全部觀察包含 Casual，可能有圈養記錄。"));
   });
   $("#comparison").addEventListener("change", updateScope);
   $("#this-month").addEventListener("click",()=>{
     $("#months").value=String(new Date().getMonth()+1);$("#d1").value="";$("#d2").value="";$("#comparison").value="lifetime";$("#sort").value="count";
-    updateScope();dirty=true;invalidate();status("已設定歷年本月與生涯未見。請檢查地點及類群，再開始對比。");
+    updateScope();dirty=true;invalidate();status(t("已設定歷年本月與生涯未見。請檢查地點及類群，再開始對比。"));
   });
   $("#taxon-choice").addEventListener("change", () => {
     const select = $("#taxon-choice");
@@ -352,7 +355,7 @@
     }
     dirty = true;
     invalidate();
-    status("条件已修改，请开始对比。");
+    status(t("条件已修改，请开始对比。"));
   });
   $("#user-choice").addEventListener("change", () => {
     const select = $("#user-choice");
@@ -374,12 +377,12 @@
     }
     dirty = true;
     invalidate();
-    status("条件已修改，请开始对比。");
+    status(t("条件已修改，请开始对比。"));
   });
   $("form").addEventListener("input", event => {
     if (event.target === $("#user-choice") || event.target === $("#taxon-choice")) return;
     if(event.target===$("#place"))populatePlaces(library.groups.some(group=>group.id===$("#place-choice").value)?$("#place-choice").value:undefined);
-    dirty = true; invalidate(); status("条件已修改，请开始对比。");
+    dirty = true; invalidate(); status(t("条件已修改，请开始对比。"));
   });
   function setBusy(value) {
     busy = value;
@@ -427,27 +430,27 @@
         taxonLink.append(scientific);
       }
       name.append(taxonLink);
-      const rank = document.createElement("td"); rank.textContent = `${core.rankNames[row.rank]} · ${row.rank}`;
+      const rank = document.createElement("td"); rank.textContent = `${t(core.rankNames[row.rank])} · ${row.rank}`;
       const count = document.createElement("td"); count.className = "num"; count.append(link(fmt(row.count), core.observationsURL(result.options, row.id)));
       const leaves = document.createElement("td"); leaves.className = "num";
       const leaf = verified.get(row.id); const number = document.createElement("span");
-      number.textContent = fmt(leafValue(row)); number.title = leaf ? `官方 species_counts；分类树计算值 ${row.leaves}` : "分类树计算值（亚种等归并到种）"; leaves.append(number);
+      number.textContent = fmt(leafValue(row)); number.title = leaf ? t("官方 species_counts；分类树计算值 {0}", row.leaves) : t("分类树计算值（亚种等归并到种）"); leaves.append(number);
       if (leaf) {
-        const mark = link(leaf.count === row.leaves ? " ✓" : " 官方", leaf.url); mark.title = number.title; leaves.append(mark);
+        const mark = link(leaf.count === row.leaves ? " ✓" : t(" 官方"), leaf.url); mark.title = number.title; leaves.append(mark);
       } else {
         const check = document.createElement("button"); check.type = "button"; check.className = "leaf-check";
-        check.textContent = checking.has(row.id) ? "核验中…" : "核验"; check.disabled = checking.has(row.id);
-        check.setAttribute("aria-label", `核验 ${row.name} 的 leaf taxa 数`);
+        check.textContent = checking.has(row.id) ? t("核验中…") : t("核验"); check.disabled = checking.has(row.id);
+        check.setAttribute("aria-label", t("核验 {0} 的 leaf taxa 数", row.name));
         check.addEventListener("click", () => verify(row)); leaves.append(check);
       }
       tr.append(name, rank, count, leaves); body.append(tr);
     }
     if (!rows.length) {
       const td = document.createElement("td"); td.colSpan = 4;
-      td.textContent = term ? "没有符合名称筛选的结果。" : result.total === 0 ? "当地在此范围下没有该层级的已记录分类单元。" : "此範圍內沒有符合所選對比模式的分類單元。";
+      td.textContent = term ? t("没有符合名称筛选的结果。") : result.total === 0 ? t("当地在此范围下没有该层级的已记录分类单元。") : t("此範圍內沒有符合所選對比模式的分類單元。");
       const tr = document.createElement("tr"); tr.append(td); body.append(tr);
     }
-    $("#page-info").textContent = `${page + 1} / ${pageCount} 页 · ${fmt(rows.length)} 项`;
+    $("#page-info").textContent = t("{0} / {1} 页 · {2} 项", page + 1, pageCount, fmt(rows.length));
     $("#prev").disabled = page === 0; $("#next").disabled = page >= pageCount - 1;
   }
   async function verify(row) {
@@ -457,9 +460,9 @@
     try {
       const reply = await chrome.runtime.sendMessage({ type: "qg-higher-taxa-leaf", options, taxonId: row.id });
       if (current !== generation) return;
-      if (!reply?.ok) throw new Error(reply?.error || "扩展连接中断，请刷新页面。");
+      if (!reply?.ok) throw new Error(reply?.error || t("扩展连接中断，请刷新页面。"));
       verified.set(row.id, reply.result);
-      status(`${row.name}：官方 leaf taxa = ${fmt(reply.result.count)}${reply.result.count === row.leaves ? "，与分类树一致。" : `，与树计算值 ${fmt(row.leaves)} 有差异，已采用官方值（可能因缓存时间或分类变化）。`}`);
+      status(t("{0}：官方 leaf taxa = {1}{2}", row.name, fmt(reply.result.count), reply.result.count === row.leaves ? t("，与分类树一致。") : t("，与树计算值 {0} 有差异，已采用官方值（可能因缓存时间或分类变化）。", fmt(row.leaves))));
     } catch (error) { if (current === generation) status(error.message, true); }
     finally { checking.delete(row.id); if (current === generation) renderRows(); }
   }
@@ -480,7 +483,7 @@
     let next = 0;
     let completed = 0;
     let failure = null;
-    status(force ? "正在强制刷新中文名；当前页优先…" : "结果已显示，正在加载中文名；当前页优先…");
+    status(force ? t("正在强制刷新中文名；当前页优先…") : t("结果已显示，正在加载中文名；当前页优先…"));
     try {
       async function worker() {
         while (!failure && current === generation && version === nameLoadVersion) {
@@ -490,26 +493,27 @@
           const reply = await chrome.runtime.sendMessage({
             type: force ? "qg-higher-taxa-refresh-names" : "qg-higher-taxa-names",
             options: result.options,
-            taxonIds: ids
+            taxonIds: ids,
+            locale: globalThis.LeafwiseI18n?.locale()
           });
           if (current !== generation || version !== nameLoadVersion) return;
           if (!reply?.ok) {
-            failure = new Error(reply?.error || "扩展连接中断，请刷新页面后重试。");
+            failure = new Error(reply?.error || t("扩展连接中断，请刷新页面后重试。"));
             return;
           }
           ids.forEach(id => { byID.get(id).commonName = reply.result.names[id] || ""; });
           completed += ids.length;
           renderRows();
-          status(`${force ? "刷新" : "加载"}中文名：${completed} / ${ordered.length}`);
+          status(t("{0}中文名：{1} / {2}", force ? t("刷新") : t("加载"), completed, ordered.length));
         }
       }
       await Promise.all([worker(), worker()]);
       if (current !== generation || version !== nameLoadVersion) return;
       if (failure) throw failure;
-      status(`${force ? "已刷新" : "已加载"} ${completed} 个分类单元的中文名。`);
+      status(t("{0} {1} 个分类单元的中文名。", force ? t("已刷新") : t("已加载"), completed));
     } catch (error) {
       if (current === generation && version === nameLoadVersion) {
-        status(`分类单元列表已保留；中文名只完成 ${completed} / ${ordered.length}。${error.message}`, true);
+        status(t("分类单元列表已保留；中文名只完成 {0} / {1}。{2}", completed, ordered.length, localizedError(error.message)), true);
       }
     }
     finally {
@@ -528,21 +532,22 @@
     try {
       const options = values();
       setBusy(true);
-      status("正在核實輸入並讀取當地與個人分類樹…首次查詢可能需要數十秒；大型分類樹可能需要約 2 分鐘。");
+      status(t("正在核實輸入並讀取當地與個人分類樹…首次查詢可能需要數十秒；大型分類樹可能需要約 2 分鐘。"));
       const reply = await chrome.runtime.sendMessage({ type: "qg-higher-taxa-compare", options });
       if (current !== generation) return;
-      if (!reply?.ok) throw new Error(reply?.error || "扩展连接中断，请刷新页面后重试。");
+      if (!reply?.ok) throw new Error(reply?.error || t("扩展连接中断，请刷新页面后重试。"));
       result = reply.result; page = 0; $("#search").value = "";
-      $("#stats").replaceChildren(stat("當地候選", result.total), stat(options.comparison?"其他":"生涯已見", result.seen), stat("符合條件", result.rows.length));
-      const quality = { any: "全部（含 Casual）", verifiable: "可验证", research: "Research Grade" }[options.quality];
-      const mode=core.comparisonNames[options.comparison||"lifetime"];
-      const placeName=library.groups.find(group=>group.place===String(options.place))?.name||tools.placeLabel(options.place,result.place.items);
-      $("#scope").textContent = `${placeName}（${options.place}） · ${result.taxon.name}（${options.taxon}） · ${core.rankNames[options.rank]} · ${mode}${options.year?` ${options.year}`:""} · 當地月份 ${options.months||"全部"}，日期 ${options.d1||"不限"} 至 ${options.d2||"不限"}，項目 ${options.project||"不限"} · 當地 ${quality} / ${fmt(result.regionObservations)} 筆；${result.user.name} 個人基準 / ${fmt(result.personalObservations)} 筆。當地資料 ${new Date(result.regionAt).toLocaleString()}，個人資料 ${new Date(result.personalAt).toLocaleString()}。`;
-      $("#sources").replaceChildren(link("當地分類樹 API", result.regionURL), link("個人基準分類樹 API", result.personalURL));
-      if(result.previousURL)$("#sources").append(link("該年以前分類樹 API",result.previousURL));
-      if(result.knownURL)$("#sources").append(link("個人生涯分類樹 API",result.knownURL));
+      $("#stats").replaceChildren(stat(t("當地候選"), result.total), stat(options.comparison?t("其他"):t("生涯已見"), result.seen), stat(t("符合條件"), result.rows.length));
+      const quality = { any: t("全部（含 Casual）"), verifiable: t("可验证"), research: "Research Grade" }[options.quality];
+      const mode=t(core.comparisonNames[options.comparison||"lifetime"]);
+      const group=library.groups.find(group=>group.place===String(options.place));
+      const placeName=group ? (group.id.startsWith("builtin:") ? t(group.name) : group.name) : tools.placeLabel(options.place,result.place.items,t);
+      $("#scope").textContent = t("{0}（{1}） · {2}（{3}） · {4} · {5}{6} · 當地月份 {7}，日期 {8} 至 {9}，項目 {10} · 當地 {11} / {12} 筆；{13} 個人基準 / {14} 筆。當地資料 {15}，個人資料 {16}。", placeName, options.place, result.taxon.name, options.taxon, t(core.rankNames[options.rank]), mode, options.year?` ${options.year}`:"", options.months||t("全部"), options.d1||t("不限"), options.d2||t("不限"), options.project||t("不限"), quality, fmt(result.regionObservations), result.user.name, fmt(result.personalObservations), new Date(result.regionAt).toLocaleString(), new Date(result.personalAt).toLocaleString());
+      $("#sources").replaceChildren(link(t("當地分類樹 API"), result.regionURL), link(t("個人基準分類樹 API"), result.personalURL));
+      if(result.previousURL)$("#sources").append(link(t("該年以前分類樹 API"),result.previousURL));
+      if(result.knownURL)$("#sources").append(link(t("個人生涯分類樹 API"),result.knownURL));
       $("#results").hidden = false;
-      status(`對比完成：${result.rows.length} 個${core.rankNames[options.rank]}符合「${mode}」；正在逐步載入中文名。`);
+      status(t("對比完成：{0} 個{1}符合「{2}」；正在逐步載入中文名。", result.rows.length, t(core.rankNames[options.rank]), mode));
       renderRows();
       queueMicrotask(() => loadNames(false));
     } catch (error) { if (current === generation) status(error.message, true); }
@@ -558,20 +563,20 @@
       ...row,
       leaves: verified.get(row.id)?.count ?? row.leaves
     }));
-    return tools.exportTable(rows, result.options, core, delimiter);
+    return tools.exportTable(rows, result.options, core, delimiter, t);
   }
   $("#copy-results").addEventListener("click", async () => {
     if (!result) return;
     const text = exportText("\t");
     try {
       await navigator.clipboard.writeText(text);
-      status(`已複製 ${filteredRows().length} 項結果。`);
+      status(t("已複製 {0} 項結果。", filteredRows().length));
     } catch {
       $("#copy-fallback").value = text;
       $("#copy-fallback").hidden = false;
       $("#copy-fallback").focus();
       $("#copy-fallback").select();
-      status("瀏覽器未允許直接複製；結果已選取，請按 Ctrl/Cmd+C。");
+      status(t("瀏覽器未允許直接複製；結果已選取，請按 Ctrl/Cmd+C。"));
     }
   });
   $("#export-results").addEventListener("click", () => {
@@ -584,7 +589,7 @@
     download.click();
     download.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    status(`已匯出 ${filteredRows().length} 項結果。`);
+    status(t("已匯出 {0} 項結果。", filteredRows().length));
   });
   function mountPanel() {
     const existing = document.getElementById("qg-inat-user-filters");
@@ -612,7 +617,7 @@
     if (lastHref !== location.href) {
       lastHref = location.href;
       invalidate();
-      status("页面筛选已变化；面板保留当前填写内容，可点击“读取当前页面”同步后对比。");
+      status(t("页面筛选已变化；面板保留当前填写内容，可点击“读取当前页面”同步后对比。"));
     }
   }
   let scheduled = false;
@@ -636,10 +641,19 @@
     populatePlaces();populateQueries();
     const id=new URL(location.href).searchParams.get("leafwise_query");
     const entry=library.queries.find(item=>item.id===id);
-    if(entry && !dirty && !busy){setFields(entry.options);dirty=true;populateQueries(entry.id);$("#query-name").value=entry.name;expand(true);status("已還原查詢收藏，請開始對比。");}
-    else if(id&&!entry)status("此查詢收藏不在本瀏覽器中，已保留目前頁面条件。",true);
+    if(entry && !dirty && !busy){setFields(entry.options);dirty=true;populateQueries(entry.id);$("#query-name").value=entry.name;expand(true);status(t("已還原查詢收藏，請開始對比。"));}
+    else if(id&&!entry)status(t("此查詢收藏不在本瀏覽器中，已保留目前頁面条件。"),true);
   }).catch(error=>status(error.message,true));
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.leafwiseExploreLibraryV1) {
+      const next = changes.leafwiseExploreLibraryV1.newValue;
+      if (Array.isArray(next?.groups) && Array.isArray(next?.queries)) {
+        library = next;
+        // Refresh choices only: never apply new filters or invalidate results.
+        populatePlaces();
+        populateQueries($("#query-choice").value);
+      }
+    }
     if (area !== "sync") return;
     if (changes.savedUsernames || changes.unobservedByUserId) {
       const current = $("#user").value;

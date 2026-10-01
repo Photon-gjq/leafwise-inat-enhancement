@@ -85,13 +85,14 @@
       });
       return { nodes: new Map(entry.value.map(n => [n.id, n])), at: entry.at, url };
     }
-    async function localizedNames(taxonIDs, preferredPlaceID, force = false) {
+    async function localizedNames(taxonIDs, preferredPlaceID, force = false, language = "zh-CN") {
       const ids = [...new Set(taxonIDs.map(core.positiveID))].sort((a, b) => a - b);
       if (!ids.length) return new Map();
       const chunks = [];
       for (let index = 0; index < ids.length; index += 30) chunks.push(ids.slice(index, index + 30));
       const pages = await Promise.all(chunks.map(async chunk => {
-        const params = { locale: "zh-CN", per_page: 200 };
+        const locale = /^[a-z]{2,3}(?:-[A-Za-z]{2,4})?$/.test(language) ? language : "zh-CN";
+        const params = { locale, per_page: 200 };
         if (preferredPlaceID) params.preferred_place_id = preferredPlaceID;
         const url = core.apiURL(`taxa/${chunk.join(",")}`, params);
         return (await cached(url, async () => {
@@ -106,14 +107,14 @@
       }));
       return new Map(pages.flat().map(item => [item.id, item.commonName]));
     }
-    async function namesResult(input, taxonIDs, force) {
+    async function namesResult(input, taxonIDs, force, language) {
       const options = core.normalize(input);
       if (!Array.isArray(taxonIDs) || taxonIDs.length > 30) throw new Error("每批最多查询 30 个分类单元名称。");
-      const names = await localizedNames(taxonIDs, core.placeIDs(options.place)[0], force);
+      const names = await localizedNames(taxonIDs, core.placeIDs(options.place)[0], force, language);
       return { names: Object.fromEntries(names), refreshedAt: now() };
     }
-    const names = (input, taxonIDs) => namesResult(input, taxonIDs, false);
-    const refreshNames = (input, taxonIDs) => namesResult(input, taxonIDs, true);
+    const names = (input, taxonIDs, language) => namesResult(input, taxonIDs, false, language);
+    const refreshNames = (input, taxonIDs, language) => namesResult(input, taxonIDs, true, language);
     async function compare(input) {
       const options = core.normalize(input);
       const [user, place, taxon] = await Promise.all([entity("users", options.user), places(options.place), entity("taxa", options.taxon)]);
@@ -145,11 +146,13 @@
       });
       return { count: entry.value, at: entry.at, url };
     }
-    async function records(userID, taxonID) {
+    async function records(userID, taxonID, placeID = null) {
       const user = core.positiveID(userID), taxon = core.positiveID(taxonID);
-      return (await cached(`records/${user}/${taxon}`, async () => {
+      const place = placeID == null ? null : core.positiveID(placeID, "地点");
+      return (await cached(`records/${user}/${taxon}${place == null ? "" : `/place/${place}`}`, async () => {
         const responses = await Promise.all(["asc", "desc"].map(order => fetchJSON(core.apiURL("observations", {
-          user_id:user,taxon_id:taxon,verifiable:"any",per_page:1,order_by:"observed_on",order,d1:"0001-01-01"
+          user_id:user,taxon_id:taxon,verifiable:"any",per_page:1,order_by:"observed_on",order,d1:"0001-01-01",
+          ...(place == null ? {} : {place_id:place})
         }))));
         for (const data of responses) {
           if (!Number.isSafeInteger(data.total_results) || data.total_results < 0 || !Array.isArray(data.results) || data.results.length > 1 || (data.total_results > 0) !== (data.results.length === 1)) throw new Error("個人觀察摘要格式異常，請稍後重試。");

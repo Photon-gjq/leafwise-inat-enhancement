@@ -9,7 +9,9 @@ function exploreLibrary(message) {
   const task = libraryTask.then(async () => {
     const current = (await chrome.storage.local.get(LIBRARY_KEY))[LIBRARY_KEY] || {queries:[],groups:[]};
     if (message.action === "list") return current;
-    const next = LeafwiseExploreTools.editLibrary(current, message.action, message.entry, QGInatHigherTaxa, crypto.randomUUID());
+    const next = message.action === "replace-places"
+      ? LeafwiseExploreTools.replacePlaceGroups(current, message.entry, QGInatHigherTaxa, () => crypto.randomUUID())
+      : LeafwiseExploreTools.editLibrary(current, message.action, message.entry, QGInatHigherTaxa, crypto.randomUUID());
     await chrome.storage.local.set({[LIBRARY_KEY]:next});
     return next;
   });
@@ -57,22 +59,33 @@ async function observationTaxon(observationId) {
   });
 }
 
-async function taxonObservationCount(userId, taxonId, force = false) {
+function personalPlace(placeId) {
+  return placeId == null ? null : QGInatHigherTaxa.positiveID(placeId, "地点");
+}
+
+function personalCacheKey(prefix, user, taxon, place) {
+  // Keep old global entries reusable; regional entries never share their key.
+  return `${prefix}:${user}:${taxon}${place == null ? "" : `:place:${place}`}`;
+}
+
+async function taxonObservationCount(userId, taxonId, force = false, placeId = null) {
   const user = positiveInteger(userId);
   const taxon = positiveInteger(taxonId);
   if (!user || !taxon) throw new Error("Invalid user or taxon id");
+  const place = personalPlace(placeId);
   const load = async () => {
     const data = await apiJSON("/observations", {
       user_id: user,
       taxon_id: taxon,
       verifiable: "any",
-      per_page: 1
+      per_page: 1,
+      ...(place == null ? {} : { place_id: place })
     });
     const count = Number(data.total_results);
     if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid observation count");
     return count;
   };
-  const key = `qgTaxonCount:${user}:${taxon}`;
+  const key = personalCacheKey("qgTaxonCount", user, taxon, place);
   if (force) {
     const value = await load();
     try { await chrome.storage.local.set({ [key]: { value, savedAt: Date.now() } }); } catch {}
@@ -81,12 +94,14 @@ async function taxonObservationCount(userId, taxonId, force = false) {
   return cached(key, load);
 }
 
-async function taxonDiversityCounts(userId, taxonId) {
+async function taxonDiversityCounts(userId, taxonId, placeId = null) {
   const user = positiveInteger(userId);
   const taxon = positiveInteger(taxonId);
   if (!user || !taxon) throw new Error("Invalid user or taxon id");
-  return cached(`qgTaxonDiversity:${user}:${taxon}`, async () => {
-    const params = { user_id: user, taxon_id: taxon, verifiable: "any", per_page: 1 };
+  const place = personalPlace(placeId);
+  return cached(personalCacheKey("qgTaxonDiversity", user, taxon, place), async () => {
+    const params = { user_id: user, taxon_id: taxon, verifiable: "any", per_page: 1,
+      ...(place == null ? {} : { place_id: place }) };
     // The search-page "species" total counts leaf taxa of any rank.
     const leaves = await diversityFetchJSON(QGInatHigherTaxa.apiURL("observations/species_counts", params));
     const leafTaxa = leaves.total_results;
@@ -133,11 +148,12 @@ async function scopedObservationCount(endpoint, rawParams) {
   });
 }
 
-async function cachedTaxonObservationCounts(userId, taxonIds) {
+async function cachedTaxonObservationCounts(userId, taxonIds, placeId = null) {
   const user = positiveInteger(userId);
   if (!user || !Array.isArray(taxonIds)) throw new Error("Invalid user or taxon ids");
   const taxa = [...new Set(taxonIds.map(positiveInteger).filter(Boolean))];
-  const keys = taxa.map(taxon => `qgTaxonCount:${user}:${taxon}`);
+  const place = personalPlace(placeId);
+  const keys = taxa.map(taxon => personalCacheKey("qgTaxonCount", user, taxon, place));
   let stored = {};
   try { stored = await chrome.storage.local.get(keys); } catch {}
   const now = Date.now();
@@ -202,11 +218,11 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   } else if (message?.type === "qg-observation-taxon") {
     task = observationTaxon(message.observationId).then(taxonId => ({ ok: true, taxonId }));
   } else if (message?.type === "qg-taxon-observation-count") {
-    task = taxonObservationCount(message.userId, message.taxonId, message.force === true).then(count => ({ ok: true, count }));
+    task = taxonObservationCount(message.userId, message.taxonId, message.force === true, message.placeId).then(count => ({ ok: true, count }));
   } else if (message?.type === "qg-taxon-diversity") {
-    task = taxonDiversityCounts(message.userId, message.taxonId).then(counts => ({ ok: true, counts }));
+    task = taxonDiversityCounts(message.userId, message.taxonId, message.placeId).then(counts => ({ ok: true, counts }));
   } else if (message?.type === "qg-cached-taxon-observation-counts") {
-    task = cachedTaxonObservationCounts(message.userId, message.taxonIds).then(counts => ({ ok: true, counts }));
+    task = cachedTaxonObservationCounts(message.userId, message.taxonIds, message.placeId).then(counts => ({ ok: true, counts }));
   } else if (message?.type === "qg-scoped-observation-count") {
     task = scopedObservationCount(message.endpoint, message.params).then(count => ({ ok: true, count }));
   } else if (message?.type === "qg-taxon-ancestors") {
@@ -216,13 +232,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   } else if (message?.type === "qg-higher-taxa-leaf") {
     task = higherTaxaService.verifyLeaf(message.options, message.taxonId).then(result => ({ ok: true, result }));
   } else if (message?.type === "qg-higher-taxa-refresh-names") {
-    task = higherTaxaService.refreshNames(message.options, message.taxonIds).then(result => ({ ok: true, result }));
+    task = higherTaxaService.refreshNames(message.options, message.taxonIds, message.locale).then(result => ({ ok: true, result }));
   } else if (message?.type === "qg-higher-taxa-names") {
-    task = higherTaxaService.names(message.options, message.taxonIds).then(result => ({ ok: true, result }));
+    task = higherTaxaService.names(message.options, message.taxonIds, message.locale).then(result => ({ ok: true, result }));
   } else if (message?.type === "leafwise-explore-library") {
     task = exploreLibrary(message).then(library => ({ok:true,library}));
   } else if (message?.type === "leafwise-personal-records") {
-    task = higherTaxaService.records(message.userId, message.taxonId).then(result => ({ok:true,result}));
+    task = higherTaxaService.records(message.userId, message.taxonId, message.placeId).then(result => ({ok:true,result}));
   } else return;
   task.catch(error => ({ ok: false, error: error.message || "请求失败，请稍后重试。" })).then(respond);
   return true;

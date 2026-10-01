@@ -28,7 +28,10 @@ test('built version has one source and all manifest/HTML script references resol
   assert.deepEqual(bridge.js, ['scripts/vision-score-bridge.js']);
   assert.deepEqual(notifications.matches, ['https://www.inaturalist.org/*', 'https://inaturalist.org/*']);
   assert.equal(bridge.world, 'MAIN');
-  assert.deepEqual(uploader.js.slice(0, 5), ['scripts/vision-score-data.js', 'scripts/vision-score-style.js', 'scripts/uploader-ai-core.js', 'scripts/uploader-page-data.js', 'scripts/uploader-ai-adapter.js']);
+  for (const group of [notifications, uploader, observation]) {
+    assert.deepEqual(group.js.slice(0, 2), ['scripts/i18n-catalog.js', 'scripts/i18n.js']);
+  }
+  assert.deepEqual(uploader.js.slice(2, 7), ['scripts/vision-score-data.js', 'scripts/vision-score-style.js', 'scripts/uploader-ai-core.js', 'scripts/uploader-page-data.js', 'scripts/uploader-ai-adapter.js']);
   assert.ok(observation.js.includes('scripts/vision-score-style.js'));
 });
 

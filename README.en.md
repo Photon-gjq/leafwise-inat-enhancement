@@ -8,11 +8,13 @@
 
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
-The extension interface is currently in Chinese. The [English user guide](docs/GUIDE.en.md) translates the main controls and explains each workflow.
+Version 1.1.0 follows iNaturalist's website language with 50 language/region variants, adds regional personal taxon statistics, and lets you manage saved region groups in settings. Main controls are translated; detailed explanations and some uncommon errors still fall back to English. Translations have not all been reviewed by native speakers. See [language coverage](docs/I18N.md) and the [English user guide](docs/GUIDE.en.md).
 
 ## Download and install
 
 Download the package for your browser from the [latest GitHub Release](https://github.com/Photon-gjq/leafwise-inat-enhancement/releases/latest). All three packages use the same version number. The signed Firefox edition is also available from [Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/leafwise-inat-enhancement/).
+
+Store editions: [Chrome Web Store](https://chromewebstore.google.com/detail/pgdlmdoolphapnmpfeppffpendhoiono), [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/minfbphcdmnoanekokhnneafkjccpffp), and [Firefox AMO](https://addons.mozilla.org/firefox/addon/leafwise-inat-enhancement/). Updates arrive after each store's review, which may finish at different times.
 
 | Browser | Package | Installation |
 | --- | --- | --- |
@@ -27,7 +29,8 @@ A GitHub Release updates the downloadable files; it does not automatically repla
 - **Taxon comparison:** find branches you have never observed, branches missing from a selected year or place, or first records for a year. Aggregate from kingdom down to species.
 - **Seasonal target lists:** restrict regional candidates by month, date range, project, and quality grade without accidentally narrowing the personal baseline.
 - **Place groups and saved queries:** includes Mainland China + Hong Kong + Macau, Mainland China + Hong Kong + Macau + Taiwan, and several regional presets. Custom unions and complete search URLs can be saved locally.
-- **Personal record cards and taxon statistics:** taxon pages show personal observations, leaf taxa, and species-rank taxa as `(observations|leaf taxa|species)`; open first, latest, and complete observation links from the count.
+- **Personal record cards and taxon statistics:** taxon pages show `(observations|leaf taxa|species)` for the region selected at the top right, or worldwide when no region is selected. First/latest records and browse links use the same scope. Individual observation pages retain global personal counts.
+- **Saved regions in settings:** enter one `ID,ID = name` group per line, with up to 20 places per group and 50 groups. Settings and the comparison panel share the local custom-group list; built-in presets and active filters are unchanged.
 - **Batch-open activity:** open each distinct observation from the currently loaded activity dropdown in one background tab, even when it has multiple updates.
 - **Copy and CSV export:** export the complete filtered comparison result with scope metadata and verified leaf-taxon counts.
 - **AI suggestion enhancement:** show iNaturalist's existing `combined_score(vision_score)` beside visual suggestions on upload and observation pages, and optionally apply upload suggestions in batches.

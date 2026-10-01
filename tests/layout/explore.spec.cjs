@@ -3,8 +3,8 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 test.setTimeout(45000);
 const html=`<!doctype html><meta charset="utf-8"><style>body{margin:0;font:14px Arial;color:#333}nav{padding:16px;border-bottom:1px solid #ddd}#filters{padding:12px 20px}h1{font-size:26px}main{padding-bottom:40px}</style><nav class="navtab user"><a class="observations_link" href="/observations/observer">我的觀察</a> <a class="profile_link" href="/people/7">個人頁</a></nav><div id="filters"><h1>觀察</h1></div><main id="observations-search"><div id="taxon_page"><h1>測試類群</h1></div></main>`;
-async function prepare(page) {
- await page.route('https://www.inaturalist.org/**',route=>route.fulfill({contentType:'text/html',body:html}));
+async function prepare(page, language='') {
+ await page.route('https://www.inaturalist.org/**',route=>route.fulfill({contentType:'text/html',body:html.replace('<!doctype html>', `<!doctype html><html lang="${language}">`)}));
  await page.addInitScript(()=>{
   const area=(name,defaults={})=>({
    get:async keys=>{const data=JSON.parse(localStorage.getItem(name)||JSON.stringify(defaults));return keys==null?data:Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,data[k]]));},
@@ -25,18 +25,22 @@ async function prepare(page) {
     data=tree(ids);
    }else if(u.pathname==='/v1/observations/species_counts'){
     if(window.failDiversity)return {ok:false,status:503};
-    data={total_results:4};
-   }else if(u.pathname==='/v1/observations/observers')data={results:[{user_id:7,observation_count:7,species_count:2}]};
+    data={total_results:window.regionCounts?.[u.searchParams.get('place_id')]?.[1] ?? 4};
+   }else if(u.pathname==='/v1/observations/observers')data={results:[{user_id:7,observation_count:7,species_count:window.regionCounts?.[u.searchParams.get('place_id')]?.[2] ?? 2}]};
    else if(u.pathname==='/v1/observations'){
     if(window.failRecords&&u.searchParams.has('order'))return {ok:false,status:503};
     data={total_results:7,results:[{id:u.searchParams.get('order')==='asc'?11:22,observed_on:u.searchParams.get('order')==='asc'?'2020-01-01':'2026-09-01',place_guess:'公開測試地點'}]};
+    if(window.regionCounts?.[u.searchParams.get('place_id')])data.total_results=window.regionCounts[u.searchParams.get('place_id')][0];
+    if(data.total_results===0)data.results=[];
+    if(window.delayGlobalCount&&!u.searchParams.has('place_id')&&!u.searchParams.has('order'))await new Promise(resolve=>window.releaseDelayed=resolve);
    }else throw new Error('Unexpected request: '+url);
    return {ok:true,json:async()=>data};
   };
  });
 }
-async function inject(page,testInfo,personal=false) {
+async function inject(page,testInfo,personal=false,localize=false) {
  const directory=path.resolve(__dirname,'../../build',testInfo.project.name.split('-')[0],'scripts');
+ if(localize)for(const file of ['i18n-catalog.js','i18n.js'])await page.addScriptTag({path:path.join(directory,file)});
  for(const file of ['higher-taxa-core.js','explore-tools.js','higher-taxa-service.js'])await page.addScriptTag({path:path.join(directory,file)});
  // Keep production service/message/storage behavior; skip throttling only in
  // this offline fake API. The real transport is tested separately.
@@ -49,6 +53,25 @@ async function open(page,testInfo,url='https://www.inaturalist.org/observations?
  await page.locator('#qg-inat-higher-taxa-trigger').getByRole('button',{name:'類群對比',exact:true}).click();
  const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#user-choice')).toBeEnabled();return panel;
 }
+
+test('localized comparison preserves API data, requests names in site language and exports translated headers',async({page},testInfo)=>{
+ await prepare(page,'fr');await page.goto('https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301');await inject(page,testInfo,false,true);
+ await page.locator('#qg-inat-higher-taxa-trigger button').click();
+ const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#user-choice')).toBeEnabled();
+ await expect(panel.locator('#rank option[value="species"]')).toHaveText('Espèce · species');
+ await panel.locator('button[type="submit"]').click();
+ await expect(panel.locator('#status')).toContainText('Chargé');
+ await expect(panel.locator('tbody tr[data-taxon-id]')).toHaveCount(50);
+ const nameRequests=await page.evaluate(()=>testRequests.filter(url=>/\/taxa\/100/.test(url)));
+ expect(nameRequests.length).toBeGreaterThan(0);for(const url of nameRequests)expect(new URL(url).searchParams.get('locale')).toBe('fr');
+ await expect(panel.locator('tbody')).toContainText('類群 1003');
+ const before=await page.evaluate(()=>testRequests.length);await panel.locator('#refresh-names').click();
+ await expect(panel.locator('#status')).toContainText('Actualisé');
+ const refreshed=await page.evaluate(previous=>testRequests.slice(previous),before);for(const url of refreshed)expect(new URL(url).searchParams.get('locale')).toBe('fr');
+ const event=page.waitForEvent('download');await panel.locator('#export-results').click();const download=await event;
+ const csv=await fs.readFile(await download.path(),'utf8');expect(csv).toContain('Nom commun');expect(csv).toContain('類群 1003');
+ expect(await page.locator('nav').textContent()).toContain('我的觀察');
+});
 
 test('named regions show members and a custom place group survives reload',async({page},testInfo)=>{
  const panel=await open(page,testInfo);
@@ -140,4 +163,71 @@ test('failed personal record requests show retry instead of inventing an empty h
  await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');await inject(page,testInfo,true);await expect(page.locator('#qg-inat-own-taxon-status')).toBeVisible();
  await page.evaluate(()=>{window.failRecords=true});await page.locator('#qg-inat-own-taxon-status').click();const card=page.locator('#leafwise-personal-records');
  await expect(card.locator('#status')).toContainText('503');await expect(card.locator('#retry')).toBeVisible();await page.evaluate(()=>{window.failRecords=false});await card.locator('#retry').click();await expect(card.locator('#records')).toContainText('2020-01-01');
+});
+
+async function regionFixture(page, chosen=true, nativeHref='/observations?taxon_id=3&place_id=6903') {
+ await page.evaluate(({chosen,nativeHref})=>{
+  window.regionCounts={6903:[3,2,1],7613:[1,1,1],10301:[0,0,0]};
+  document.querySelector('#taxon_page').insertAdjacentHTML('beforeend',`<div id="place-chooser-container"><div class="PlaceChooserPopoverTrigger ${chosen?'chosen':''}">Region</div></div><div class="NumObservations"><a id="native-region" href="${nativeHref}">All</a></div><a id="native-global" href="/observations?user_id=observer&taxon_id=3&verifiable=any">Global yours</a><section id="taxonomy"><ul><li class="current"><div class="row-content"><div class="SplitTaxon"><a class="secondary-name" href="/taxa/3">Current</a></div></div></li><li><a href="/taxa/41">Ancestor</a></li></ul></section>`);
+ },{chosen,nativeHref});
+}
+
+test('taxon statistics, links and records follow live selected regions and clearing restores global data',async({page},info)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3?place_id=10301');await regionFixture(page);await inject(page,info,true);
+ const marker=page.locator('#qg-inat-own-taxon-status');const taxonomy=page.locator('#taxonomy .qg-inat-taxonomy-status');
+ await expect(marker).toHaveText('(3|2|1)');await expect(taxonomy).toHaveText(['(3|2|1)','(3|2|1)']);
+ await expect(marker).toHaveAttribute('href',/place_id=6903/);
+ await expect(page.locator('#native-global .qg-inat-yours-count')).toHaveText(': 7');
+ await marker.click();await expect(page.locator('#leafwise-personal-records #status')).toContainText('3');
+ await expect(page.locator('#leafwise-personal-records #all a')).toHaveAttribute('href',/place_id=6903/);
+ expect(await page.evaluate(()=>testRequests.filter(s=>new URL(s).searchParams.has('order')).every(s=>new URL(s).searchParams.get('place_id')==='6903'))).toBe(true);
+ await page.locator('#native-region').evaluate(a=>a.href='/observations?taxon_id=3&place_id=7613');
+ await expect(marker).toHaveText('(1|1|1)');await expect(taxonomy).toHaveText(['(1|1|1)','(1|1|1)']);await expect(page.locator('#leafwise-personal-records')).toHaveCount(0);
+ await page.locator('#native-region').evaluate(a=>a.href='/observations?taxon_id=3&place_id=10301');
+ await expect(marker).toHaveText('🆕');await expect(marker).toHaveAttribute('title',/目前地区/);await expect(taxonomy).toHaveText(['🆕','🆕']);
+ await page.evaluate(()=>{document.querySelector('.PlaceChooserPopoverTrigger').classList.remove('chosen');document.querySelector('#native-region').href='/observations?taxon_id=3';});
+ await expect(marker).toHaveText('(7|4|2)');await expect(taxonomy).toHaveText(['(7|4|2)','(7|4|2)']);await expect(marker).not.toHaveAttribute('href',/place_id/);
+ await page.screenshot({path:info.outputPath('regional-taxon-statistics.png')});
+});
+
+test('selected region with unready links never falls back to global statistics',async({page},info)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');await regionFixture(page,true,'/observations?taxon_id=3');await inject(page,info,true);
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveCount(0);
+ expect(await page.evaluate(()=>testRequests.length)).toBe(0);
+ await page.locator('#native-region').evaluate(a=>a.href='/observations?taxon_id=3&place_id=6903');
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveText('(3|2|1)');
+});
+
+test('late global response cannot overwrite a newly selected regional count',async({page},info)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/taxa/3');await regionFixture(page,false,'/observations?taxon_id=3');
+ await page.evaluate(()=>{window.delayGlobalCount=true;document.querySelector('#native-global').remove();});await inject(page,info,true);
+ await expect.poll(()=>page.evaluate(()=>typeof window.releaseDelayed)).toBe('function');
+ await page.evaluate(()=>{document.querySelector('.PlaceChooserPopoverTrigger').classList.add('chosen');document.querySelector('#native-region').href='/observations?taxon_id=3&place_id=6903';});
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveText('(3|2|1)');
+ await page.evaluate(()=>{window.delayGlobalCount=false;window.releaseDelayed();});
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveText('(3|2|1)');
+});
+
+test('settings and comparison share region groups, preserve searches and reject concurrent stale edits',async({page},info)=>{
+ const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0]);
+ const settings=(await fs.readFile(path.join(directory,'options/options.html'),'utf8')).replace(/<script[^>]*><\/script>/g,'').replace('lang="zh-CN"','lang="en"');
+ await prepare(page,'en');await page.route('https://www.inaturalist.org/options-fixture',r=>r.fulfill({contentType:'text/html',body:settings}));await page.goto('https://www.inaturalist.org/options-fixture');
+ await page.setViewportSize({width:1100,height:900});await page.addStyleTag({path:path.join(directory,'options/options.css')});
+ await page.evaluate(()=>chrome.storage.local.set({leafwiseLastSiteLocale:'en',leafwiseExploreLibraryV1:{queries:[{id:'q1',name:'Saved query'}],groups:[{id:'p1',name:'My region',place:'7613,10301'}]}}));
+ await inject(page,info,true,true);
+ for(const file of ['saved-users.js','saved-taxa.js'])await page.addScriptTag({path:path.join(directory,'scripts',file)});
+ await page.addScriptTag({path:path.join(directory,'options/options.js')});
+ await expect(page.locator('#places')).toHaveValue('7613,10301 = My region');
+ await page.locator('#places').fill('10301,7613 = Renamed\n6903 = My mainland');await page.locator('#places-form button').click();
+ await expect(page.locator('#places-status')).toHaveText('Saved 2 region groups.');
+ const saved=await page.evaluate(async()=> (await chrome.storage.local.get('leafwiseExploreLibraryV1')).leafwiseExploreLibraryV1);
+ expect(saved.groups[0].id).toBe('p1');expect(saved.queries).toEqual([{id:'q1',name:'Saved query'}]);
+ await page.evaluate(async()=>{const key='leafwiseExploreLibraryV1';const data=(await chrome.storage.local.get(key))[key];data.groups[0].name='Other page';await chrome.storage.local.set({[key]:data});});
+ await page.locator('#places').fill('6903 = Old form');await page.locator('#places-form button').click();
+ await expect(page.locator('#places-status')).toContainText('another page');
+ await page.screenshot({path:info.outputPath('saved-regions-settings.png'),fullPage:true});
+ await page.goto('https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301');await inject(page,info);
+ await page.locator('#qg-inat-higher-taxa-trigger button').click();const panel=page.locator('#qg-inat-higher-taxa');
+ await expect(panel.locator('#place-choice option')).toContainText(['Other page','My mainland']);
+ await panel.locator('#place-choice').selectOption('p1');await expect(panel.locator('#place')).toHaveValue('7613,10301');
 });

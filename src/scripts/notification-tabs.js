@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
 
   const NAV_ID = "updatesnav";
   const MENU_ID = "updatessubnav";
@@ -45,7 +46,7 @@
           const ids = observationIds(menu);
           if (!ids.length) return;
           busy = true;
-          status = "正在開啟觀察…";
+          status = t("正在開啟觀察…");
           clearTimeout(clearStatusTimer);
           refresh();
           try {
@@ -53,10 +54,10 @@
               type: "leafwise-open-update-observations", observationIds: ids
             });
             status = reply?.ok && reply.opened === ids.length
-              ? `已開啟 ${reply.opened} 個觀察`
-              : `已開啟 ${reply?.opened || 0} 個；其餘未能開啟`;
+              ? t("已開啟 {0} 個觀察", reply.opened)
+              : t("已開啟 {0} 個；其餘未能開啟", reply?.opened || 0);
           } catch {
-            status = "開啟失敗，請重試";
+            status = t("開啟失敗，請重試");
           } finally {
             busy = false;
             refresh();
@@ -68,7 +69,7 @@
       }
       const button = row.querySelector("button");
       const count = observationIds(menu).length;
-      const label = status || `一鍵開啟這些觀察（${count}）`;
+      const label = status || t("一鍵開啟這些觀察（{0}）", count);
       if (button.textContent !== label) button.textContent = label;
       button.disabled = busy || count === 0;
     }

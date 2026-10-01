@@ -1,5 +1,8 @@
 (() => {
   "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
+  const html = text => globalThis.LeafwiseI18n?.html(text) ?? text;
+  const localizedError = text => globalThis.LeafwiseI18n?.legacy(text) ?? text;
   if (!/^\/observations\/upload\/?$/.test(location.pathname) || document.getElementById("leafwise-upload-ai")) return;
   const core = globalThis.LeafwiseUploadCore, a = globalThis.LeafwiseUploadAdapter;
   const OPEN_KEY = "leafwise-upload-ai-panel-open";
@@ -8,7 +11,7 @@
   const host = document.createElement("section"); host.id = "leafwise-upload-ai";
   host.dataset.open = String(panelOpen);
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `
+  shadow.innerHTML = html(`
     <style>
       :host{display:block;margin:0 3px 16px;font:14px/1.5 Arial,sans-serif;color:#283521}
       *{box-sizing:border-box}section{background:#f5f8ef;border:1px solid #cad8bd;border-radius:5px;padding:13px 16px}
@@ -26,13 +29,17 @@
       :host([data-open="false"]){display:inline-block;position:absolute;z-index:1;left:var(--leafwise-collapsed-left,160px);top:50%;transform:translateY(-50%);margin:0;vertical-align:middle}
       :host([data-open="false"]) section{padding:4px 7px;background:#f5f8ef;white-space:nowrap}
       :host([data-open="false"]) h2{font-size:13px}:host([data-open="false"]) #count,:host([data-open="false"]) .body{display:none}
+      :host([data-open="false"]){max-width:calc(100% - var(--leafwise-collapsed-left,160px) - 8px)}
+      :host([data-open="false"]) h2{min-width:0;overflow:hidden;text-overflow:ellipsis}
+      :host([data-open="false"]) #quick-apply{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      :host([data-open="false"]) #toggle{flex-shrink:0}
       :host([data-open="true"]) #quick-apply{display:none}
       @media(max-width:600px){.controls{align-items:flex-start}label{flex-wrap:wrap}section{padding:10px}}
     </style>
     <section aria-label="Leafwise 上傳 AI 助手">
       <div class="bar"><h2>Leafwise · 批次套用 AI 首選<span id="count"></span></h2>
         <button id="quick-apply" class="primary" type="button">一鍵套用 AI 首選</button>
-        <button id="toggle" type="button" aria-expanded="${panelOpen}">${panelOpen ? "收合" : "展開"}</button>
+        <button id="toggle" type="button" aria-expanded="${panelOpen}">${panelOpen ? t("收合") : t("展開")}</button>
       </div>
       <div class="body">
       <p class="muted">逐一讀取本頁觀察的原生 AI 建議，只填寫草稿；最後由你檢查並按網站的上傳按鈕。</p>
@@ -51,12 +58,12 @@
       <div id="status" role="status" aria-live="polite">先加入照片，再按「一鍵套用」。已開啟的 AI 建議旁會顯示可讀取的綜合分數。</div>
       <details id="report"><summary>處理明細 <span id="summary"></span></summary><div class="scroll"><table><thead><tr><th>觀察卡片</th><th>準備套用的類群</th><th>綜合分數</th><th>結果／原因</th></tr></thead><tbody></tbody></table></div></details>
       </div>
-    </section>`;
+    </section>`);
   const $ = selector => shadow.querySelector(selector);
   const attempted = new Map();
   let running = false, controller = null, currentCard = null, scanTimer = null;
   let total = 0, applied = 0, skipped = 0, errors = 0, logCount = 0;
-  const status = (text, error = false) => { $("#status").textContent = text; $("#status").classList.toggle("error", error); };
+  const status = (text, error = false) => { $("#status").textContent = localizedError(text); $("#status").classList.toggle("error", error); };
   function options() { return core.settings({ mode: $("#mode").value, threshold: $("#threshold").value, onlyEmpty: $("#only-empty").checked }); }
   function controls() {
     for (const id of ["apply", "quick-apply", "preview", "mode", "threshold"]) $("#" + id).disabled = running;
@@ -67,12 +74,12 @@
   function log(id, decision, outcome) {
     const tr = document.createElement("tr"); tr.dataset.cardId = id;
     const value = core.score(decision?.score);
-    for (const text of [`#${id}`, decision?.candidate?.name || "—", value === null ? "不可讀／不適用" : `${value.toFixed(1)} / 100`, outcome]) {
+    for (const text of [`#${id}`, decision?.candidate?.name || "—", value === null ? t("不可讀／不適用") : `${value.toFixed(1)} / 100`, outcome]) {
       const td = document.createElement("td"); td.textContent = text; tr.append(td);
     }
     $("tbody").append(tr); logCount++;
     if ($("tbody").children.length > 500) $("tbody").firstElementChild.remove();
-    $("#summary").textContent = `已填 ${applied} · 保留／略過 ${skipped} · 錯誤 ${errors}${logCount > 500 ? "（顯示最近 500 項）" : ""}`;
+    $("#summary").textContent = t("已填 {0} · 保留／略過 {1} · 錯誤 {2}{3}", applied, skipped, errors, logCount > 500 ? t("（顯示最近 500 項）") : "");
   }
   function cancel(reason) {
     $("#auto").checked = false;
@@ -95,7 +102,7 @@
     while (Date.now() < deadline) {
       check(signal);
       const card = a.find(id);
-      if (!a.editable(card) || a.signature(card) !== originalSignature) throw new Error("卡片內容已改變，已略過以保留你的編輯");
+      if (!a.editable(card) || a.signature(card) !== originalSignature) throw new Error(t("卡片內容已改變，已略過以保留你的編輯"));
       const snapshot = a.read(card, true);
       if (snapshot) {
         lastSnapshot = snapshot;
@@ -107,7 +114,7 @@
       await delay(100, signal);
     }
     if (lastSnapshot) return lastSnapshot;
-    throw new Error("30 秒內未取得建議；請檢查照片載入、登入或網路後重試");
+    throw new Error(t("30 秒內未取得建議；請檢查照片載入、登入或網路後重試"));
   }
   async function run(preview = false, autoRun = false) {
     if (running) return;
@@ -115,7 +122,7 @@
     try { opts = options(); } catch (error) { status(error.message, true); $("#auto").checked = false; controls(); return; }
     if (autoRun) opts.onlyEmpty = true;
     const queue = a.cards().filter(card => !autoRun || (!a.filled(card) && a.hasPhoto(card) && !attempted.has(a.key(card)))).map(a.key);
-    if (!queue.length) { status(autoRun ? "自動模式已開啟，等待新的空白照片觀察。" : "目前沒有可處理的上傳觀察卡片。"); return; }
+    if (!queue.length) { status(autoRun ? t("自動模式已開啟，等待新的空白照片觀察。") : t("目前沒有可處理的上傳觀察卡片。")); return; }
     running = true; controller = new AbortController();
     const { signal } = controller;
     if (!autoRun) { total = applied = skipped = errors = logCount = 0; $("tbody").replaceChildren(); $("#summary").textContent = ""; }
@@ -125,37 +132,37 @@
       for (let index = 0; index < queue.length; index++) {
         check(signal);
         const id = queue[index]; let card = a.find(id); currentCard = id; total++;
-        status(`${preview ? "檢查" : "處理"} ${index + 1} / ${queue.length}：觀察 #${id}；已填 ${applied}。可隨時停止。`);
-        if (!a.editable(card)) { skipped++; log(id, null, "略過：卡片未就緒、已移除或上傳中"); continue; }
-        if (opts.onlyEmpty && a.filled(card)) { skipped++; log(id, null, "保留：已有分類或手動文字"); continue; }
+        status(t("{0} {1} / {2}：觀察 #{3}；已填 {4}。可隨時停止。", preview ? t("檢查") : t("處理"), index + 1, queue.length, id, applied));
+        if (!a.editable(card)) { skipped++; log(id, null, t("略過：卡片未就緒、已移除或上傳中")); continue; }
+        if (opts.onlyEmpty && a.filled(card)) { skipped++; log(id, null, t("保留：已有分類或手動文字")); continue; }
         const original = a.signature(card);
         attempted.set(id, original);
-        if (!a.hasPhoto(card)) { skipped++; log(id, null, "略過：沒有已載入的照片（空白／音訊卡片）"); continue; }
+        if (!a.hasPhoto(card)) { skipped++; log(id, null, t("略過：沒有已載入的照片（空白／音訊卡片）")); continue; }
         try {
           a.open(card);
           const snapshot = await waitForSuggestions(id, original, signal, opts.mode === "score");
           const decision = core.decide(snapshot, opts);
           check(signal);
           if (!decision.apply || preview) {
-            skipped++; log(id, decision, `${preview && decision.apply ? "可套用（僅檢查，未改動）" : "保留"}：${decision.reason}`);
+            skipped++; log(id, decision, `${preview && decision.apply ? t("可套用（僅檢查，未改動）") : t("保留")}: ${localizedError(decision.reason)}`);
           } else {
             card = a.find(id);
-            if (!a.editable(card) || a.signature(card) !== original || (opts.onlyEmpty && a.filled(card))) throw new Error("選取前卡片已改變，保留原值");
+            if (!a.editable(card) || a.signature(card) !== original || (opts.onlyEmpty && a.filled(card))) throw new Error(t("選取前卡片已改變，保留原值"));
             const fresh = core.decide(a.read(card) || { items: [] }, opts);
-            if (!fresh.apply || fresh.candidate.id !== decision.candidate.id || fresh.score !== decision.score) throw new Error("建議已變更，請重新檢查");
+            if (!fresh.apply || fresh.candidate.id !== decision.candidate.id || fresh.score !== decision.score) throw new Error(t("建議已變更，請重新檢查"));
             check(signal);
             a.click(card, decision.candidate.id);
             const deadline = Date.now() + 2500;
             while (Date.now() < deadline && a.taxonID(a.find(id)) !== String(decision.candidate.id)) await delay(50, signal);
             check(signal);
             if (a.taxonID(a.find(id)) !== String(decision.candidate.id)) {
-              cancel("無法確認網站接受了選取，已停止。請檢查當前卡片。");
+              cancel(t("無法確認網站接受了選取，已停止。請檢查當前卡片。"));
               throw signal.reason;
             }
-            applied++; log(id, decision, `已填：${decision.reason}`);
+            applied++; log(id, decision, t("已填：{0}", localizedError(decision.reason)));
           }
         } catch (error) {
-          check(signal); errors++; log(id, null, `略過：${error.message}`);
+          check(signal); errors++; log(id, null, t("略過：{0}", localizedError(error.message)));
         } finally {
           a.close(a.find(id)); currentCard = null;
         }
@@ -165,7 +172,7 @@
     } catch (error) { stopped = true; status(error.message, false); }
     finally {
       running = false; controller = null; currentCard = null; controls();
-      if (!stopped) status(`${preview ? "檢查" : "本批處理"}完成：已填 ${applied}，保留／略過 ${skipped}，錯誤 ${errors}。${$("#auto").checked ? "繼續等待新增空白觀察。" : "請檢查結果，再手動上傳。"}`);
+      if (!stopped) status(t("{0}完成：已填 {1}，保留／略過 {2}，錯誤 {3}。{4}", preview ? t("檢查") : t("本批處理"), applied, skipped, errors, $("#auto").checked ? t("繼續等待新增空白觀察。") : t("請檢查結果，再手動上傳。")));
       if ($("#auto").checked) scheduleScan();
     }
   }
@@ -181,26 +188,26 @@
   $("#apply").addEventListener("click", () => run());
   $("#quick-apply").addEventListener("click", () => run());
   $("#preview").addEventListener("click", () => { $("#auto").checked = false; clearTimeout(scanTimer); run(true); });
-  $("#stop").addEventListener("click", () => cancel("已停止；已填入的分類保留，其餘未改動。"));
+  $("#stop").addEventListener("click", () => cancel(t("已停止；已填入的分類保留，其餘未改動。")));
   $("#auto").addEventListener("change", () => {
     if ($("#auto").checked) {
       attempted.clear();
       $("#only-empty").checked = true; controls();
-      status("自動模式已開啟，準備處理目前及後續新增的空白照片觀察。"); scheduleScan();
-    } else cancel("自動模式已關閉；已填入的分類保留。");
+      status(t("自動模式已開啟，準備處理目前及後續新增的空白照片觀察。")); scheduleScan();
+    } else cancel(t("自動模式已關閉；已填入的分類保留。"));
   });
   for (const id of ["mode", "threshold"]) $("#" + id).addEventListener("change", () => { attempted.clear(); controls(); scheduleScan(); });
   $("#toggle").addEventListener("click", () => {
     panelOpen = !panelOpen;
     host.dataset.open = String(panelOpen);
-    $("#toggle").textContent = panelOpen ? "收合" : "展開";
+    $("#toggle").textContent = panelOpen ? t("收合") : t("展開");
     $("#toggle").setAttribute("aria-expanded", String(panelOpen));
     try { localStorage.setItem(OPEN_KEY, String(panelOpen)); } catch { /* Storage may be unavailable. */ }
     mount();
   });
   // Manual interaction wins immediately, including upload/remove/merge/edit.
   for (const type of ["pointerdown", "keydown", "input", "change", "dragstart"]) document.addEventListener(type, event => {
-    if (event.isTrusted && running && !event.composedPath().includes(host)) cancel("偵測到你正在操作頁面，已停止自動套用並保留目前編輯。");
+    if (event.isTrusted && running && !event.composedPath().includes(host)) cancel(t("偵測到你正在操作頁面，已停止自動套用並保留目前編輯。"));
   }, true);
   // Shadow controls retarget to this host outside the shadow tree. Keep their
   // clicks/drags out of the site's background click and selectable handlers.
@@ -234,7 +241,7 @@
       const left = Math.max(0, Math.round(selectRect.right - toolbarRect.left + 12));
       host.style.setProperty("--leafwise-collapsed-left", `${left}px`);
     }
-    const text = `本頁 ${a.cards().length} 份觀察`;
+    const text = t("本頁 {0} 份觀察", a.cards().length);
     if ($("#count").textContent !== text) $("#count").textContent = text;
   }
   let scheduled = false;
@@ -251,7 +258,7 @@
   observer.observe(document.body, { childList: true, subtree: true });
   window.addEventListener("resize", mount);
   window.addEventListener("pagehide", () => {
-    cancel("頁面已離開。"); observer.disconnect(); clearTimeout(scanTimer);
+    cancel(t("頁面已離開。")); observer.disconnect(); clearTimeout(scanTimer);
     window.removeEventListener("resize", mount);
   }, { once: true });
   mount(); controls();

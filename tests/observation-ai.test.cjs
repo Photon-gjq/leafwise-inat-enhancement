@@ -90,6 +90,7 @@ test('observation content script shares the uploader score style and page-data a
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json'), 'utf8'));
   const entry = manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js'));
   assert.deepEqual(entry.js, [
+    'scripts/i18n-catalog.js', 'scripts/i18n.js',
     'scripts/vision-score-data.js', 'scripts/vision-score-style.js',
     'scripts/uploader-page-data.js', 'scripts/observation-ai-adapter.js'
   ]);

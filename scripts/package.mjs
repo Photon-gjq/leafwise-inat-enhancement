@@ -25,7 +25,7 @@ function archive(name, entries) {
 for (const target of targets) {
   const buildDir = path.join(root, 'build', target);
   const entries = Object.fromEntries(files(buildDir).map(file => [path.relative(buildDir, file).split(path.sep).join('/'), fs.readFileSync(file)]));
-  const docs = Object.fromEntries(['INSTALL.md', 'USAGE.md', 'GUIDE.en.md', 'REGIONS.md', 'PRIVACY.md'].map(name => [name, strToU8(fs.readFileSync(path.join(root, 'docs', name), 'utf8'))]));
+  const docs = Object.fromEntries(['INSTALL.md', 'USAGE.md', 'GUIDE.en.md', 'I18N.md', 'REGIONS.md', 'PRIVACY.md'].map(name => [name, strToU8(fs.readFileSync(path.join(root, 'docs', name), 'utf8'))]));
   docs['NOTICE.md'] = strToU8(fs.readFileSync(path.join(root, 'NOTICE.md'), 'utf8'));
   archive(`Leafwise-${version}-${target}.zip`, { ...Object.fromEntries(Object.entries(entries).map(([name, bytes]) => [`extension/${name}`, bytes])), ...docs });
   if (target === 'chrome' || target === 'edge') {

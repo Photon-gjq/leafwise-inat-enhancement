@@ -4,6 +4,29 @@ const path = require('node:path');
 const extension = require('./extension-path.cjs');
 const status = require(path.join(extension, 'scripts/taxon-status.js'));
 
+test('selected region comes from native observation links, not a preferred-name or stale URL', () => {
+  const href = 'https://www.inaturalist.org/taxa/3?place_id=10301';
+  let chosen = true;
+  let links = [link({href:'/observations?taxon_id=3&place_id=6903'})];
+  const trigger = {classList:{contains:()=>chosen}};
+  const doc = {querySelector:()=>({querySelector:()=>trigger}),querySelectorAll:()=>links};
+  assert.equal(status.selectedTaxonPlace(doc, href),6903);
+  links = []; assert.equal(status.selectedTaxonPlace(doc,href),undefined);
+  links = [link({href:'/observations?taxon_id=3&preferred_place_id=6903'})];
+  assert.equal(status.selectedTaxonPlace(doc,href),undefined);
+  links = [link({href:'/observations?taxon_id=3&place_id=6903'}),link({href:'/observations?taxon_id=3&place_id=7613'})];
+  assert.equal(status.selectedTaxonPlace(doc,href),undefined);
+  links = [link({href:'https://example.org/observations?taxon_id=3&place_id=6903'})];
+  assert.equal(status.selectedTaxonPlace(doc,href),undefined);
+  chosen=false; assert.equal(status.selectedTaxonPlace(doc,href),null);
+  const absent={querySelector:()=>null};
+  assert.equal(status.selectedTaxonPlace(absent,href),10301);
+  assert.equal(status.selectedTaxonPlace(absent,href.replace('10301','bad')),undefined);
+  assert.equal(status.selectedTaxonPlace(absent,href.split('?')[0]),null);
+  assert.equal(new URL(status.ownObservationsURL(href,'observer',3,6903)).searchParams.get('place_id'),'6903');
+  assert.equal(new URL(status.ownObservationsURL(href,'observer',3)).searchParams.has('place_id'),false);
+});
+
 function link(attributes, isTaxonName = false) {
   return {
     getAttribute: name => attributes[name] ?? null,

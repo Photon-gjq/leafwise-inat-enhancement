@@ -31,10 +31,26 @@
       </form>
       <p id="taxa-status" class="status" role="status" aria-live="polite"></p>
     </section>
+    <section>
+      <h2>常用地区组合</h2>
+      <p>自选搭配地区 ID，保存后可在类群对比面板的地区组合中选择。与面板中的自订组合共用清单，仅保存在此浏览器。</p>
+      <form id="places-form">
+        <label for="places">常用地区 ID 与名称</label>
+        <textarea id="places" name="places" rows="6" placeholder="6903,7613,10301 = 中国大陆+港澳&#10;7613 = 香港" autocomplete="off" spellcheck="false" disabled></textarea>
+        <p>每行一个组合，格式为“ID,ID = 名称”。名称可以省略；每组最多 20 个地区，最多 50 组。可添加、删除或调整顺序，留空保存可清空自订组合，不影响内建组合。</p>
+        <p>常用代码：中国大陆 6903，香港 7613，澳门 10301，台湾 7887。其他地区可从 iNaturalist 地区页面的网址获取数字 ID。</p>
+        <button type="submit" disabled>保存常用地区</button>
+      </form>
+      <p id="places-status" class="status" role="status" aria-live="polite"></p>
+    </section>
     <p>修改设置不会自动改变当前页面已经应用的筛选。</p>
   </main>
+  <script src="../scripts/i18n-catalog.js"></script>
+  <script src="../scripts/i18n.js"></script>
   <script src="../scripts/saved-users.js"></script>
   <script src="../scripts/saved-taxa.js"></script>
+  <script src="../scripts/higher-taxa-core.js"></script>
+  <script src="../scripts/explore-tools.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

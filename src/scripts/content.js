@@ -1,4 +1,7 @@
 (() => {
+  "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
+  const html = text => globalThis.LeafwiseI18n?.html(text) ?? text;
   const api = globalThis.QGInatFilters;
   if (!api.isSearchPage(location.href)) return;
   const nativePendingKey = "qgInatPendingUnobservedUser";
@@ -34,7 +37,7 @@
   const summaryHost = document.createElement("span");
   summaryHost.id = "qg-inat-user-filters-summary";
   const summaryShadow = summaryHost.attachShadow({ mode: "open" });
-  summaryShadow.innerHTML = `
+  summaryShadow.innerHTML = html(`
     <style>
       :host { display: inline-flex; margin-left: 10px; vertical-align: middle; }
       :host([hidden]) { display: none; }
@@ -42,11 +45,11 @@
       button:hover { border-color: #66834f; background: #eaf1e4; }
       button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
     </style>
-    <button type="button" aria-label="展开 QG 用户筛选" title="点击展开用户筛选"></button>`;
+    <button type="button" aria-label="展开 QG 用户筛选" title="点击展开用户筛选"></button>`);
   const modalHost = document.createElement("div");
   modalHost.id = "qg-inat-native-filter-tools";
   const modalShadow = modalHost.attachShadow({ mode: "open" });
-  modalShadow.innerHTML = `
+  modalShadow.innerHTML = html(`
     <style>
       :host { position: relative; z-index: 1; display: block; width: calc(200% + 30px); margin: 10px 0 0; color-scheme: light; }
       * { box-sizing: border-box; }
@@ -81,8 +84,8 @@
           <input id="modal-exclude-name" aria-label="排除已观察用户名" placeholder="输入用户名" spellcheck="false" autocomplete="off" hidden>
         </div>
       </div>
-    </div>`;
-  shadow.innerHTML = `
+    </div>`);
+  shadow.innerHTML = html(`
     <style>
       :host { display: block; clear: both; margin: 12px 16px; color-scheme: light; }
       :host([hidden]) { display: none; }
@@ -109,7 +112,7 @@
         <div class="field"><label for="exclude">排除已观察</label><select id="exclude" disabled></select><input id="exclude-name" aria-label="排除已观察用户名" placeholder="输入用户名" spellcheck="false" autocomplete="off" hidden></div>
         <div class="apply-status"><button type="submit" disabled>应用</button><span id="message" role="status" aria-live="polite"></span></div>
       </div>
-    </form>`;
+    </form>`);
   const form = shadow.querySelector("form");
   const message = shadow.querySelector("#message");
   const submit = shadow.querySelector("[type=submit]");
@@ -118,14 +121,14 @@
     key: "user_id",
     select: modalShadow.querySelector("#modal-source"),
     input: modalShadow.querySelector("#modal-source-name"),
-    empty: "不限用户"
+    empty: t("不限用户")
   };
   const modalSource = modalSourceField.select;
   const modalExcludeField = {
     key: "unobserved_by_user_id",
     select: modalShadow.querySelector("#modal-exclude"),
     input: modalShadow.querySelector("#modal-exclude-name"),
-    empty: "不排除"
+    empty: t("不排除")
   };
   const users = globalThis.QGInatUsers;
   let usernames = [];
@@ -138,10 +141,10 @@
     const params = new URL(href).searchParams;
     const source = params.get("user_id");
     const exclude = params.get("unobserved_by_user_id");
-    if (source && exclude) return `来源 ${source} · 排除 ${exclude}`;
-    if (source) return `来源 ${source}`;
-    if (exclude) return `排除 ${exclude}`;
-    return "用户筛选：未启用";
+    if (source && exclude) return t("来源 {0} · 排除 {1}", source, exclude);
+    if (source) return t("来源 {0}", source);
+    if (exclude) return t("排除 {0}", exclude);
+    return t("用户筛选：未启用");
   }
   function saveCollapsed(value) {
     try {
@@ -154,7 +157,7 @@
     host.hidden = value;
     summaryHost.hidden = !value;
     summaryButton.textContent = summaryText(href);
-    summaryButton.title = `${summaryButton.textContent}；点击展开用户筛选`;
+    summaryButton.title = t("{0}；点击展开用户筛选", summaryButton.textContent);
     if (persist) saveCollapsed(value);
   }
   summaryButton.addEventListener("click", () => setCollapsed(false));
@@ -165,7 +168,7 @@
   setCollapsed(collapsed, false);
   const fields = api.keys.map((key, index) => {
     const id = index === 0 ? "source" : "exclude";
-    return { key, select: shadow.querySelector(`#${id}`), input: shadow.querySelector(`#${id}-name`), empty: index === 0 ? "不限用户" : "不排除" };
+    return { key, select: shadow.querySelector(`#${id}`), input: shadow.querySelector(`#${id}-name`), empty: index === 0 ? t("不限用户") : t("不排除") };
   });
   function value(field) {
     const selected = field.select.value;
@@ -175,15 +178,15 @@
   function warn() {
     const [source, exclude] = fields.map(value);
     message.textContent = source && exclude && source.toLowerCase() === exclude.toLowerCase()
-      ? "两个筛选使用同一用户，通常会得到空结果；仍可点击应用。" : "";
+      ? t("两个筛选使用同一用户，通常会得到空结果；仍可点击应用。") : "";
   }
   function populate(field, current, mode) {
     field.select.replaceChildren();
     const add = (value, label) => field.select.add(new Option(label, value));
     add("none", field.empty);
     usernames.forEach(username => add(`user:${username}`, username));
-    add("custom", "指定其他用户…");
-    add("settings", "管理常用用户…");
+    add("custom", t("指定其他用户…"));
+    add("settings", t("管理常用用户…"));
     field.select.value = mode || (current ? (usernames.includes(current) ? `user:${current}` : "custom") : "none");
     field.input.value = current || "";
     field.input.hidden = field.select.value !== "custom";
@@ -238,7 +241,7 @@
     fields.forEach(field => populate(field, params.get(field.key) || ""));
     lastHref = location.href;
     summaryButton.textContent = summaryText();
-    summaryButton.title = `${summaryButton.textContent}；点击展开用户筛选`;
+    summaryButton.title = t("{0}；点击展开用户筛选", summaryButton.textContent);
     syncModalFromURL();
     warn();
   }
@@ -246,7 +249,7 @@
     try {
       const result = await chrome.runtime.sendMessage({ type: "qg-open-options" });
       if (!result?.ok) throw new Error("options");
-    } catch { message.textContent = "无法打开设置，请点击浏览器工具栏中的扩展图标。"; }
+    } catch { message.textContent = t("无法打开设置，请点击浏览器工具栏中的扩展图标。"); }
   }
   modalSource.addEventListener("change", () => {
     if (modalSource.value === "settings") {
@@ -325,7 +328,7 @@
     if (!ready || !api.isSearchPage(location.href)) return;
     if (lastHref !== location.href) {
       syncURL();
-      message.textContent = "页面筛选已变化，已同步当前条件，请重新选择后应用。";
+      message.textContent = t("页面筛选已变化，已同步当前条件，请重新选择后应用。");
       return;
     }
     const changes = {};
@@ -333,10 +336,10 @@
       const selected = value(field);
       if (field.select.value !== "none" && !selected) {
         if (field.select.value === "settings") {
-          message.textContent = "请先设置常用用户名。";
+          message.textContent = t("请先设置常用用户名。");
           openSettings();
         } else {
-          field.input.setCustomValidity("请输入用户名，不能只包含空格。");
+          field.input.setCustomValidity(t("请输入用户名，不能只包含空格。"));
           field.input.reportValidity();
         }
         return;
@@ -357,7 +360,7 @@
       if (modalExcludeField.select.value === "custom" && !selected) {
         event.preventDefault();
         event.stopImmediatePropagation();
-        modalExcludeField.input.setCustomValidity("请输入用户名，不能只包含空格。");
+        modalExcludeField.input.setCustomValidity(t("请输入用户名，不能只包含空格。"));
         modalExcludeField.input.reportValidity();
         return;
       }
@@ -413,7 +416,7 @@
     ready = true;
     syncURL();
     submit.disabled = false;
-  }).catch(() => { message.textContent = "读取设置失败，请刷新页面重试。"; });
+  }).catch(() => { message.textContent = t("读取设置失败，请刷新页面重试。"); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync" || !users.storageKeys.some(key => changes[key]) || !ready) return;
     // Preserve selected values when a saved candidate changes, including unsaved drafts.

@@ -2,6 +2,12 @@
 
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。
 
+分類頁地區取自網站原生選擇器狀態及 `.NumObservations` 連結，而非僅依 URL。計數／多樣性／首次最近紀錄與觀察連結共享可選 `placeId`，快取按地區分隔；controller generation 和即時地區 identity 阻止跨地區舊回應回寫。選中但 ID 尚未取得時不冒充全球。設定頁與對比面板共用 local 地區組合庫，bulk 更新用舊 groups 快照作衝突檢查，保留查詢收藏。
+
+原生 DOM 範圍依據：[地區 chooser](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/components/place_chooser_popover.jsx)、[觀察連結容器](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/show/containers/num_observations_container.js) 及 [chosenPlace 參數](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/util.js)（2026-10-02 核對）。不讀取私有 React 元件內部或重新按地名搜尋。
+
+界面語言以 iNaturalist 的 `html.lang`／Content-Language 為準，不以瀏覽器語言覆蓋网站。`src/i18n` 的獨立文案目錄由 `scripts/i18n.mjs` 建置為本地資料檔，`i18n.js` 只負責呈現；中文地區文案以建置用 OpenCC 轉換。翻譯不進入核心判定與統計計算，也不替換原生網站或使用者資料。名稱查詢新增可選 locale，名稱快取按完整 URL 隔離；設定頁只新增本機最近語言碼。涵蓋範圍、英文後備與維護規則見 [I18N.md](I18N.md)。
+
 | 部分 | Chrome／Edge | Firefox |
 | --- | --- | --- |
 | 背景 | Manifest V3 service worker，前置 importScripts 載入依賴 | 非持續背景 scripts，manifest 定義依賴次序 |

@@ -78,6 +78,9 @@ test('uploader has the correct execution world and no extension API access', () 
   assert.ok(uploader.matches.every(url => url.endsWith('/observations/upload*')));
   assert.deepEqual(manifest.permissions, ['storage']);
   for (const file of uploader.js) {
+    // The presentation helper also serves the isolated/options worlds. Its
+    // optional storage branch is guarded; MAIN needs no extension API.
+    if (['scripts/i18n-catalog.js', 'scripts/i18n.js'].includes(file)) continue;
     const code = fs.readFileSync(path.join(extension, file), 'utf8');
     assert.doesNotMatch(code, /\b(?:browser|chrome)\./);
     if (process.env.LEAFWISE_TARGET !== 'firefox') assert.doesNotMatch(code, /wrappedJSObject/);

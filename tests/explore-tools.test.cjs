@@ -65,6 +65,36 @@ test('exports quote names, neutralize formulas, include query metadata and use c
  const tsv=tools.exportTable(rows,base,core,'\t');assert.equal(tsv.split('\r\n').length,2);assert.ok(tsv.includes("'=DANGEROUS()"));
 });
 
+test('settings place groups normalize combinations, preserve IDs/queries and reject stale or invalid forms atomically',()=>{
+ const original={queries:[{id:'q1',name:'Query'}],groups:[{id:'p1',name:'自訂名',place:'7613,10301'}]};
+ let ids=0;
+ const entry={text:'10301，7613 = Renamed\n6903 = Mainland',expectedGroups:original.groups};
+ const result=tools.replacePlaceGroups(original,entry,core,()=>`new${++ids}`);
+ assert.equal(result.groups[0].id,'p1');assert.equal(result.groups[0].name,'Renamed');assert.equal(result.groups[1].id,'new1');
+ assert.deepEqual(result.queries,original.queries);assert.equal(original.groups[0].name,'自訂名');
+ assert.equal(tools.formatPlaceGroups(result.groups),'7613,10301 = Renamed\n6903 = Mainland');
+ const unnamed=tools.replacePlaceGroups(original,{text:'10301,7613',expectedGroups:original.groups},core,()=>assert.fail());
+ assert.equal(unnamed.groups[0].name,'自訂名');
+ const empty=tools.replacePlaceGroups(original,{text:'',expectedGroups:original.groups},core,()=>assert.fail());
+ assert.deepEqual(empty.groups,[]);assert.deepEqual(empty.queries,original.queries);
+ assert.throws(()=>tools.replacePlaceGroups(result,entry,core,()=>assert.fail()),/其他页面/);
+ for(const text of ['any','0','6903,','6903 =','7613,10301 = A\n10301,7613 = B','6903 = '+ 'x'.repeat(81),Array.from({length:51},(_,i)=>`${i+1} = Name`).join('\n')]) {
+  assert.throws(()=>tools.replacePlaceGroups(original,{text,expectedGroups:original.groups},core,()=>assert.fail('validation before IDs')));
+ }
+});
+
+test('personal record caches and both date-ordered requests are partitioned by region',async()=>{
+ const calls=[];
+ const service=createService({core,explore:tools,fetchJSON:async url=>{const u=new URL(url);calls.push(u);const n=u.searchParams.has('place_id')?1:5;return {total_results:n,results:[{id:n,observed_on:'2026-01-02'}]};}});
+ assert.equal((await service.records(7,3)).datedCount,5);
+ assert.equal((await service.records(7,3,6903)).datedCount,1);
+ await service.records(7,3,6903);assert.equal(calls.length,4);
+ assert.ok(calls.slice(-2).every(u=>u.searchParams.get('place_id')==='6903'));
+ await service.records(7,3,7613);assert.equal(calls.length,6);
+ for(const bad of ['any','',0,-1,'6903,7613','1e3'])await assert.rejects(service.records(7,3,bad));
+ assert.equal(calls.length,6);
+});
+
 test('scope changes reuse cached trees and first-year loads an additional historical baseline',async()=>{
  const calls=[];
  const service=createService({core,fetchJSON:async url=>{

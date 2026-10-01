@@ -230,6 +230,21 @@ test('Chinese names batch, cache, force refresh and validate the 30 item limit',
   await assert.rejects(service.names(options, Array.from({ length: 31 }, (_, i) => i + 1)), /30/);
 });
 
+test('common-name locale partitions cache; force refresh uses the requested language', async () => {
+  const calls = [];
+  const service = createService({ core, fetchJSON: async url => {
+    const locale = new URL(url).searchParams.get('locale');
+    calls.push(locale);
+    return { results: [{ id: 41, preferred_common_name: 'API name ' + locale }] };
+  } });
+  assert.equal((await service.names(options, [41], 'fr')).names[41], 'API name fr');
+  assert.equal((await service.names(options, [41], 'ja')).names[41], 'API name ja');
+  await service.names(options, [41], 'fr');
+  assert.deepEqual(calls, ['fr', 'ja']);
+  await service.refreshNames(options, [41], 'fr');
+  assert.deepEqual(calls, ['fr', 'ja', 'fr']);
+});
+
 test('browser background loads dependencies and responds to asynchronous messages', async () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
   const isFirefox = process.env.LEAFWISE_TARGET === 'firefox';
@@ -284,6 +299,17 @@ test('browser background loads dependencies and responds to asynchronous message
   assert.equal(cached.counts[3], 7); assert.equal(cached.counts[4], undefined);
   const invalid = await send({ ...message, taxonId: -1 });
   assert.equal(invalid.ok, false); assert.match(invalid.error, /Invalid/);
+  // A fresh regional key cannot read a global cached count (or vice versa).
+  assert.equal((await send({...message,placeId:6903})).count,7);assert.equal(fetches,5);
+  assert.equal((await send({...message,placeId:6903})).count,7);assert.equal(fetches,5);
+  assert.equal(requested.at(-1).searchParams.get('place_id'),'6903');
+  assert.equal((await send({...diversity,placeId:6903})).counts.species,2);assert.equal(fetches,7);
+  assert.ok(requested.slice(-2).every(u=>u.searchParams.get('place_id')==='6903'));
+  assert.equal((await send({...diversity})).counts.leafTaxa,4);assert.equal(fetches,7);
+  assert.equal((await send({type:'qg-cached-taxon-observation-counts',userId:123,taxonIds:[3],placeId:7613})).counts[3],undefined);
+  assert.equal((await send({type:'qg-cached-taxon-observation-counts',userId:123,taxonIds:[3],placeId:6903})).counts[3],7);
+  for(const placeId of ['',0,'any','6903,7613','bad'])assert.equal((await send({...message,placeId})).ok,false);
+  assert.equal(fetches,7);
 });
 
 test('0.9.8 saved settings preserve all-life and normalize usernames', () => {

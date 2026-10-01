@@ -1,6 +1,6 @@
 # Leafwise English User Guide
 
-Leafwise currently uses a Chinese interface. This guide maps the main labels to English and explains the intended workflows. It applies to the Chrome, Edge, and Firefox builds from the same release.
+Version 1.1.0 follows iNaturalist's website language. Select English in iNaturalist and reload the page to use English controls; the settings page reuses the last website language. The Chinese label tables below remain useful when using an older version or the Chinese website. This guide applies to the Chrome, Edge, and Firefox builds from the same release. See [language coverage and fallback](I18N.md) for the initial 50 variants.
 
 ## Recent activity notifications
 
@@ -59,6 +59,8 @@ Changing only the rank reuses the downloaded taxonomy trees. Errors are shown as
 
 ## Saved queries and custom place groups
 
+You can also manage the same custom groups in the extension's settings page under **Saved regions**. Enter one `ID,ID = name` per line, for example `6903,7613,10301 = Mainland China + Hong Kong + Macao`. Names may be omitted. Save an empty list to remove custom groups only; built-in presets and saved searches remain unchanged. If another page edited the groups while settings were open, reopen settings before saving to avoid overwriting its changes.
+
 Expand **查詢收藏與自訂地點組合** (Saved queries and custom place groups).
 
 - A saved query keeps the complete observations URL and the current valid comparison settings. Loading it restores the page and panel but does not start a comparison automatically.
@@ -93,6 +95,8 @@ The same score format is used in the native identification suggestion menu on an
 The automatic blank-card mode runs in the open upload page. Browser tab throttling or suspension can pause page scripts, so keep that tab open and avoid letting the browser discard it during a long batch.
 
 ## Personal record cards
+
+On a taxon page, title and taxonomy-tree counts follow the region selected at the top right. No selected region means worldwide personal records. The displayed triplet is observations, lowest observed taxa (not just species), then species-rank taxa. First/latest record cards and browse links use that same region. Clearing or switching the region discards outdated displayed counts while the new data loads. Individual observation pages still show global personal counts.
 
 On taxon pages, the personal count uses `(observations|leaf taxa|species-rank taxa)`. The middle value matches the observations search page's “species” total: it counts the lowest observed taxa even when a taxon is identified only to genus or family. The last value matches the observer table's species column and counts taxa at species rank. Both use the same user and taxon scope as the observation count. If either extra API request fails, Leafwise keeps the known observation count without inventing a zero.
 

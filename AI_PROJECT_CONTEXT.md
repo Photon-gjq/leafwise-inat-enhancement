@@ -62,6 +62,8 @@
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
 | src/scripts/notification-tabs.js | iNaturalist 各頁右上「新動態」下拉清單的去重開啟按鈕；僅從官方通知列讀取觀察連結 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
+| src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
+| scripts/i18n.mjs | 建置 50 個語言／地區目錄及中文轉換；OpenCC 為建置依賴，不在執行時使用 |
 | platforms/chrome.json | Chrome／Edge 的 MV3 service worker 與最低版本設定 |
 | platforms/firefox.json | Firefox 背景 scripts、Gecko ID 與最低版本設定 |
 | platforms/*-page-data.js | 取得 iNaturalist 頁面 jQuery 資料的最小平台橋接 |
@@ -91,6 +93,8 @@ scripts/build.mjs 會複製 src/，把 package.json 版本和平台 manifest 合
 
 ### 上傳頁 /observations/upload
 
+`i18n-catalog.js` → `i18n.js` 在 document_idle 的分數／面板腳本前載入；不插入 document_start 的 vision-score-bridge 組。
+
 1. vision-score-bridge.js（MAIN world，document_start）
 2. vision-score-data.js
 3. vision-score-style.js
@@ -100,6 +104,8 @@ scripts/build.mjs 會複製 src/，把 package.json 版本和平台 manifest 合
 7. uploader-ai-panel.js
 
 ### 觀察詳情 /observations/<numeric-id>
+
+同樣在 document_idle 的分數樣式／adapter 前載入 `i18n-catalog.js` → `i18n.js`。
 
 1. vision-score-bridge.js（MAIN world，document_start）
 2. vision-score-data.js
@@ -117,6 +123,8 @@ url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-ta
 taxon-status.js
 
 ### 全站右上「新動態」清單
+
+`i18n-catalog.js` → `i18n.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。
 
 notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析清單直屬通知列的 HTTPS 觀察詳情連結，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。使用者按鈕點擊後傳送 `leafwise-open-update-observations`，背景程序再次驗證發件頁及 ID，以不啟用的新分頁在原視窗打開對應觀察。清單載入前不顯示按鈕；沒有可開啟觀察時禁用。此功能只處理目前顯示的清單，不抓歷史分頁、不改通知已讀狀態。
 
@@ -171,6 +179,10 @@ taxon-status.js 只信任目前 iNaturalist 頁面右上使用者選單：
 
 分類頁的多個「查看您的」連結必須各自解析 user_id、taxon_id、place_id、verifiable、view、rank 等參數並分別統計。分類列表由下級先於上級處理，最多 3 個並發；頂部已取得的次數可重用。新增的多樣性 API 請求共用節流傳輸器，兩個請求起始至少間隔 1.1 秒，並以使用者及 taxon ID 快取 5 分鐘。
 
+分類頁個人標題與分類樹跟隨 `#place-chooser-container .PlaceChooserPopoverTrigger`：未 chosen 表示全球；chosen 的整數 ID 來自 `.NumObservations` 原生 observations 連結的 `place_id`（不使用 `preferred_place_id` 或地名猜測）。選中但連結未就緒／不一致時暫停，不回退全球；無選擇器時才以 URL 作相容後備。`selectedTaxonPlace` 返回 null/global、undefined/pending 或正整數。controller identity 加地區；所有舊回應寫回前重讀 identity。觀察詳情保持全球。
+
+上述計數、多樣性、快取查詢及個人 records 訊息可附帶單個 `placeId`；所有 API、觀察連結與 records 依同一 ID 篩選。背景嚴格驗證，無效 ID 不可靜默移除。global cache 保留原鍵，regional cache 另加 place；records 同樣隔離。原生查看您的連結仍按其自身範圍查詢，只有完整範圍等同標題時才重用標題計數。
+
 觀察詳情的 URL 可能在鑑定後不變，但目前 taxon 會變。程式用 DOM 監聽與低頻輪詢發現變更，清除舊 marker，對新 taxon 強制繞過 5 分鐘快取，並以 generation／目前 taxon 檢查阻止舊請求寫回。
 
 ## 7. 高階分類與探索工具
@@ -192,6 +204,8 @@ higher-taxa-service.js（由背景載入）負責 API、快取和節流：
 - 中文名稱按 30 個一批；species_counts 結果仍需驗證使用者／地點／根 taxon。
 
 explore-tools.js 管理分區預設、自訂分組、已存查詢和 CSV。查詢 URL 只允許 HTTPS 的 iNaturalist observations URL；收藏各最多 50 筆；CSV 必須正確引用並中和公式注入。
+
+設定頁常用地區與面板共用 `leafwiseExploreLibraryV1.groups`。`parsePlaceGroups` 驗證 `ID,ID = 名稱`、20 個地區／50 組上限及重複聯集；`replacePlaceGroups` 保留相同聯集的既有 ID 及最新 queries，以 `expectedGroups` 快照拒絕舊表單覆蓋其他頁面變更。背景仍以 libraryTask 序列化操作；`leafwise-explore-library` 新增 `replace-places` action，entry 為 `{text, expectedGroups}`。不改 sync 儲存、不修改內建 groups。面板监听 local library 變更，只更新選項，不自動套用篩選。
 
 higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果、逐列 Leaf taxa 驗證、兩個名稱 worker、leafwise_query 還原，以及 DOM 異步重掛載。
 
@@ -220,6 +234,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 - storage.sync：savedUsernames、savedTaxa；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
 - storage.local：個人次數快取、探索查詢／分組資料庫 leafwiseExploreLibraryV1。
+- storage.local：leafwiseLastSiteLocale 只記最近網站語言碼，用於設定頁；不含帳戶資訊、不 sync，不改其他鍵。名稱訊息新增可選 locale，舊 caller 預設 zh-CN；名稱快取使用包含 locale 的 API URL。
 - storage.session：高階分類快取。
 - 頁面 localStorage：leafwise-upload-ai-panel-open。
 - 頁面 sessionStorage：搜尋 UI／待套用篩選狀態，例如 qgInatPendingUnobservedUser、qgInatUserFiltersCollapsed。
@@ -273,6 +288,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 
 ### 依變更範圍的最低人工驗收
 
+- 多語言：更改網站語言後重新載入，確認自有控制項、分數提示、設定頁及匯出欄名；自訂名稱不翻譯、RTL 不影響網站、長標籤不遮住原有刪除按鈕。首版長篇說明／少見錯誤英文後備與母語校對界限見 docs/I18N.md，不宣稱 50 個目錄全量完工。
 - 設定／儲存：三瀏覽器保存、重開、舊資料相容。
 - 類群對比：單地、多地、全球；目／科／屬／種；至少逐列核對一個 Leaf taxa。
 - 上傳 AI：高分、低分、手動 taxon、自由文字；預覽不修改；停止及外部操作中斷；新增照片的自動模式。
@@ -333,6 +349,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 
 ## 13. 典型修改路徑
 
+- 改界面語言：使用 src/i18n 的獨立目錄和 i18n.js；只在呈現邊界呼叫 t/html/legacy，佔位符插入值不再次解析。常用 key 缺少或佔位符不符會建置失敗。不要讓翻譯依賴改動 AI core、查詢條件、候選綁定或收藏資料；不要全站觀察／替換 DOM。
 - 改分數外觀：只改 src/scripts/vision-score-style.js 和相應測試，確保上傳／觀察頁共用。
 - 改分數抓取：先讀 bridge + data store + 兩個 adapter；保持原生請求單次、taxon ID 配對、combined 為自動判定唯一依據、vision 只作配對顯示、跨 world 相容。
 - 改批次規則：優先改 uploader-ai-core.js，先補純邏輯測試，再改 adapter／panel。

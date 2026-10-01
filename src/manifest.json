@@ -30,6 +30,8 @@
         "https://inaturalist.org/*"
       ],
       "js": [
+        "scripts/i18n-catalog.js",
+        "scripts/i18n.js",
         "scripts/notification-tabs.js"
       ],
       "run_at": "document_idle"
@@ -53,6 +55,8 @@
         "https://inaturalist.org/observations/upload*"
       ],
       "js": [
+        "scripts/i18n-catalog.js",
+        "scripts/i18n.js",
         "scripts/vision-score-data.js",
         "scripts/vision-score-style.js",
         "scripts/uploader-ai-core.js",
@@ -72,6 +76,8 @@
         "https://inaturalist.org/observations/upload*"
       ],
       "js": [
+        "scripts/i18n-catalog.js",
+        "scripts/i18n.js",
         "scripts/vision-score-data.js",
         "scripts/vision-score-style.js",
         "scripts/uploader-page-data.js",

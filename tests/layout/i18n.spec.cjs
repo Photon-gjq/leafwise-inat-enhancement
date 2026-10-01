@@ -1,0 +1,80 @@
+const { test, expect } = require('@playwright/test');
+const path = require('node:path');
+const fs = require('node:fs');
+const build = info => path.resolve(__dirname, '../../build', info.project.name.split('-')[0]);
+async function inject(page, info, names) {
+  for (const name of names) await page.addScriptTag({ path: path.join(build(info), 'scripts', name) });
+}
+const helpers = ['i18n-catalog.js', 'i18n.js'];
+
+test('all 50 locales render the translated notification action and keep native content intact', async ({ page }, info) => {
+  test.setTimeout(120000);
+  const names = require('../../src/i18n/locales.json');
+  let lang = 'en';
+  await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
+    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><p id="native">停止</p><li id="updatesnav"><div id="updatessubnav"><ul><li><a href="/observations/101">Native update</a></li><li><center>Dashboard</center></li></ul></div></li></body></html>` }));
+  for (const code of Object.keys(names)) {
+    lang = code;
+    await page.goto('https://www.inaturalist.org/home');
+    await inject(page, info, [...helpers, 'notification-tabs.js']);
+    const expected = await page.evaluate(() => LeafwiseI18n.t('一鍵開啟這些觀察（{0}）', 1));
+    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(expected);
+    expect(expected).not.toContain('{0}');
+    await expect(page.locator('#native')).toHaveText('停止');
+  }
+});
+
+for (const code of ['en', 'zh-CN', 'zh-TW', 'zh-HK', 'fr', 'ja', 'ar']) {
+  test(`uploader labels, safe templates and collapsed geometry: ${code}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
+      `<!doctype html><html lang="${code}"><meta charset="utf-8"><style>body{margin:0}.nav_add_obs{position:fixed;top:50px;left:0;right:0;height:50px;background:white}.select{width:120px}#imageGrid{margin:160px 20px}.card{position:relative;width:250px;height:200px;border:1px solid}.remove-card{position:absolute;right:-10px;top:-10px;width:28px;height:28px}</style><body><div class="uploader"><nav class="nav_add_obs"><li class="select"><form><label>Native checkbox<input type="checkbox"></label></form></li></nav><div id="imageGrid"><div class="card"><button class="remove-card">×</button></div></div></div><p id="native">手動分類</p></body></html>` }));
+    await page.goto('https://www.inaturalist.org/observations/upload');
+    await page.evaluate(() => {
+      window.module = { exports: { native: true } };
+      window.LeafwiseUploadAdapter = { cards: () => [], close: () => {} };
+    });
+    const before = await page.locator('.nav_add_obs').boundingBox();
+    await inject(page, info, [...helpers, 'uploader-ai-core.js', 'uploader-ai-panel.js']);
+    const labels = await page.evaluate(() => ({ expand: LeafwiseI18n.t('展開'), stop: LeafwiseI18n.t('停止'), score: LeafwiseI18n.t('綜合分數 >') }));
+    const panel = page.locator('#leafwise-upload-ai');
+    await expect(panel.locator('#toggle')).toHaveText(labels.expand);
+    const box = await panel.boundingBox();
+    expect(box.x + box.width).toBeLessThanOrEqual(1024);
+    expect((await page.locator('.nav_add_obs').boundingBox()).height).toBe(before.height);
+    await page.locator('.remove-card').click();
+    await panel.locator('#toggle').click();
+    await expect(panel.locator('#stop')).toHaveText(labels.stop);
+    await expect(panel.locator('#threshold-label')).toContainText(labels.score);
+    await expect(panel.locator('section')).toHaveAttribute('dir', code === 'ar' ? 'rtl' : 'ltr');
+    await expect(page.locator('#native')).toHaveText('手動分類');
+    expect(await page.evaluate(() => module.exports.native)).toBe(true);
+    const safe = await page.evaluate(() => {
+      LeafwiseTranslations.locales.en['Stop'] = '$& <img src=x onerror=alert(1)>';
+      document.documentElement.lang = 'en';
+      return LeafwiseI18n.html('<button>停止</button><style>.停止{color:red}</style>');
+    });
+    expect(safe).toContain('$&amp; &lt;img');
+    expect(safe).toContain('.停止{color:red}');
+    await page.screenshot({ path: info.outputPath(`i18n-${code}.png`) });
+  });
+}
+
+test('settings follow last site language and never translate saved input', async ({ page }, info) => {
+  const html = fs.readFileSync(path.join(build(info), 'options/options.html'), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+  await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('https://www.inaturalist.org/options-fixture');
+  await page.evaluate(() => {
+    const saved = { savedUsernames: ['observer'], savedTaxa: [{ id: 3, name: '我的自訂名稱' }] };
+    const api = { runtime:{sendMessage:async()=>({ok:true,library:{queries:[],groups:[]}})}, storage: { local: { get: async () => ({ leafwiseLastSiteLocale: 'fr' }) }, sync: { get: async () => saved, set: async value => { window.savedResult = value; } } } };
+    window.chrome = api; window.browser = api;
+  });
+  await inject(page, info, [...helpers, 'saved-users.js', 'saved-taxa.js','higher-taxa-core.js','explore-tools.js']);
+  await page.addScriptTag({ path: path.join(build(info), 'options/options.js') });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+  await expect(page.locator('#page-title')).toHaveText('Paramètres Leafwise');
+  await expect(page.locator('#taxa')).toHaveValue('3 = 我的自訂名稱');
+  await expect(page.locator('#username')).toHaveValue('observer');
+  await page.locator('#users-form button').click();
+  expect(await page.evaluate(() => savedResult.savedUsernames)).toEqual(['observer']);
+});

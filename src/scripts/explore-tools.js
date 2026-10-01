@@ -21,11 +21,11 @@
     ["mainland", "中國大陸", [6903]], ["hmt", "港澳臺", [7613,10301,7887]],
     ["hk", "香港", [7613]], ["mo", "澳門", [10301]], ["tw", "臺灣", [7887]]
   ].map(([id,name,ids])=>({id:`builtin:${id}`,name,place:ids.slice().sort((a,b)=>a-b).join(","),members:ids.map(id=>places[id]).join("、")}));
-  function placeLabel(value, items = []) {
-    if (value === "any") return "全球";
+  function placeLabel(value, items = [], translate = text => text) {
+    if (value === "any") return translate("全球");
     const ids = String(value).split(",").map(Number).sort((a,b)=>a-b);
     const group = groups.find(group=>group.place===ids.join(","));
-    return group?.name || ids.map(id=>places[id] || items.find(item=>item.id===id)?.name || String(id)).join("、");
+    return group ? translate(group.name) : ids.map(id=>places[id] ? translate(places[id]) : items.find(item=>item.id===id)?.name || String(id)).join("、");
   }
   function searchURL(value) {
     const url = new URL(value);
@@ -37,6 +37,37 @@
     const name = String(value ?? "").trim();
     if (!name || name.length > 80) throw new Error("名稱請填 1–80 個字。");
     return name;
+  }
+  function parsePlaceGroups(text, core) {
+    const lines = String(text).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    if (lines.length > 50) throw new Error("最多保存 50 项地区组合。");
+    const seen = new Set();
+    return lines.map(line => {
+      const separator = line.indexOf("=");
+      const ids = core.placeIDs(separator < 0 ? line : line.slice(0, separator));
+      if (!ids.length) throw new Error("地點組合需要至少一個 ID。");
+      const place = ids.join(",");
+      if (seen.has(place)) throw new Error("地区组合重复，请合并相同的 ID 组合。");
+      seen.add(place);
+      const name = separator < 0 ? "" : title(line.slice(separator + 1));
+      return {place, name};
+    });
+  }
+  function formatPlaceGroups(items) {
+    return items.map(item => `${item.place} = ${item.name.replace(/[\r\n]+/g, " ")}`).join("\n");
+  }
+  function replacePlaceGroups(library, entry, core, makeID) {
+    const current = Array.isArray(library?.groups) ? library.groups : [];
+    // The panel and settings edit one library. Reject stale forms, not newer edits.
+    if (!Array.isArray(entry?.expectedGroups) || JSON.stringify(current) !== JSON.stringify(entry.expectedGroups)) {
+      throw new Error("地区组合已在其他页面变更，请重新打开设置后保存。");
+    }
+    const parsed = parsePlaceGroups(entry.text, core);
+    const groups = parsed.map(item => {
+      const previous = current.find(group => group.place === item.place);
+      return {id:previous?.id || makeID(), place:item.place, name:item.name || previous?.name || placeLabel(item.place)};
+    });
+    return {...library, queries:Array.isArray(library?.queries) ? library.queries : [], groups};
   }
   function editLibrary(library, action, entry, core, id) {
     const result = { queries: Array.isArray(library?.queries) ? [...library.queries] : [], groups: Array.isArray(library?.groups) ? [...library.groups] : [] };
@@ -54,7 +85,7 @@
     if(index<0){if(result[key].length>=50)throw new Error("最多保存 50 項，請先移除不用的收藏。");result[key].push(item);}else result[key][index]=item;
     return result;
   }
-  function exportTable(rows, options, core, delimiter = ",") {
+  function exportTable(rows, options, core, delimiter = ",", translate = text => text) {
     const cell = value => {
       let text=String(value??"");
       // Prevent spreadsheet formula execution, including leading whitespace.
@@ -62,8 +93,8 @@
       if(delimiter==="\t")return text.replace(/[\t\r\n]+/g," ");
       return '"'+text.replaceAll('"','""')+'"';
     };
-    const header=["中文名","學名","層級","當地觀察數","Leaf taxa","觀察連結","對比模式","地點","月份","開始日期","結束日期","項目 ID","對比年份","地點 ID","對比使用者","根類群 ID","當地品質"];
-    const data=rows.map(row=>[row.commonName,row.name,row.rank,row.count,row.leaves,core.observationsURL(options,row.id),core.comparisonNames[options.comparison||"lifetime"],placeLabel(options.place),options.months||"全部",options.d1||"",options.d2||"",options.project||"",options.year||"",options.place,options.user,options.taxon,options.quality]);
+    const header=["中文名","學名","層級","當地觀察數","Leaf taxa","觀察連結","對比模式","地點","月份","開始日期","結束日期","項目 ID","對比年份","地點 ID","對比使用者","根類群 ID","當地品質"].map(label => translate(label));
+    const data=rows.map(row=>[row.commonName,row.name,row.rank,row.count,row.leaves,core.observationsURL(options,row.id),translate(core.comparisonNames[options.comparison||"lifetime"]),placeLabel(options.place,[],translate),options.months||translate("全部"),options.d1||"",options.d2||"",options.project||"",options.year||"",options.place,options.user,options.taxon,options.quality]);
     return [header,...data].map(row=>row.map(cell).join(delimiter)).join("\r\n");
   }
   function observationSummary(item) {
@@ -73,6 +104,6 @@
       place:typeof item.place_guess==="string"?item.place_guess:"地點未公開或未提供",
       url:`https://www.inaturalist.org/observations/${item.id}` };
   }
-  const api={places,groups,placeLabel,searchURL,editLibrary,exportTable,observationSummary};
+  const api={places,groups,placeLabel,searchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,replacePlaceGroups,exportTable,observationSummary};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.LeafwiseExploreTools=api;
 })(globalThis);

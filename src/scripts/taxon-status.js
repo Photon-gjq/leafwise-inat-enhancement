@@ -1,4 +1,8 @@
 (function (root) {
+  "use strict";
+  const t = (text, ...values) => globalThis.LeafwiseI18n?.t(text, ...values) ?? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i] ?? ""));
+  const html = text => globalThis.LeafwiseI18n?.html(text) ?? text;
+  const localizedError = text => globalThis.LeafwiseI18n?.legacy(text) ?? text;
   const MARKER_ID = "qg-inat-own-taxon-status";
   const YOURS_MARKER_CLASS = "qg-inat-yours-count";
   const TAXONOMY_MARKER_CLASS = "qg-inat-taxonomy-status";
@@ -50,12 +54,49 @@
     return userInfoFromHrefs(observationsLink?.getAttribute("href"), profileLinks, href);
   }
 
-  function ownObservationsURL(pageHref, username, taxonId) {
+  function ownObservationsURL(pageHref, username, taxonId, placeId = null) {
     const url = new URL("/observations", pageHref);
     url.searchParams.set("user_id", username);
     url.searchParams.set("taxon_id", String(taxonId));
     url.searchParams.set("verifiable", "any");
+    if (placeId != null) url.searchParams.set("place_id", String(placeId));
     return url.toString();
+  }
+
+  function placeID(value) {
+    return /^[1-9]\d*$/.test(String(value)) && Number.isSafeInteger(Number(value)) ? Number(value) : undefined;
+  }
+
+  function selectedTaxonPlace(doc, href) {
+    // iNaturalist stores chosenPlace in Redux/session, not necessarily the URL.
+    // NumObservations links expose that ID without React internals or name guesses.
+    // null = global; undefined = selected but native links not ready (do not query).
+    const container = doc.querySelector("#place-chooser-container");
+    const trigger = container?.querySelector(".PlaceChooserPopoverTrigger");
+    if (container && !trigger) return undefined;
+    if (trigger) {
+      if (!trigger.classList.contains("chosen")) return null;
+      const ids = [];
+      const page = new URL(href);
+      const info = pageInfo(href);
+      for (const link of doc.querySelectorAll(".NumObservations a[href*='/observations']")) {
+        let url;
+        try { url = new URL(link.getAttribute("href"), href); } catch { return undefined; }
+        if (url.origin !== page.origin || url.pathname !== "/observations"
+          || url.searchParams.get("taxon_id") !== String(info?.taxonId)) continue;
+        ids.push(placeID(url.searchParams.get("place_id")));
+      }
+      return ids.length && ids.every(id => id !== undefined && id === ids[0]) ? ids[0] : undefined;
+    }
+    const value = new URL(href).searchParams.get("place_id");
+    return !value || value === "any" ? null : placeID(value);
+  }
+
+  function markerTitle(username, count, placeId) {
+    if (placeId != null) return count > 0
+      ? t("{0} 在目前地区已观察 {1} 次；点击查看", username, count)
+      : t("{0} 在目前地区尚无该分类单元的记录", username);
+    return count > 0 ? t("{0} 全球已观察 {1} 次；点击查看", username, count) : t("{0} 尚未观察过该分类单元", username);
   }
 
   function taxonIdFromHref(href, baseHref) {
@@ -180,11 +221,11 @@
     return orderTaxonomyEntries([...byTaxon.values()], ancestorIds);
   }
 
-  function makeTaxonomyMarker(doc, count, href, username) {
+  function makeTaxonomyMarker(doc, count, href, username, placeId = null) {
     const marker = count > 0 ? doc.createElement("a") : doc.createElement("span");
     marker.className = TAXONOMY_MARKER_CLASS;
     marker.textContent = count > 0 ? `(${count})` : "🆕";
-    marker.title = count > 0 ? `${username} 全球已观察 ${count} 次；点击查看` : `${username} 尚未观察过该分类单元`;
+    marker.title = markerTitle(username, count, placeId);
     marker.style.marginLeft = "0.35em";
     marker.style.whiteSpace = "nowrap";
     if (count > 0) {
@@ -204,19 +245,19 @@
     if (!marker || count <= 0 || !validDiversity(counts)) return;
     const label = `(${count}|${counts.leafTaxa}|${counts.species})`;
     if (marker.textContent !== label) marker.textContent = label;
-    marker.title = `${username}：${count} 次觀察 | ${counts.leafTaxa} 個最低分類單元 | ${counts.species} 個種級分類單元；點擊查看`;
+    marker.title = t("{0}：{1} 次觀察 | {2} 個最低分類單元 | {3} 個種級分類單元；點擊查看", username, count, counts.leafTaxa, counts.species);
   }
 
   function taxonomyRow(link) {
     return link.closest?.(".SplitTaxon,.name-row,.row-content,li") || link.parentElement;
   }
 
-  function placeTaxonomyMarker(doc, entry, count, user) {
+  function placeTaxonomyMarker(doc, entry, count, user, placeId) {
     if (entry.link.isConnected === false) return false;
     const row = taxonomyRow(entry.link);
     if (row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) return true;
-    const browseHref = ownObservationsURL(location.href, user.username, entry.taxonId);
-    const marker = makeTaxonomyMarker(doc, count, browseHref, user.username);
+    const browseHref = ownObservationsURL(location.href, user.username, entry.taxonId, placeId);
+    const marker = makeTaxonomyMarker(doc, count, browseHref, user.username, placeId);
     marker.dataset.taxonId = String(entry.taxonId);
     entry.link.after(marker);
     return true;
@@ -228,7 +269,7 @@
     setDiversityText(marker, count, user.username, counts);
   }
 
-  function placeCurrentTaxonomyStatus(doc, currentTaxonId, count, browseHref, username) {
+  function placeCurrentTaxonomyStatus(doc, currentTaxonId, count, browseHref, username, placeId) {
     for (const root of taxonomyRoots(doc)) {
       const target = root.querySelector([
         "li.current > .row-content .SplitTaxon a.secondary-name",
@@ -238,7 +279,7 @@
       if (!target) continue;
       const row = taxonomyRow(target);
       if (!row?.querySelector?.(`.${TAXONOMY_MARKER_CLASS}`)) {
-        const marker = makeTaxonomyMarker(doc, count, browseHref, username);
+        const marker = makeTaxonomyMarker(doc, count, browseHref, username, placeId);
         marker.dataset.taxonId = String(currentTaxonId);
         target.after(marker);
       }
@@ -247,7 +288,7 @@
     return false;
   }
 
-  function watchTaxonomyStatuses(doc, user, currentTaxonId, currentCount, currentBrowseHref, ancestorIds, isActive = () => true) {
+  function watchTaxonomyStatuses(doc, user, currentTaxonId, currentCount, currentBrowseHref, ancestorIds, isActive = () => true, placeId = null) {
     const queue = createPriorityQueue(async entry => {
       if (!isActive() || entry.link.isConnected === false) return;
       let count = entry.cachedCount;
@@ -255,18 +296,18 @@
         const result = await chrome.runtime.sendMessage({
           type: "qg-taxon-observation-count",
           userId: user.userId,
-          taxonId: entry.taxonId
+          taxonId: entry.taxonId, placeId
         });
         if (!result?.ok || !Number.isSafeInteger(result.count) || result.count < 0) return;
         count = result.count;
       }
       if (!isActive() || entry.link.isConnected === false) return;
-      placeTaxonomyMarker(doc, entry, count, user);
+      placeTaxonomyMarker(doc, entry, count, user, placeId);
       if (count === 0) return;
       const diversity = await chrome.runtime.sendMessage({
         type: "qg-taxon-diversity",
         userId: user.userId,
-        taxonId: entry.taxonId
+        taxonId: entry.taxonId, placeId
       });
       if (isActive() && diversity?.ok) updateTaxonomyDiversity(entry, count, user, diversity.counts);
     }, 3);
@@ -281,7 +322,7 @@
       }
       scanning = true;
       try {
-        placeCurrentTaxonomyStatus(doc, currentTaxonId, currentCount, currentBrowseHref, user.username);
+        placeCurrentTaxonomyStatus(doc, currentTaxonId, currentCount, currentBrowseHref, user.username, placeId);
         const entries = taxonomyEntries(doc, currentTaxonId, ancestorIds);
         const descendants = entries.descendants.filter(entry => !seenLinks.has(entry.link));
         const ancestors = entries.ancestors.filter(entry => !seenLinks.has(entry.link));
@@ -292,7 +333,7 @@
           const cachedResult = await chrome.runtime.sendMessage({
             type: "qg-cached-taxon-observation-counts",
             userId: user.userId,
-            taxonIds: fresh.map(entry => entry.taxonId)
+            taxonIds: fresh.map(entry => entry.taxonId), placeId
           });
           if (!isActive()) return;
           if (cachedResult?.ok && cachedResult.counts && typeof cachedResult.counts === "object") {
@@ -303,7 +344,7 @@
           const count = Number(cachedCounts[entry.taxonId]);
           if (Object.hasOwn(cachedCounts, entry.taxonId) && Number.isSafeInteger(count) && count >= 0) {
             entry.cachedCount = count;
-            placeTaxonomyMarker(doc, entry, count, user);
+            placeTaxonomyMarker(doc, entry, count, user, placeId);
           }
         }
         for (const entry of descendants) {
@@ -364,14 +405,14 @@
     });
   }
 
-  function isTitleCountRequest(request) {
+  function isTitleCountRequest(request, placeId) {
     return request.endpoint === "observations"
       && request.params.verifiable === "any"
-      && !request.params.place_id
+      && (request.params.place_id || null) === (placeId == null ? null : String(placeId))
       && !request.params.rank;
   }
 
-  function watchYoursCounts(doc, user, taxonId, titleCount, isActive = () => true) {
+  function watchYoursCounts(doc, user, taxonId, titleCount, isActive = () => true, placeId = null) {
     const processed = new Map();
     const requests = new Map();
     const requestKey = request => {
@@ -391,7 +432,7 @@
         processed.set(link, key);
         let countPromise = requests.get(key);
         if (!countPromise) {
-          countPromise = isTitleCountRequest(request)
+          countPromise = isTitleCountRequest(request, placeId)
             ? Promise.resolve(titleCount)
             : chrome.runtime.sendMessage({
               type: "qg-scoped-observation-count",
@@ -426,11 +467,11 @@
     return () => observer.disconnect();
   }
 
-  function makeTitleMarker(doc, count, href, username) {
+  function makeTitleMarker(doc, count, href, username, placeId) {
     const marker = count > 0 ? doc.createElement("a") : doc.createElement("span");
     marker.id = MARKER_ID;
     marker.textContent = count > 0 ? `(${count})` : "🆕";
-    marker.title = count > 0 ? `${username} 全球已观察 ${count} 次；点击查看` : `${username} 尚未观察过该分类单元`;
+    marker.title = markerTitle(username, count, placeId);
     marker.style.marginLeft = "0.35em";
     marker.style.whiteSpace = "nowrap";
     if (count > 0) {
@@ -441,8 +482,8 @@
     return marker;
   }
 
-  function attachRecords(marker, user, taxonId, browseHref, count) {
-    marker.title = `${user.username} 已記錄 ${count} 次；點擊查看首次與最近紀錄`;
+  function attachRecords(marker, user, taxonId, browseHref, count, placeId) {
+    marker.title = t("{0} 已記錄 {1} 次；點擊查看首次與最近紀錄", user.username, count);
     marker.setAttribute("aria-expanded", "false");
     marker.addEventListener("click", event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
@@ -451,7 +492,7 @@
       if (old) { old.remove(); marker.setAttribute("aria-expanded", "false"); return; }
       const host=document.createElement("div");host.id="leafwise-personal-records";
       const shadow=host.attachShadow({mode:"open"});
-      shadow.innerHTML=`<style>:host{position:fixed;z-index:10000;width:min(360px,calc(100vw - 32px));color-scheme:light;font:14px/1.5 system-ui,sans-serif;color:#293524}*{box-sizing:border-box}.card{background:#f5f8f0;border:1px solid #95a58b;border-radius:6px;padding:14px;box-shadow:0 4px 18px #0002;max-height:calc(100vh - 32px);overflow:auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px}button{font:inherit;background:white;border:1px solid #95a58b;border-radius:4px;cursor:pointer;padding:4px 9px;color:inherit}a{color:#496f29}p{margin:8px 0}.muted{font-size:12px;color:#607056}.error{color:#963d20}[hidden]{display:none!important}</style><section class="card" role="region" aria-label="我的紀錄"><header><strong>我的紀錄</strong><button id="close" type="button" aria-label="關閉我的紀錄">×</button></header><p id="status" role="status" aria-live="polite">正在讀取首次與最近紀錄…</p><div id="records"></div><button id="retry" type="button" hidden>重試</button><p id="all"></p><p class="muted">按觀察日期排序，包含此類群及後代；未填日期的觀察不參與排序。只讀取公開可見資料，快取 5 分鐘。</p></section>`;
+      shadow.innerHTML=html(`<style>:host{position:fixed;z-index:10000;width:min(360px,calc(100vw - 32px));color-scheme:light;font:14px/1.5 system-ui,sans-serif;color:#293524}*{box-sizing:border-box}.card{background:#f5f8f0;border:1px solid #95a58b;border-radius:6px;padding:14px;box-shadow:0 4px 18px #0002;max-height:calc(100vh - 32px);overflow:auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px}button{font:inherit;background:white;border:1px solid #95a58b;border-radius:4px;cursor:pointer;padding:4px 9px;color:inherit}a{color:#496f29}p{margin:8px 0}.muted{font-size:12px;color:#607056}.error{color:#963d20}[hidden]{display:none!important}</style><section class="card" role="region" aria-label="我的紀錄"><header><strong>我的紀錄</strong><button id="close" type="button" aria-label="關閉我的紀錄">×</button></header><p id="status" role="status" aria-live="polite">正在讀取首次與最近紀錄…</p><div id="records"></div><button id="retry" type="button" hidden>重試</button><p id="all"></p><p class="muted">按觀察日期排序，包含此類群及後代；未填日期的觀察不參與排序。只讀取公開可見資料，快取 5 分鐘。</p></section>`);
       document.body.append(host);marker.setAttribute("aria-expanded","true");
       const rect=marker.getBoundingClientRect();
       host.style.left=`${Math.max(16,Math.min(rect.left,innerWidth-376))}px`;
@@ -460,29 +501,29 @@
       const close=()=>{host.remove();marker.setAttribute("aria-expanded","false");if(marker.isConnected)marker.focus();};
       shadow.querySelector("#close").addEventListener("click",close);
       shadow.addEventListener("keydown",event=>{if(event.key==="Escape"){event.stopPropagation();close();}});
-      const all=document.createElement("a");all.href=browseHref;all.textContent=`查看我的全部 ${count} 筆觀察`;shadow.querySelector("#all").append(all);
+      const all=document.createElement("a");all.href=browseHref;all.textContent=t("查看我的全部 {0} 筆觀察", count);shadow.querySelector("#all").append(all);
       async function load() {
-        const status=shadow.querySelector("#status"),retry=shadow.querySelector("#retry");retry.hidden=true;status.className="";status.textContent="正在讀取首次與最近紀錄…";
+        const status=shadow.querySelector("#status"),retry=shadow.querySelector("#retry");retry.hidden=true;status.className="";status.textContent=t("正在讀取首次與最近紀錄…");
         try {
-          const reply=await chrome.runtime.sendMessage({type:"leafwise-personal-records",userId:user.userId,taxonId});
+          const reply=await chrome.runtime.sendMessage({type:"leafwise-personal-records",userId:user.userId,taxonId,placeId});
           if(!host.isConnected||!marker.isConnected)return;
-          if(!reply?.ok)throw new Error(reply?.error||"無法讀取個人紀錄。");
-          const data=reply.result;status.textContent=`${user.username} · 有日期的觀察 ${data.datedCount} 筆`;
+          if(!reply?.ok)throw new Error(reply?.error||t("無法讀取個人紀錄。"));
+          const data=reply.result;status.textContent=t("{0} · 有日期的觀察 {1} 筆", user.username, data.datedCount);
           const body=shadow.querySelector("#records");body.replaceChildren();
-          for(const [label,item] of [["首次",data.first],["最近",data.latest]]) {
+          for(const [label,item] of [[t("首次"),data.first],[t("最近"),data.latest]]) {
             const p=document.createElement("p");p.textContent=label+"：";
             if(item){const a=document.createElement("a");a.href=`https://www.inaturalist.org/observations/${item.id}`;a.textContent=item.date;a.target="_blank";a.rel="noopener noreferrer";p.append(a,document.createElement("br"),document.createTextNode(item.place));}
-            else p.append(document.createTextNode("沒有可排序的日期紀錄"));
+            else p.append(document.createTextNode(t("沒有可排序的日期紀錄")));
             body.append(p);
           }
-        }catch(error){if(host.isConnected){status.textContent=error.message;status.className="error";retry.hidden=false;}}
+        }catch(error){if(host.isConnected){status.textContent=localizedError(error.message);status.className="error";retry.hidden=false;}}
       }
       shadow.querySelector("#retry").addEventListener("click",load);
       shadow.querySelector("#close").focus({preventScroll:true});load();
     });
   }
 
-  function placeStatus(doc, info, user, taxonId, count, browseHref) {
+  function placeStatus(doc, info, user, taxonId, count, browseHref, placeId) {
     if (info.kind === "observation") {
       const currentTaxonId = currentObservationTaxonId(doc, location.href);
       if (!currentTaxonId || currentTaxonId !== taxonId) return false;
@@ -491,8 +532,8 @@
     if (!titleReady) {
       const target = info.kind === "taxon" ? taxonTitle(doc) : mainObservationTaxonLink(doc, taxonId, location.href);
       if (target) {
-        const titleMarker = makeTitleMarker(doc, count, browseHref, user.username);
-        if(count>0)attachRecords(titleMarker,user,taxonId,browseHref,count);
+        const titleMarker = makeTitleMarker(doc, count, browseHref, user.username, placeId);
+        if(count>0)attachRecords(titleMarker,user,taxonId,browseHref,count,placeId);
         if (info.kind === "taxon") target.append(titleMarker);
         else {
           const targetStyle = globalThis.getComputedStyle?.(target);
@@ -510,6 +551,8 @@
   async function run(isActive = () => true, registerCleanup = () => {}, forceCount = false) {
     const info = pageInfo(location.href);
     if (!info) return;
+    const placeId = info.kind === "taxon" ? selectedTaxonPlace(document, location.href) : null;
+    if (placeId === undefined) return;
     const user = loggedInUser(document, location.href);
     if (!user) return;
     let taxonId = info.taxonId;
@@ -521,9 +564,9 @@
         taxonId = result.taxonId;
       }
     }
-    const result = await chrome.runtime.sendMessage({ type: "qg-taxon-observation-count", userId: user.userId, taxonId, force: forceCount });
+    const result = await chrome.runtime.sendMessage({ type: "qg-taxon-observation-count", userId: user.userId, taxonId, force: forceCount, placeId });
     if (!isActive() || !result?.ok || !Number.isSafeInteger(result.count) || result.count < 0) return;
-    const browseHref = ownObservationsURL(location.href, user.username, taxonId);
+    const browseHref = ownObservationsURL(location.href, user.username, taxonId, placeId);
     let diversity = null;
     let statusScheduled = false;
     const ensureStatus = () => {
@@ -533,7 +576,7 @@
         statusScheduled = false;
         if (info.kind === "observation" && currentObservationTaxonId(document, location.href) !== taxonId) return;
         if (!isActive()) return;
-        placeStatus(document, info, user, taxonId, result.count, browseHref);
+        placeStatus(document, info, user, taxonId, result.count, browseHref, placeId);
         if (info.kind === "taxon" && diversity) {
           setDiversityText(document.getElementById(MARKER_ID), result.count, user.username, diversity);
           for (const root of taxonomyRoots(document)) {
@@ -542,27 +585,27 @@
         }
       });
     };
-    placeStatus(document, info, user, taxonId, result.count, browseHref);
+    placeStatus(document, info, user, taxonId, result.count, browseHref, placeId);
     const statusObserver = new MutationObserver(ensureStatus);
     statusObserver.observe(document.body, { childList: true, subtree: true, characterData: true,
       attributes: true, attributeFilter: ["href", "data-taxon-id", "data-taxonid"] });
     registerCleanup(() => statusObserver.disconnect());
     if (info.kind === "taxon") {
       if (result.count > 0) {
-        chrome.runtime.sendMessage({ type: "qg-taxon-diversity", userId: user.userId, taxonId })
+        chrome.runtime.sendMessage({ type: "qg-taxon-diversity", userId: user.userId, taxonId, placeId })
           .then(reply => {
             if (!isActive() || !reply?.ok || !validDiversity(reply.counts)) return;
             diversity = reply.counts;
             ensureStatus();
           }).catch(() => {});
       }
-      registerCleanup(watchYoursCounts(document, user, taxonId, result.count, isActive));
+      registerCleanup(watchYoursCounts(document, user, taxonId, result.count, isActive, placeId));
       const ancestorsResult = await chrome.runtime.sendMessage({ type: "qg-taxon-ancestors", taxonId });
       if (!isActive()) return;
       const ancestorIds = ancestorsResult?.ok && Array.isArray(ancestorsResult.ancestorIds)
         ? ancestorsResult.ancestorIds.map(Number).filter(Number.isSafeInteger)
         : [];
-      registerCleanup(watchTaxonomyStatuses(document, user, taxonId, result.count, browseHref, ancestorIds, isActive));
+      registerCleanup(watchTaxonomyStatuses(document, user, taxonId, result.count, browseHref, ancestorIds, isActive, placeId));
     }
   }
 
@@ -576,6 +619,12 @@
   }
 
   function startPageController() {
+    const currentIdentity = () => {
+      const base = pageIdentity(location.href);
+      if (pageInfo(location.href)?.kind !== "taxon") return base;
+      const place = selectedTaxonPlace(document, location.href);
+      return `${base}:place:${place === undefined ? "pending" : place ?? "global"}`;
+    };
     let identity = null;
     let observationTaxonId = null;
     let generation = 0;
@@ -587,7 +636,7 @@
       clearStatusMarkers(document);
     };
     const check = () => {
-      const next = pageIdentity(location.href);
+      const next = currentIdentity();
       const info = pageInfo(location.href);
       const detectedTaxonId = info?.kind === "observation" ? currentObservationTaxonId(document, location.href) : null;
       let forceCount = false;
@@ -602,7 +651,7 @@
       clearRun();
       if (!next) return;
       const current = generation;
-      const active = () => current === generation && pageIdentity(location.href) === next;
+      const active = () => current === generation && currentIdentity() === next;
       const register = cleanup => {
         if (typeof cleanup !== "function") return;
         if (active()) cleanups.push(cleanup);
@@ -617,7 +666,7 @@
       requestAnimationFrame(() => { scheduled = false; check(); });
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true,
-      attributes: true, attributeFilter: ["href", "data-taxon-id", "data-taxonid"] });
+      attributes: true, attributeFilter: ["href", "class", "data-taxon-id", "data-taxonid"] });
     if (typeof setInterval === "function") setInterval(check, 500);
     globalThis.addEventListener?.("popstate", check);
     globalThis.addEventListener?.("hashchange", check);
@@ -627,7 +676,7 @@
   const api = {
     pageInfo, userInfoFromHrefs, ownObservationsURL, taxonIdFromHref, currentObservationTaxonId,
     createPriorityQueue, orderTaxonomyEntries, taxonomyEntries, countRequestFromHref,
-    pageIdentity, clearStatusMarkers
+    pageIdentity, clearStatusMarkers, selectedTaxonPlace
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else startPageController();

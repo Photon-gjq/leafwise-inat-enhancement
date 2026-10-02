@@ -8,7 +8,7 @@
 
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
-Version 1.1.0 follows iNaturalist's website language with 50 language/region variants, adds regional personal taxon statistics, and lets you manage saved region groups in settings. Main controls are translated; detailed explanations and some uncommon errors still fall back to English. Translations have not all been reviewed by native speakers. See [language coverage](docs/I18N.md) and the [English user guide](docs/GUIDE.en.md).
+Version 1.1.1 fixes cleared search filters being restored from stale values. It retains the 1.1.0 website-language UI with 50 language/region variants, regional personal taxon statistics, and saved region groups in settings. Main controls are translated; detailed explanations and some uncommon errors still fall back to English. Translations have not all been reviewed by native speakers. See [language coverage](docs/I18N.md) and the [English user guide](docs/GUIDE.en.md).
 
 ## Download and install
 

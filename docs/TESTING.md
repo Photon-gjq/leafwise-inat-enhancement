@@ -2,6 +2,8 @@
 
 ## 自動測試
 
+1.1.1 的 `tests/layout/user-filters.spec.cjs` 依官方 Angular 篩選器的可見 `user_name`／隱藏 `user_id[ng-model]` 結構，驗證原生清除、無 input/change 的值變化、殘留顯示名稱、URL 移除、重設與來源／排除獨立套用。`explore.spec.cjs` 另驗證未修改的對比表單同步已移除地點，手動草稿仍保留。三個瀏覽器執行同一組受控案例；不代表登入正式帳號人工驗收。官方來源：[搜尋控制器](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/controllers/observation_search.js.erb)、[篩選器模板](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/templates/observation_search/filter_menu.html.haml)。
+
 1.1.0 新增離線三瀏覽器回歸：右上角地區與 URL 不同時以原生選擇器為準；觀察／最低分類單元／種級數、分類樹連結、首次最近紀錄同範圍；清除地區恢復全球、零紀錄、未就緒不回退全球、晚到舊回應不覆蓋。背景及 records 測試驗證 region cache 隔離與無效 ID 拒絕。設定頁測試覆蓋自訂聯集正規化、清空、既有 ID／查詢保留、並行修改拒絕及面板共用清單。此處為受控 API／DOM 測試，不代表所有真實語言及帳號頁面已人工驗收。
 
 ```sh

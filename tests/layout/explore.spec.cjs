@@ -92,6 +92,22 @@ test('named regions show members and a custom place group survives reload',async
  const next=page.locator('#qg-inat-higher-taxa');await expect(next.locator('#place-choice option').filter({hasText:'我的兩地'})).toHaveCount(1);
 });
 
+test('unedited comparison follows removed URL filters while deliberate drafts remain intact',async({page},info)=>{
+ const panel=await open(page,info);
+ await expect(panel.locator('#place')).toHaveValue('10301');
+ await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=3'));
+ await expect(panel.locator('#place')).toHaveValue('');
+ await expect(panel.locator('#months')).toHaveValue('');
+ await expect(panel.locator('#user')).toHaveValue('observer');
+ await panel.locator('#place').fill('6903,7613');
+ await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=48460&place_id=10301&month=8'));
+ await expect(panel.locator('#status')).toContainText('保留当前填写内容');
+ await expect(panel.locator('#place')).toHaveValue('6903,7613');
+ await panel.locator('#read-page').click();
+ await expect(panel.locator('#place')).toHaveValue('10301');
+ await expect(panel.locator('#months')).toHaveValue('8');
+});
+
 test('saved query restores the full URL and comparison settings after navigation',async({page},testInfo)=>{
  const original='https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301&month=9&swlat=1&nelat=2';
  const panel=await open(page,testInfo,original);

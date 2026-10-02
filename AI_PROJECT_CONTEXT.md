@@ -187,6 +187,10 @@ taxon-status.js 只信任目前 iNaturalist 頁面右上使用者選單：
 
 ## 7. 高階分類與探索工具
 
+搜尋頁 `content.js` 的觀察來源以原生 `#filter-dropdown input[name=user_id][ng-model]` 為優先；欄位存在但為空代表清除，不可用可見名稱或舊 URL 補回。原生控制項全部不存在時才以 URL 後備。網址變化後以新 URL 同步兩份使用者表單；同網址下低頻掛載檢查原生欄位值，涵蓋 Angular 未發 input/change 的清除和切換。插件自己的輸入更新原生值快照，避免打字期間被重填。
+
+類群對比的 `dirty` 區分匯入頁面條件與使用者手動草稿：URL 變化時，未 dirty 且未 busy 的表單重新 `readPage()`（包括清空地點／月份等）；手動或執行中的草稿仍保留，清除舊結果並提示手動同步。不得重新套用已移除的條件，也不得藉此清除已保存收藏。
+
 higher-taxa-core.js 處理驗證、分類樹與比較純邏輯：
 
 - 階級範圍 kingdom 到 species；種下分類在種級比較及 Leaf taxa 計數時歸入 species；模式為 lifetime／year／local／first。

@@ -134,6 +134,7 @@
   let usernames = [];
   let storedUsers = {};
   let lastHref = "";
+  let lastNativePerson = "";
   let ready = false;
   const collapsedKey = "qgInatUserFiltersCollapsed";
   let collapsed = true;
@@ -201,7 +202,9 @@
   function nativePersonValue() {
     const modeled = document.querySelector("#filter-dropdown input[name='user_id'][ng-model]");
     const visible = nativePersonInput();
-    return String(modeled?.value || visible?.value || new URL(location.href).searchParams.get("user_id") || "").trim();
+    // A present but empty native field means the user cleared the filter.
+    // Only fall back to the URL when the native controls do not exist.
+    return String(modeled ? modeled.value : visible ? visible.value : new URL(location.href).searchParams.get("user_id") || "").trim();
   }
   function emitInput(element) {
     element.dispatchEvent(new Event("input", { bubbles: true }));
@@ -216,6 +219,8 @@
       input.setAttribute("value", next);
       emitInput(input);
     });
+    // Our own input events must not repopulate the custom field while typing.
+    lastNativePerson = nativePersonValue();
   }
   function setNativeUnobserved(username) {
     const next = String(username || "").trim();
@@ -233,8 +238,17 @@
   }
   function syncModalFromURL() {
     const params = new URL(location.href).searchParams;
-    populateModalSource(params.get("user_id") || nativePersonValue());
+    populateModalSource(params.get("user_id") || "");
     populate(modalExcludeField, params.get("unobserved_by_user_id") || "");
+    lastNativePerson = nativePersonValue();
+  }
+  function syncNativePerson() {
+    if (!ready) return;
+    const current = nativePersonValue();
+    if (current === lastNativePerson) return;
+    lastNativePerson = current;
+    populateModalSource(current);
+    populate(fields[0], current);
   }
   function syncURL() {
     const params = new URL(location.href).searchParams;
@@ -395,6 +409,7 @@
     host.hidden = collapsed;
     summaryHost.hidden = !collapsed;
     if (ready && lastHref !== location.href) syncURL();
+    else syncNativePerson();
   }
   let scheduled = false;
   new MutationObserver(() => {
@@ -404,8 +419,7 @@
   }).observe(document.body, { childList: true, subtree: true });
   // pushState/replaceState do not emit popstate in the isolated script world.
   setInterval(() => {
-    if (lastHref === location.href) return;
-    if (readPendingNativeFilter() !== null && finishPendingNativeFilter()) return;
+    if (lastHref !== location.href && readPendingNativeFilter() !== null && finishPendingNativeFilter()) return;
     mount();
   }, 750);
   window.addEventListener("popstate", mount);

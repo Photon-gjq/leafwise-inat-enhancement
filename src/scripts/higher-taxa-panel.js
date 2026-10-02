@@ -615,6 +615,9 @@
     // Do not compete with content.js for SearchBar.nextElementSibling.
     mountPanel();
     if (lastHref !== location.href) {
+      // Follow native/URL changes until the user deliberately edits our form.
+      // In particular, removed places must not remain as imported defaults.
+      if (!dirty && !busy) { readPage(); return; }
       lastHref = location.href;
       invalidate();
       status(t("页面筛选已变化；面板保留当前填写内容，可点击“读取当前页面”同步后对比。"));

@@ -28,6 +28,11 @@
     return { combined: score(value?.combined), vision: score(value?.vision) };
   }
 
+  function format(value) {
+    // Small scores need more detail than one decimal; this is text rounding only.
+    return value > 0 && value < 1 ? String(Number(value.toPrecision(3))) : value.toFixed(1);
+  }
+
   function clearRow(row) {
     row?.classList?.remove("leafwise-ai-score-row");
     row?.style?.removeProperty("--leafwise-score-accent");
@@ -65,12 +70,12 @@
       `color:${accent}!important;font:700 15px/1.2 Arial,sans-serif;` +
       "font-variant-numeric:tabular-nums;text-align:right;letter-spacing:.1px;" +
       "white-space:nowrap;vertical-align:middle;";
-    const combinedText = pair.combined.toFixed(1);
-    const visionText = pair.vision === null ? null : pair.vision.toFixed(1);
+    const combinedText = format(pair.combined);
+    const visionText = pair.vision === null ? null : format(pair.vision);
     const text = `${combinedText}${visionText === null ? "" : `(${visionText})`}`;
     const description = visionText === null
-      ? t("綜合評分 {0} / 100（視覺＋地點與日期；不是正確率）", combinedText)
-      : t("綜合評分 {0} / 100；括號內為視覺評分 {1} / 100（兩者都不是正確率）", combinedText, visionText);
+      ? t("綜合評分 {0} / 100（視覺＋地點與日期；不是正確率）", String(pair.combined))
+      : t("綜合評分 {0} / 100；括號內為視覺評分 {1} / 100（兩者都不是正確率）", String(pair.combined), String(pair.vision));
     badge.setAttribute("aria-label", description);
     badge.setAttribute("title", description);
     if (badge.textContent !== text) badge.textContent = text;

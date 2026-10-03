@@ -2,6 +2,8 @@
 
 ## 自動測試
 
+1.1.2 的 `vision-score.test.cjs` 驗證原始分數從 bridge、原生候選資料、指紋、快取綁定到門檻判定均不作比例換算。`tests/layout/score-values.spec.cjs` 在三瀏覽器中覆蓋上傳／觀察頁、v1／v2、零分及跨 1 分邊界，包含 `0.316(0.382)`、完整原值提示與快取重開；原回應、請求次數及候選順序維持不變。這些是受控 API／DOM 回歸，不代表已用使用者的登入帳號、私人照片或所有真實網站頁面人工驗收。
+
 1.1.1 的 `tests/layout/user-filters.spec.cjs` 依官方 Angular 篩選器的可見 `user_name`／隱藏 `user_id[ng-model]` 結構，驗證原生清除、無 input/change 的值變化、殘留顯示名稱、URL 移除、重設與來源／排除獨立套用。`explore.spec.cjs` 另驗證未修改的對比表單同步已移除地點，手動草稿仍保留。三個瀏覽器執行同一組受控案例；不代表登入正式帳號人工驗收。官方來源：[搜尋控制器](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/controllers/observation_search.js.erb)、[篩選器模板](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/templates/observation_search/filter_menu.html.haml)。
 
 1.1.0 新增離線三瀏覽器回歸：右上角地區與 URL 不同時以原生選擇器為準；觀察／最低分類單元／種級數、分類樹連結、首次最近紀錄同範圍；清除地區恢復全球、零紀錄、未就緒不回退全球、晚到舊回應不覆蓋。背景及 records 測試驗證 region cache 隔離與無效 ID 拒絕。設定頁測試覆蓋自訂聯集正規化、清空、既有 ID／查詢保留、並行修改拒絕及面板共用清單。此處為受控 API／DOM 測試，不代表所有真實語言及帳號頁面已人工驗收。
@@ -16,7 +18,7 @@ npm run package
 
 同一套自動測試對 Chrome、Edge 和 Firefox 產物各執行一次；另檢查三個產物的 JavaScript 語法、所有 manifest 及 options script 引用、平台讀取機制與版本一致性。
 
-高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序與無效設定。分數橋接另驗證沒有 `window.inaturalistjs` 時的 fetch／XHR、iNaturalist URL 白名單（含 observation UUID）、API v2 Rison URL／JSON body／multipart 欄位投影補入 `combined_score` 與 `vision_score`、非 CV 不解析、原請求只發一次、原 Response／XHR 不變、重複安裝不多重包裝、兩種原始 0–1 分數正規化、>1–100 相容、純 `vision_score` 不冒充綜合分數、taxon ID 配對、卡片明確作用域、頁面預取依 taxon ID＋視覺分數指紋一次性綁定、明確作用域仍須通過同一指紋驗證、快取選單不發請求時卡片標記自動失效、舊回應晚到不覆蓋、上傳選單遲到事件重掃及 `pagehide` 清理；同一套功能測試對三個建置執行。另驗證上傳與觀察頁即使 paired combined values 不符合畫面排序仍預設顯示 `combined(vision)`，分數是無框彩色數字，沒有百分號或候選列色條、在單行／多行候選列上下居中、觀察頁在讀不到 jQuery 資料時仍以官方 `.ac.vision` 標記顯示配對分數、手動搜尋列不補分、MutationObserver／低頻掃描／清理保留，以及個人次數強制刷新。分數模式下，首選仍只用 combined score，嚴格高於門檻才選首選；等於或低於門檻時必須回退到可選的官方確定類群，兩者都不符合則保留原值。
+高階分類涵蓋分支排除、直接高階鑑定、Leaf taxa 歸併、多地點聯集、全部生物、全球範圍、重複請求合併、快取失效、逾時及錯誤輸入。上傳規則涵蓋 0／0.9／80／80.01／100、缺失分數、確定／不確定提示、首選順序與無效設定。分數橋接另驗證沒有 `window.inaturalistjs` 時的 fetch／XHR、iNaturalist URL 白名單（含 observation UUID）、API v2 Rison URL／JSON body／multipart 欄位投影補入 `combined_score` 與 `vision_score`、非 CV 不解析、原請求只發一次、原 Response／XHR 不變、重複安裝不多重包裝、兩種原始 0–100 分數不換算（包括小於／等於 1 的邊界）、低分原生指紋不重複換算及低分不誤過門檻、純 `vision_score` 不冒充綜合分數、taxon ID 配對、卡片明確作用域、頁面預取依 taxon ID＋視覺分數指紋一次性綁定、明確作用域仍須通過同一指紋驗證、快取選單不發請求時卡片標記自動失效、舊回應晚到不覆蓋、上傳選單遲到事件重掃及 `pagehide` 清理；同一套功能測試對三個建置執行。另驗證上傳與觀察頁即使 paired combined values 不符合畫面排序仍預設顯示 `combined(vision)`，分數是無框彩色數字，沒有百分號或候選列色條、在單行／多行候選列上下居中、觀察頁在讀不到 jQuery 資料時仍以官方 `.ac.vision` 標記顯示配對分數、手動搜尋列不補分、MutationObserver／低頻掃描／清理保留，以及個人次數強制刷新。分數模式下，首選仍只用 combined score，嚴格高於門檻才選首選；等於或低於門檻時必須回退到可選的官方確定類群，兩者都不符合則保留原值。
 
 瀏覽器版面測試同時驗證面板預設在「全選」右側收合、收合時不撐高固定工具列且首排卡片叉號仍可命中並刪除、快捷執行不會展開、展開後回到照片欄、網站替換照片欄後重新掛載，以及上傳／具體觀察頁的 `combined(vision)` 只顯示彩色數字，不產生背景框、邊框、列色條或百分號。
 

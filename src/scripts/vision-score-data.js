@@ -18,8 +18,9 @@
   }
 
   function normalizedScore(value) {
-    const valid = score(value);
-    return valid === null ? null : valid <= 1 ? valid * 100 : valid;
+    // Keep the exported helper name for compatibility, but never infer units
+    // from magnitude. Both API scores and native candidate fingerprints are raw.
+    return score(value);
   }
 
   function rawScore(raw, names) {

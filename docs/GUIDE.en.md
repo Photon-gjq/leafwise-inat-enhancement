@@ -85,6 +85,8 @@ The default score rule applies the first suggestion only when its combined score
 
 Visual suggestions may show `combined_score(vision_score)`, for example `86.0(75.2)`:
 
+Both values are raw API scores on a 0–100 scale, never multiplied based on their magnitude. A small score such as `0.316(0.382)` stays small. Positive values below 1 display three significant digits; other values display one decimal. Hover over a score for its full unrounded values. Only the text is rounded; matching and batch thresholds use the original numbers.
+
 - The first value is iNaturalist's combined score using the information available to the website request, such as the image, place, and date. It is the only value used by Leafwise's batch threshold.
 - The value in parentheses is the visual-model score for the same candidate and is informational only.
 

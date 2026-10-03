@@ -47,7 +47,7 @@
 ### 分數語義
 
 - 自動選擇與門檻只使用 combined_score（iNaturalist 原生請求已結合可用的照片、地點、時間上下文），不得退回 vision_score；介面可把同一候選的 vision_score 作為括號內的第二個參考數字。
-- 官方回應目前以 0–1 表示 combined_score／vision_score；bridge 乘以 100 後交給介面。為相容既有／替代回應，>1–100 保留原值；其他型別、非有限數及範圍外值拒絕。沒有 combined_score 時不得單獨顯示 vision_score。
+- 官方 API schema 將 combined_score／vision_score 定義為 0–100；bridge、原生候選資料、配對指紋與門檻均保留原值，包含小於或等於 1 的分數。不得按單一數值大小猜測比例或乘以 100；1.1.2 已移除這個歷史錯誤。其他型別、非有限數及範圍外值拒絕。沒有 combined_score 時不得單獨顯示 vision_score。來源：[官方 schema](https://github.com/inaturalist/iNaturalistAPI/blob/main/openapi/schema/response/results_computervision.js)。
 - 分數不是校準後的「正確率」。介面可顯示相對分數，但文件與文案不得把它描述為真實準確率。
 - 候選和分數一律按 taxon ID 配對，不能按陣列位置或畫面順序配對。
 - 只有原生候選 `isVisionResult === true`（或由同一欄位產生的官方 `.ac.vision` DOM 標記）且分數是 0–100 的有限數字時才顯示／使用分數。
@@ -139,12 +139,12 @@ vision-score-bridge.js 在 document_start 的 MAIN world 包裝頁面原有的 f
 - fetch 只用 `Response.clone().json()` 旁讀；XHR 只在 `responseType=json` 或 JSON Content-Type 時讀取；
 - 原方法只呼叫一次，Promise、Response／XHR 與回傳值不改動，不新增辨識請求；API v2 已有欄位投影但欠缺 `combined_score`／`vision_score` 時，只把缺少的布林回傳欄位補入 Rison URL、JSON body 或 multipart `fields`，其他參數及資料不改；
 - 重複注入不會多重包裝；舊頁面若仍暴露 `window.inaturalistjs`，保留不依賴的相容 fallback；
-- 只有明確的 combined_score 才建立候選分數，並同時保留可用的 vision_score；兩者將 0–1 乘以 100，>1–100 保留，拒絕字串、非有限與範圍外值；
-- 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、requestId、scope、taxon ID 及正規化配對分數的 JSON 字串。
+- 只有明確的 combined_score 才建立候選分數，並同時保留可用的 vision_score；兩者保留原始 0–100 值，不作比例換算，拒絕字串、非有限與範圍外值；
+- 發出 leafwise:cv-combined-scores CustomEvent，payload 為只含 sequence、capturedAt、requestId、scope、taxon ID 及原始配對分數的 JSON 字串。
 
 vision-score-data.js 以 taxon ID 儲存配對分數。明確卡片／觀察作用域使用 requestId 的 latest-wins，遲到舊回應不得覆蓋；但明確作用域也必須與目前候選的 taxon ID／原生 vision score 指紋相符，不能只因分類 ID 重疊就採用。上傳頁早於選單發生的頁面級預取／快取回應最多保留 24 份、最長 2 分鐘，以同一指紋一次性綁定到一張卡片，歧義時不顯示，已綁定回應不得跨卡片重用。combined score 不以畫面排序作額外拒絕條件；取得配對分數後預設顯示 `combined(vision)`。上傳 adapter 的明確請求標記只供同步發起的單次請求使用；網站直接重用快取選單、沒有發出請求時，標記在目前任務結束前失效。adapter 監聽分數事件，即使選單 DOM 先出現也會立即重掃裝飾；listener 在 pagehide 清理。觀察 adapter 在每個數字 ID 詳情頁保留事件重掃、MutationObserver、1.2 秒低頻掃描及 pagehide 清理；若隔離環境無法讀 jQuery 候選資料，改以官方由 `isVisionResult` 產生的 `.ac.vision` DOM class 判定視覺候選，仍按 `data-taxon-id` 配對，不能替手動搜尋列補分。
 
-vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：以 `combined(vision)` 顯示兩個一位小數的彩色文字，無百分號、背景、邊框、圓角膠囊或候選列色條，顏色由 combined score 的紅／棕／綠連續色階決定，並在多行候選列中上下居中。沒有有效 combined score 時要移除 Leafwise 標記，不顯示佔位或單獨的 vision score。
+vision-score-style.js 是上傳頁和觀察頁唯一共用樣式來源：以 `combined(vision)` 顯示彩色文字；正值小於 1 時顯示三位有效數字，其他值維持一位小數，滑鼠提示與 aria-label 保留完整原值。只四捨五入文字，不換算分數或改變配對／門檻。無百分號、背景、邊框、圓角膠囊或候選列色條，顏色由 combined score 的紅／棕／綠連續色階決定，並在多行候選列中上下居中。沒有有效 combined score 時要移除 Leafwise 標記，不顯示佔位或單獨的 vision score。
 
 兩個 adapter 都從原生 DOM 上的 `data-taxon-id` 取得 ID；上傳頁再與 jQuery data 的 `ui-autocomplete-item` 或 `item.autocomplete` 物件 ID 交叉驗證，觀察詳情頁在可讀時也交叉驗證，否則只接受官方 `.ac.vision` 候選。不能用候選下標推算分數。
 

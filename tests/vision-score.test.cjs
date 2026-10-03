@@ -6,6 +6,7 @@ const extension = require('./extension-path.cjs');
 const bridge = require(path.join(extension, 'scripts/vision-score-bridge.js'));
 const data = require(path.join(extension, 'scripts/vision-score-data.js'));
 const style = require(path.join(extension, 'scripts/vision-score-style.js'));
+const core = require(path.join(extension, 'scripts/uploader-ai-core.js'));
 
 function target(extra = {}) {
   const listeners = new Map();
@@ -51,13 +52,18 @@ test('bridge keeps paired combined and vision scores but requires explicit combi
   assert.equal(bridge.capture(response, page), response);
   assert.equal(response.results[0].taxon.leafwiseCombinedScore, undefined);
   assert.deepEqual(events[0].scores, [
-    { id: 11, combinedScore: 81.94, visionScore: 99 },
+    { id: 11, combinedScore: 0.8194, visionScore: 0.99 },
     { id: 12, combinedScore: 0, visionScore: 99 },
     { id: 13, combinedScore: 72 }
   ]);
-  assert.equal(bridge.validScore(1), 100);
-  assert.equal(bridge.validScore(1.01), 1.01);
-  for (const value of [null, undefined, '0.9', NaN, Infinity, -0.1, 100.1]) assert.equal(bridge.validScore(value), null);
+  for (const value of [0, 0.00123, 0.316, 0.382, 0.85, 0.999, 1, 1.001, 80.01, 100]) {
+    assert.equal(bridge.validScore(value), value);
+    assert.equal(data.normalizedScore(value), value);
+  }
+  for (const value of [null, undefined, '0.9', NaN, Infinity, -0.1, 100.1]) {
+    assert.equal(bridge.validScore(value), null);
+    assert.equal(data.normalizedScore(value), null);
+  }
 });
 
 test('URL allowlist accepts only HTTPS iNaturalist v1/v2 CV scoring endpoints, including IDs', () => {
@@ -105,7 +111,7 @@ test('API v2 observation field projections gain combined_score without an extra 
   await settle(); await settle();
   assert.equal(calls, 1);
   assert.equal(events[0].state, 'pending');
-  assert.deepEqual(ready(events).scores, [{ id: 42, combinedScore: 82.5 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 42, combinedScore: 0.825 }]);
   assert.equal(new URL(originalURL).searchParams.get('fields'), fields);
 });
 
@@ -169,7 +175,7 @@ test('API v2 score_image multipart fields gain combined_score and retain their c
   assert.equal(events[0].scope, 'card:card-7');
   assert.equal(events[0].state, 'pending');
   assert.equal(ready(events).scope, 'card:card-7');
-  assert.deepEqual(ready(events).scores, [{ id: 7, combinedScore: 71.3, visionScore: 88.4 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 7, combinedScore: 0.713, visionScore: 0.884 }]);
 });
 
 test('the explicit uploader request marker wins over stale focus on another card', () => {
@@ -232,7 +238,7 @@ test('fetch capture works without window.inaturalistjs, sends once, and returns 
   assert.equal(calls, 1);
   assert.equal(clones, 1);
   assert.equal(events[0].state, 'pending');
-  assert.deepEqual(ready(events).scores, [{ id: 8, combinedScore: 72 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 8, combinedScore: 0.72 }]);
   assert.deepEqual(response, { native: true, clone: response.clone });
 });
 
@@ -276,7 +282,7 @@ test('XHR reads JSON CV responses without altering the request, response, or ret
   assert.equal(xhr.response, payload);
   assert.equal(opens, 1); assert.equal(sends, 1);
   assert.equal(events[0].state, 'pending');
-  assert.deepEqual(ready(events).scores, [{ id: 44, combinedScore: 90, visionScore: 100 }]);
+  assert.deepEqual(ready(events).scores, [{ id: 44, combinedScore: 0.9, visionScore: 1 }]);
 });
 
 test('XHR augments API v2 observation UUID field projections and still sends once', () => {
@@ -337,6 +343,8 @@ test('legacy compatibility wrapper forwards one call and returns the original pr
   const page = target();
   const params = { image: { name: 'native thumbnail' }, lat: 22.3, lng: 114.2, observed_on: '2026-09-17' };
   const response = { results: [{ taxon: { id: 8 }, combined_score: 0.72, vision_score: 0.99 }] };
+  const events = [];
+  page.addEventListener(bridge.EVENT_NAME, event => events.push(JSON.parse(event.detail)));
   const originalPromise = Promise.resolve(response);
   const owner = { score_image(actual) { calls++; assert.equal(actual, params); return originalPromise; } };
   assert.equal(bridge.wrap(owner, 'score_image', page), true);
@@ -346,17 +354,51 @@ test('legacy compatibility wrapper forwards one call and returns the original pr
   assert.equal(await pending, response);
   await settle();
   assert.equal(calls, 1);
+  assert.deepEqual(ready(events).scores, [{ id: 8, combinedScore: 0.72, visionScore: 0.99 }]);
   assert.equal(response.results[0].taxon.leafwiseCombinedScore, undefined);
 });
 
-test('response store normalizes raw combined_score and matches taxon IDs, never array order or vision_score', () => {
+test('raw small scores survive capture, native fingerprints, cached binding and the selection threshold', () => {
+  const page = target();
+  const store = data.createStore(() => 1000);
+  page.addEventListener(bridge.EVENT_NAME, event => store.add(JSON.parse(event.detail)));
+  const response = { results: [
+    { taxon: { id: 7 }, combined_score: 0.85, vision_score: 0.382 },
+    { taxon: { id: 8 }, combined_score: 0.316, vision_score: 1 },
+    { taxon: { id: 9 }, combined_score: 0, vision_score: 1.001 }
+  ] };
+  bridge.capture(response, page, { scope: data.UPLOAD_PAGE_SCOPE, requestId: 1 });
+  const candidates = response.results.map(entry => data.candidate({
+    id: entry.taxon.id, visionScore: entry.vision_score
+  }, entry.taxon.id));
+  assert.deepEqual(candidates, [
+    { id: 7, visionScore: 0.382 }, { id: 8, visionScore: 1 }, { id: 9, visionScore: 1.001 }
+  ]);
+  for (const entry of response.results) {
+    const pair = { combined: entry.combined_score, vision: entry.vision_score };
+    assert.deepEqual(data.direct({ id: entry.taxon.id, ...entry }, entry.taxon.id), pair);
+    for (let repeat = 0; repeat < 3; repeat++) {
+      assert.deepEqual(store.values({ id: entry.taxon.id }, entry.taxon.id,
+        candidates, 'card:a', data.UPLOAD_PAGE_SCOPE), pair);
+    }
+  }
+  assert.equal(store.pooled[0].claimedBy, 'card:a');
+  assert.equal(store.values({ id: 7 }, 7, candidates, 'card:b', data.UPLOAD_PAGE_SCOPE), null);
+  const pair = store.values({ id: 7 }, 7, candidates, 'card:a', data.UPLOAD_PAGE_SCOPE);
+  const snapshot = { confident: false, items: [{ id: 7, score: pair.combined, vision: true, ancestor: false }] };
+  assert.equal(core.decide(snapshot, { threshold: 80 }).apply, false);
+  assert.equal(core.decide(snapshot, { threshold: 0.85 }).apply, false);
+  assert.equal(core.decide(snapshot, { threshold: 0.84 }).apply, true);
+});
+
+test('response store preserves raw combined_score and matches taxon IDs, never array order or vision_score', () => {
   let now = 1000;
   const store = data.createStore(() => now);
   store.add({ capturedAt: now, scores: [{ id: 2, combinedScore: 20 }, { id: 1, combinedScore: 10 }] });
   now += 10;
   store.add({ capturedAt: now, scores: [{ id: 1, combinedScore: 91 }, { id: 3, combinedScore: 83 }] });
   assert.equal(store.value({ id: 1 }, 1, [1, 3]), 91);
-  assert.equal(store.value({ id: 2, combined_score: 0.44 }, 2, [1, 2]), 44);
+  assert.equal(store.value({ id: 2, combined_score: 0.44 }, 2, [1, 2]), 0.44);
   assert.equal(store.value({ id: 99 }, 99, [99]), null);
   assert.equal(store.value({ id: 88, combinedScore: 100, visionScore: 100, vision_score: 1 }, 88, [88]), null);
 });
@@ -466,7 +508,8 @@ test('score style shows combined(vision) as a colored number without a chip, row
   const row = { classList: { add() {}, remove: name => removedClasses.push(name) }, style: {
     setProperty: (name, value) => properties.set(name, value), removeProperty: name => properties.delete(name)
   } };
-  const badge = { style: {}, setAttribute() {}, textContent: '', parentElement: null };
+  const attributes = new Map();
+  const badge = { style: {}, setAttribute: (key, value) => attributes.set(key, value), textContent: '', parentElement: null };
   const result = {
     querySelector: selector => selector === '.leafwise-ai-score' ? badge : null,
     querySelectorAll: () => [], append: node => { node.parentElement = result; }
@@ -481,4 +524,14 @@ test('score style shows combined(vision) as a colored number without a chip, row
   assert.match(badge.style.cssText, new RegExp(`color:${style.color(81.94).replace(/[()]/g, '\\$&')}!important`));
   assert.equal(properties.has('--leafwise-score-accent'), false);
   assert.ok(removedClasses.includes('leafwise-ai-score-row'));
+  assert.match(attributes.get('title'), /81\.94.*76\.24/);
+  for (const [combined, vision, text] of [
+    [0.316, 0.382, '0.316(0.382)'], [0.00123456, 0.85, '0.00123(0.85)'],
+    [0.999, 1, '0.999(1.0)'], [1, 1.001, '1.0(1.0)'], [0, 0, '0.0(0.0)']
+  ]) {
+    style.decorate(result, row, { combined, vision });
+    assert.equal(badge.textContent, text);
+    assert.ok(attributes.get('title').includes(String(combined)));
+    assert.ok(attributes.get('aria-label').includes(String(vision)));
+  }
 });

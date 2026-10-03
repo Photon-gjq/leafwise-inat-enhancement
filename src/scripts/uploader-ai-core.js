@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
   function score(value) {
-    // The bridge normalizes iNaturalist's raw combined_score to 0–100. It
+    // The bridge validates and preserves iNaturalist's raw 0–100 combined_score. It
     // combines visual and place/date context but is not calibrated accuracy.
     return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
   }

@@ -18,7 +18,8 @@
 
   function validScore(value) {
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) return null;
-    return value <= 1 ? value * 100 : value;
+    // The API uses a 0–100 scale; a value below 1 is still a score, not a ratio.
+    return value;
   }
 
   function resultList(response) {

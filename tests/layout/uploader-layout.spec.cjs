@@ -230,12 +230,12 @@ test('uploader v2 multipart scores stay with their card and survive reopening th
   const uploader=`<!doctype html><meta charset="utf-8"><style>
     body{font:16px Arial}.card{display:inline-block;vertical-align:top;width:380px;margin:20px}.ac-menu{display:block}.ac-result{display:flex;min-height:80px}.ac{display:flex;width:100%;align-items:flex-start}.title{flex:1}.ac-view{align-self:center}
   </style><body>${card('a','data-leafwise-vision-request="true"')}${card('b')}
-  <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');return result?{id:Number(result.dataset.taxonId),isVisionResult:true,isCommonAncestor:false,visionScore:0.91}:null}</script>`;
+  <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');return result?{id:Number(result.dataset.taxonId),isVisionResult:true,isCommonAncestor:false,visionScore:91}:null}</script>`;
   await page.route('https://www.inaturalist.org/observations/upload',route=>route.fulfill({body:uploader,contentType:'text/html'}));
   let multipart='';
   await page.route('https://api.inaturalist.org/v2/computervision/score_image',async route=>{
     multipart=route.request().postData()||'';
-    const results=multipart.includes('combined_score')?[{taxon:{id:42},combined_score:0.825,vision_score:0.91}]:[{taxon:{id:42},vision_score:0.91}];
+    const results=multipart.includes('combined_score')?[{taxon:{id:42},combined_score:82.5,vision_score:91}]:[{taxon:{id:42},vision_score:91}];
     await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
   });
   await page.goto('https://www.inaturalist.org/observations/upload');
@@ -267,7 +267,7 @@ test('uploader displays paired same-photo scores even when combined values do no
       <li class="ac-result"><div class="ac vision" data-taxon-id="8"><span class="title">Taxon 8</span><a class="ac-view">查看</a></div></li>
       <li class="ac-result"><div class="ac vision" data-taxon-id="9"><span class="title">Taxon 9</span><a class="ac-view">查看</a></div></li>
     </ul></div></div></div>
-    <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');if(!result)return null;const id=Number(result.dataset.taxonId);return{id,isVisionResult:true,isCommonAncestor:false,visionScore:{7:0.013,8:0.283,9:0.077}[id]}}</script>`;
+    <script>window.LeafwiseUploadPageData=element=>{const result=element.querySelector?.('[data-taxon-id]');if(!result)return null;const id=Number(result.dataset.taxonId);return{id,isVisionResult:true,isCommonAncestor:false,visionScore:{7:1.3,8:28.3,9:7.7}[id]}}</script>`;
   await page.route('https://www.inaturalist.org/observations/upload',route=>route.fulfill({body:uploader,contentType:'text/html'}));
   await page.goto('https://www.inaturalist.org/observations/upload');
   const target=testInfo.project.name.split('-')[0];
@@ -303,8 +303,8 @@ test('observation detail shows scores from the official vision DOM marker withou
   await page.route(`https://api.inaturalist.org/v2/computervision/score_observation/${uuid}*`,async route=>{
     const fields=new URL(route.request().url()).searchParams.get('fields')||'';
     const results=fields.includes('combined_score:!t')
-      ? [{taxon:{id:42},combined_score:0.825,vision_score:0.91},{taxon:{id:43},combined_score:0.034,vision_score:0.8}]
-      : [{taxon:{id:42},vision_score:0.9},{taxon:{id:43},vision_score:0.8}];
+      ? [{taxon:{id:42},combined_score:82.5,vision_score:91},{taxon:{id:43},combined_score:3.4,vision_score:80}]
+      : [{taxon:{id:42},vision_score:90},{taxon:{id:43},vision_score:80}];
     await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results})});
   });
   await page.goto('https://www.inaturalist.org/observations/400958933');

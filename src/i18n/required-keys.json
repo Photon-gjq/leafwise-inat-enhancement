@@ -162,5 +162,10 @@
   "All life",
   "Project",
   "User",
-  "Leaf taxa"
+  "Leaf taxa",
+  "Only show non-confirming IDs",
+  "Checking identifications…",
+  "Uncertain updates kept",
+  "Open filtered observations ({0})",
+  "Hide exact matches without remarks; keep comments and uncertain updates."
 ]

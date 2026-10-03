@@ -182,19 +182,65 @@ async function taxonAncestorIds(taxonId) {
   });
 }
 
-async function openUpdateObservations(rawIds, sender) {
+function notificationPage(sender) {
   const page = new URL(sender.url || "about:blank");
   if (page.protocol !== "https:" || !["inaturalist.org", "www.inaturalist.org"].includes(page.hostname)
     || !Number.isInteger(sender.tab?.id) || !Number.isInteger(sender.tab?.windowId)
-    || (sender.frameId != null && sender.frameId !== 0) || !Array.isArray(rawIds)) {
+    || (sender.frameId != null && sender.frameId !== 0)) {
     throw new Error("Invalid notification tab request");
   }
+  return page;
+}
+
+function notificationIDs(rawIds) {
+  if (!Array.isArray(rawIds)) throw new Error("Invalid observation ids");
   const ids = [...new Set(rawIds.map(value => {
     if ((typeof value !== "number" && typeof value !== "string") || !/^[1-9]\d*$/.test(String(value))) return null;
     const id = Number(value);
     return Number.isSafeInteger(id) ? id : null;
   }))];
   if (ids.includes(null)) throw new Error("Invalid observation id");
+  return ids;
+}
+
+const notificationFetchJSON = QGInatHigherTaxaService.createTransport();
+const notificationRequests = new Map();
+async function updateIdentifications(rawIds, sender) {
+  notificationPage(sender);
+  const ids = notificationIDs(rawIds).sort((a, b) => a - b);
+  if (!ids.length || ids.length > 20) throw new Error("Invalid notification batch size");
+  const key = ids.join(",");
+  if (notificationRequests.has(key)) return notificationRequests.get(key);
+  const task = (async () => {
+    const data = await notificationFetchJSON(`${API_ROOT}/observations/${key}`);
+    if (!Array.isArray(data.results)) throw new Error("Invalid observation response");
+    const observations = {};
+    for (const observation of data.results) {
+      if (!ids.includes(observation.id) || Object.hasOwn(observations, observation.id)) throw new Error("Unexpected observation");
+      // Return only comparison metadata, never photos, locations or remark text.
+      // No identification history is persisted to extension storage.
+      observations[observation.id] = Array.isArray(observation.identifications) && observation.identifications.length <= 2000
+        ? observation.identifications.map(item => ({
+          id: item.id,
+          uuid: typeof item.uuid === "string" ? item.uuid.toLowerCase() : null,
+          userId: item.user?.id ?? item.user_id,
+          taxonId: item.taxon?.id ?? item.taxon_id,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          current: item.current === true,
+          hidden: item.hidden === true,
+          hasRemark: item.body != null && (typeof item.body !== "string" || item.body.trim().length > 0)
+        })) : null;
+    }
+    return { ok: true, observations };
+  })();
+  notificationRequests.set(key, task);
+  try { return await task; } finally { notificationRequests.delete(key); }
+}
+
+async function openUpdateObservations(rawIds, sender) {
+  const page = notificationPage(sender);
+  const ids = notificationIDs(rawIds);
   let opened = 0;
   for (const id of ids) {
     try {
@@ -215,6 +261,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
   else if (message?.type === "leafwise-open-update-observations") {
     task = openUpdateObservations(message.observationIds, sender);
+  } else if (message?.type === "leafwise-update-identifications") {
+    task = updateIdentifications(message.observationIds, sender);
   } else if (message?.type === "qg-observation-taxon") {
     task = observationTaxon(message.observationId).then(taxonId => ({ ok: true, taxonId }));
   } else if (message?.type === "qg-taxon-observation-count") {

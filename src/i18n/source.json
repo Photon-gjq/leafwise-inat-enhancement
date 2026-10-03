@@ -340,5 +340,10 @@
   "地区组合重复，请合并相同的 ID 组合。": "Duplicate region group. Combine groups with the same IDs.",
   "地区组合已在其他页面变更，请重新打开设置后保存。": "Region groups changed on another page. Reopen settings before saving.",
   "{0} 在目前地区已观察 {1} 次；点击查看": "{0} has {1} observations in the current region; click to view",
-  "{0} 在目前地区尚无该分类单元的记录": "{0} has no records of this taxon in the current region"
+  "{0} 在目前地区尚无该分类单元的记录": "{0} has no records of this taxon in the current region",
+  "僅顯示非完全贊同的鑑定": "Only show non-confirming IDs",
+  "正在篩選鑑定…": "Checking identifications…",
+  "無法判斷的消息已保留": "Uncertain updates kept",
+  "開啟篩選後的觀察（{0}）": "Open filtered observations ({0})",
+  "只隱藏與您此前鑑定完全相同且無文字說明的鑑定；評論及無法判斷的消息保留。": "Hide exact matches without remarks; keep comments and uncertain updates."
 }

@@ -4,6 +4,10 @@ Version 1.1.0 follows iNaturalist's website language. Select English in iNatural
 
 ## Recent activity notifications
 
+The **僅顯示非完全贊同的鑑定** (Only show non-confirming IDs) switch starts off and remembers its setting in this browser. When enabled, Leafwise reads public identification history on demand. It hides only an exact taxon match to your valid identification made before the update, without a remark. Different taxa, more specific or broader IDs, comments, remarks, and uncertain records remain visible. Withdrawn or subsequently modified history is not guessed, and the current community taxon is not used as the baseline.
+
+Opening is disabled while checking. Afterwards, **開啟篩選後的觀察（N）** (Open filtered observations) opens the observations with visible notifications, still deduplicating multiple updates about one observation. Turning the switch off restores the list. This only filters the currently loaded menu; it does not fetch all unread updates or history. iNaturalist may show previously read updates when none are unread.
+
 Open the speech-bubble activity menu at the top right of iNaturalist, then click **一鍵開啟這些觀察（N）** (Open these observations). Leafwise opens one background tab per distinct observation in the currently loaded menu. Several updates about the same observation produce just one tab. Direct messages, dashboard links, and other non-observation links are skipped. This does not fetch all historical updates or mark individual updates as read; iNaturalist itself may reset the unread count when its menu is opened.
 
 ## Installation and updates

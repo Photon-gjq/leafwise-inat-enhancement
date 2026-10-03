@@ -23,9 +23,11 @@ export function translations(root) {
     else if (code.includes('-') && Object.hasOwn(names, code.split('-')[0])) locales[code] = {};
     else throw new Error(`Missing translation catalog: ${code}`);
   }
-  for (const [code, catalog] of Object.entries(read('place-settings.json'))) {
-    if (!Object.hasOwn(locales, code)) throw new Error(`Unsupported place-settings locale: ${code}`);
-    Object.assign(locales[code], catalog);
+  for (const file of ['place-settings.json', 'notification-filter.json']) {
+    for (const [code, catalog] of Object.entries(read(file))) {
+      if (!Object.hasOwn(locales, code)) throw new Error(`Unsupported ${file} locale: ${code}`);
+      Object.assign(locales[code], catalog);
+    }
   }
   const slots = value => [...String(value).matchAll(/\{\d+\}/g)].map(match => match[0]).sort().join(',');
   // These accessibility labels intentionally reuse the same translated nouns

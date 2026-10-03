@@ -16,9 +16,15 @@ test('all 50 locales render the translated notification action and keep native c
   for (const code of Object.keys(names)) {
     lang = code;
     await page.goto('https://www.inaturalist.org/home');
-    await inject(page, info, [...helpers, 'notification-tabs.js']);
+    await inject(page, info, [...helpers, 'notification-filter.js', 'notification-tabs.js']);
     const expected = await page.evaluate(() => LeafwiseI18n.t('一鍵開啟這些觀察（{0}）', 1));
     await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(expected);
+    const filterText = await page.evaluate(() => LeafwiseI18n.t('僅顯示非完全贊同的鑑定'));
+    await expect(page.locator('.leafwise-open-update-observations label span')).toHaveText(filterText);
+    await page.locator('.leafwise-notification-filter').check();
+    const filtered = await page.evaluate(() => LeafwiseI18n.t('開啟篩選後的觀察（{0}）', 1));
+    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(filtered);
+    await expect(page.locator('.leafwise-open-update-observations')).toHaveAttribute('dir', ['ar', 'he', 'fa'].includes(code) ? 'rtl' : 'ltr');
     expect(expected).not.toContain('{0}');
     await expect(page.locator('#native')).toHaveText('停止');
   }

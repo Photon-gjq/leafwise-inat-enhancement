@@ -1,0 +1,261 @@
+{
+  "es": {
+    "Only show non-confirming IDs": "Mostrar solo identificaciones distintas",
+    "Checking identifications…": "Comprobando identificaciones…",
+    "Uncertain updates kept": "Se conservan las notificaciones inciertas",
+    "Open filtered observations ({0})": "Abrir observaciones filtradas ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Ocultar coincidencias exactas sin notas; conservar comentarios y notificaciones inciertas."
+  },
+  "fr": {
+    "Only show non-confirming IDs": "Afficher uniquement les identifications différentes",
+    "Checking identifications…": "Vérification des identifications…",
+    "Uncertain updates kept": "Notifications incertaines conservées",
+    "Open filtered observations ({0})": "Ouvrir les observations filtrées ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Masquer les correspondances exactes sans remarque ; conserver les commentaires et les notifications incertaines."
+  },
+  "pt": {
+    "Only show non-confirming IDs": "Mostrar apenas identificações diferentes",
+    "Checking identifications…": "A verificar identificações…",
+    "Uncertain updates kept": "Notificações incertas mantidas",
+    "Open filtered observations ({0})": "Abrir observações filtradas ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Ocultar correspondências exatas sem notas; manter comentários e notificações incertas."
+  },
+  "de": {
+    "Only show non-confirming IDs": "Nur abweichende Bestimmungen anzeigen",
+    "Checking identifications…": "Bestimmungen werden geprüft…",
+    "Uncertain updates kept": "Unklare Meldungen bleiben sichtbar",
+    "Open filtered observations ({0})": "Gefilterte Beobachtungen öffnen ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Exakte Übereinstimmungen ohne Anmerkung ausblenden; Kommentare und unklare Meldungen beibehalten."
+  },
+  "ru": {
+    "Only show non-confirming IDs": "Показывать только отличающиеся определения",
+    "Checking identifications…": "Проверка определений…",
+    "Uncertain updates kept": "Неопределённые уведомления сохранены",
+    "Open filtered observations ({0})": "Открыть отфильтрованные наблюдения ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Скрывать точные совпадения без пояснений; сохранять комментарии и неопределённые уведомления."
+  },
+  "ja": {
+    "Only show non-confirming IDs": "完全に一致しない同定のみ表示",
+    "Checking identifications…": "同定を確認中…",
+    "Uncertain updates kept": "判断できない通知は保持",
+    "Open filtered observations ({0})": "絞り込んだ観察を開く（{0}）",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "説明のない完全一致の同定を非表示にし、コメントや判断できない通知は保持します。"
+  },
+  "ko": {
+    "Only show non-confirming IDs": "완전히 일치하지 않는 동정만 표시",
+    "Checking identifications…": "동정 확인 중…",
+    "Uncertain updates kept": "판단할 수 없는 알림 유지",
+    "Open filtered observations ({0})": "필터링된 관찰 열기 ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "설명 없는 완전 일치 동정은 숨기고 댓글과 판단할 수 없는 알림은 유지합니다."
+  },
+  "it": {
+    "Only show non-confirming IDs": "Mostra solo identificazioni diverse",
+    "Checking identifications…": "Verifica delle identificazioni…",
+    "Uncertain updates kept": "Notifiche incerte mantenute",
+    "Open filtered observations ({0})": "Apri osservazioni filtrate ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Nascondi le corrispondenze esatte senza note; conserva commenti e notifiche incerte."
+  },
+  "nl": {
+    "Only show non-confirming IDs": "Alleen afwijkende determinaties tonen",
+    "Checking identifications…": "Determinaties controleren…",
+    "Uncertain updates kept": "Onzekere meldingen behouden",
+    "Open filtered observations ({0})": "Gefilterde waarnemingen openen ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Verberg exacte overeenkomsten zonder toelichting; behoud reacties en onzekere meldingen."
+  },
+  "pl": {
+    "Only show non-confirming IDs": "Pokaż tylko odmienne oznaczenia",
+    "Checking identifications…": "Sprawdzanie oznaczeń…",
+    "Uncertain updates kept": "Niepewne powiadomienia zachowane",
+    "Open filtered observations ({0})": "Otwórz przefiltrowane obserwacje ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Ukryj dokładne zgodności bez uwag; zachowaj komentarze i niepewne powiadomienia."
+  },
+  "uk": {
+    "Only show non-confirming IDs": "Показувати лише відмінні визначення",
+    "Checking identifications…": "Перевірка визначень…",
+    "Uncertain updates kept": "Невизначені сповіщення збережено",
+    "Open filtered observations ({0})": "Відкрити відфільтровані спостереження ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Приховувати точні збіги без пояснень; зберігати коментарі та невизначені сповіщення."
+  },
+  "cs": {
+    "Only show non-confirming IDs": "Zobrazit jen odlišná určení",
+    "Checking identifications…": "Kontrola určení…",
+    "Uncertain updates kept": "Nejistá oznámení ponechána",
+    "Open filtered observations ({0})": "Otevřít filtrovaná pozorování ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Skrýt přesné shody bez poznámek; ponechat komentáře a nejistá oznámení."
+  },
+  "sv": {
+    "Only show non-confirming IDs": "Visa endast avvikande bestämningar",
+    "Checking identifications…": "Kontrollerar bestämningar…",
+    "Uncertain updates kept": "Osäkra meddelanden behålls",
+    "Open filtered observations ({0})": "Öppna filtrerade observationer ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Dölj exakta matchningar utan anmärkningar; behåll kommentarer och osäkra meddelanden."
+  },
+  "da": {
+    "Only show non-confirming IDs": "Vis kun afvigende bestemmelser",
+    "Checking identifications…": "Kontrollerer bestemmelser…",
+    "Uncertain updates kept": "Usikre beskeder bevares",
+    "Open filtered observations ({0})": "Åbn filtrerede observationer ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Skjul præcise match uden bemærkninger; behold kommentarer og usikre beskeder."
+  },
+  "nb": {
+    "Only show non-confirming IDs": "Vis bare avvikende bestemmelser",
+    "Checking identifications…": "Kontrollerer bestemmelser…",
+    "Uncertain updates kept": "Usikre meldinger beholdes",
+    "Open filtered observations ({0})": "Åpne filtrerte observasjoner ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Skjul nøyaktige treff uten merknader; behold kommentarer og usikre meldinger."
+  },
+  "fi": {
+    "Only show non-confirming IDs": "Näytä vain poikkeavat määritykset",
+    "Checking identifications…": "Tarkistetaan määrityksiä…",
+    "Uncertain updates kept": "Epävarmat ilmoitukset säilytetään",
+    "Open filtered observations ({0})": "Avaa suodatetut havainnot ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Piilota täsmäävät määritykset ilman huomautuksia; säilytä kommentit ja epävarmat ilmoitukset."
+  },
+  "tr": {
+    "Only show non-confirming IDs": "Yalnızca farklı tanımlamaları göster",
+    "Checking identifications…": "Tanımlamalar kontrol ediliyor…",
+    "Uncertain updates kept": "Belirsiz bildirimler korundu",
+    "Open filtered observations ({0})": "Filtrelenmiş gözlemleri aç ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Not içermeyen tam eşleşmeleri gizle; yorumları ve belirsiz bildirimleri koru."
+  },
+  "ar": {
+    "Only show non-confirming IDs": "إظهار التعريفات غير المطابقة فقط",
+    "Checking identifications…": "جارٍ التحقق من التعريفات…",
+    "Uncertain updates kept": "تم الإبقاء على الإشعارات غير المؤكدة",
+    "Open filtered observations ({0})": "فتح المشاهدات المصفّاة ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "إخفاء التطابقات التامة دون ملاحظات؛ والإبقاء على التعليقات والإشعارات غير المؤكدة."
+  },
+  "he": {
+    "Only show non-confirming IDs": "הצגת זיהויים שאינם תואמים בלבד",
+    "Checking identifications…": "בדיקת זיהויים…",
+    "Uncertain updates kept": "התראות לא ודאיות נשמרו",
+    "Open filtered observations ({0})": "פתיחת תצפיות מסוננות ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "הסתרת התאמות מלאות ללא הערות; שמירת תגובות והתראות לא ודאיות."
+  },
+  "id": {
+    "Only show non-confirming IDs": "Hanya tampilkan identifikasi yang berbeda",
+    "Checking identifications…": "Memeriksa identifikasi…",
+    "Uncertain updates kept": "Notifikasi yang tidak pasti dipertahankan",
+    "Open filtered observations ({0})": "Buka pengamatan tersaring ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Sembunyikan kecocokan persis tanpa catatan; pertahankan komentar dan notifikasi yang tidak pasti."
+  },
+  "ms": {
+    "Only show non-confirming IDs": "Paparkan pengecaman yang berbeza sahaja",
+    "Checking identifications…": "Menyemak pengecaman…",
+    "Uncertain updates kept": "Pemberitahuan tidak pasti dikekalkan",
+    "Open filtered observations ({0})": "Buka pemerhatian ditapis ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Sembunyikan padanan tepat tanpa nota; kekalkan komen dan pemberitahuan tidak pasti."
+  },
+  "vi": {
+    "Only show non-confirming IDs": "Chỉ hiện các định danh khác biệt",
+    "Checking identifications…": "Đang kiểm tra định danh…",
+    "Uncertain updates kept": "Giữ lại thông báo chưa xác định",
+    "Open filtered observations ({0})": "Mở các quan sát đã lọc ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Ẩn định danh trùng khớp hoàn toàn không có ghi chú; giữ bình luận và thông báo chưa xác định."
+  },
+  "th": {
+    "Only show non-confirming IDs": "แสดงเฉพาะการระบุชนิดที่ไม่ตรงกันทั้งหมด",
+    "Checking identifications…": "กำลังตรวจสอบการระบุชนิด…",
+    "Uncertain updates kept": "เก็บการแจ้งเตือนที่ไม่แน่ชัดไว้",
+    "Open filtered observations ({0})": "เปิดการสังเกตที่กรองแล้ว ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "ซ่อนรายการที่ตรงกันทั้งหมดและไม่มีหมายเหตุ แต่เก็บความคิดเห็นและการแจ้งเตือนที่ไม่แน่ชัดไว้"
+  },
+  "hi": {
+    "Only show non-confirming IDs": "केवल अलग पहचान दिखाएँ",
+    "Checking identifications…": "पहचान जाँची जा रही हैं…",
+    "Uncertain updates kept": "अनिश्चित सूचनाएँ रखी गईं",
+    "Open filtered observations ({0})": "फ़िल्टर किए गए अवलोकन खोलें ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "बिना टिप्पणी वाली पूर्णतः समान पहचान छिपाएँ; टिप्पणियाँ और अनिश्चित सूचनाएँ रखें।"
+  },
+  "fa": {
+    "Only show non-confirming IDs": "فقط شناسایی‌های متفاوت را نشان بده",
+    "Checking identifications…": "در حال بررسی شناسایی‌ها…",
+    "Uncertain updates kept": "اعلان‌های نامشخص حفظ شدند",
+    "Open filtered observations ({0})": "باز کردن مشاهدات پالایش‌شده ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "تطابق‌های دقیق بدون توضیح را پنهان کن؛ نظرها و اعلان‌های نامشخص را نگه دار."
+  },
+  "ro": {
+    "Only show non-confirming IDs": "Arată doar identificările diferite",
+    "Checking identifications…": "Se verifică identificările…",
+    "Uncertain updates kept": "Notificările incerte sunt păstrate",
+    "Open filtered observations ({0})": "Deschide observațiile filtrate ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Ascunde potrivirile exacte fără remarci; păstrează comentariile și notificările incerte."
+  },
+  "hu": {
+    "Only show non-confirming IDs": "Csak az eltérő azonosítások megjelenítése",
+    "Checking identifications…": "Azonosítások ellenőrzése…",
+    "Uncertain updates kept": "Bizonytalan értesítések megtartva",
+    "Open filtered observations ({0})": "Szűrt megfigyelések megnyitása ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "A megjegyzés nélküli pontos egyezések elrejtése; a hozzászólások és bizonytalan értesítések megtartása."
+  },
+  "el": {
+    "Only show non-confirming IDs": "Εμφάνιση μόνο διαφορετικών ταυτοποιήσεων",
+    "Checking identifications…": "Έλεγχος ταυτοποιήσεων…",
+    "Uncertain updates kept": "Οι αβέβαιες ειδοποιήσεις διατηρήθηκαν",
+    "Open filtered observations ({0})": "Άνοιγμα φιλτραρισμένων παρατηρήσεων ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Απόκρυψη ακριβών συμφωνιών χωρίς σημειώσεις· διατήρηση σχολίων και αβέβαιων ειδοποιήσεων."
+  },
+  "sk": {
+    "Only show non-confirming IDs": "Zobraziť iba odlišné určenia",
+    "Checking identifications…": "Kontrola určení…",
+    "Uncertain updates kept": "Neisté oznámenia ponechané",
+    "Open filtered observations ({0})": "Otvoriť filtrované pozorovania ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Skryť presné zhody bez poznámok; ponechať komentáre a neisté oznámenia."
+  },
+  "bg": {
+    "Only show non-confirming IDs": "Показвай само различни определения",
+    "Checking identifications…": "Проверка на определенията…",
+    "Uncertain updates kept": "Неясните известия са запазени",
+    "Open filtered observations ({0})": "Отвори филтрираните наблюдения ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Скрий точните съвпадения без бележки; запази коментарите и неясните известия."
+  },
+  "hr": {
+    "Only show non-confirming IDs": "Prikaži samo različite identifikacije",
+    "Checking identifications…": "Provjera identifikacija…",
+    "Uncertain updates kept": "Nejasne obavijesti zadržane",
+    "Open filtered observations ({0})": "Otvori filtrirana opažanja ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Sakrij potpuna podudaranja bez napomena; zadrži komentare i nejasne obavijesti."
+  },
+  "sr": {
+    "Only show non-confirming IDs": "Прикажи само различите идентификације",
+    "Checking identifications…": "Провера идентификација…",
+    "Uncertain updates kept": "Нејасна обавештења су задржана",
+    "Open filtered observations ({0})": "Отвори филтрирана запажања ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Сакриј потпуна поклапања без напомена; задржи коментаре и нејасна обавештења."
+  },
+  "sl": {
+    "Only show non-confirming IDs": "Prikaži le drugačne določitve",
+    "Checking identifications…": "Preverjanje določitev…",
+    "Uncertain updates kept": "Nejasna obvestila ohranjena",
+    "Open filtered observations ({0})": "Odpri filtrirana opazovanja ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Skrij popolna ujemanja brez opomb; ohrani komentarje in nejasna obvestila."
+  },
+  "ca": {
+    "Only show non-confirming IDs": "Mostra només identificacions diferents",
+    "Checking identifications…": "Comprovant identificacions…",
+    "Uncertain updates kept": "Es conserven les notificacions incertes",
+    "Open filtered observations ({0})": "Obre observacions filtrades ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Amaga les coincidències exactes sense notes; conserva els comentaris i les notificacions incertes."
+  },
+  "et": {
+    "Only show non-confirming IDs": "Näita ainult erinevaid määranguid",
+    "Checking identifications…": "Määrangute kontrollimine…",
+    "Uncertain updates kept": "Ebaselged teated säilitatud",
+    "Open filtered observations ({0})": "Ava filtreeritud vaatlused ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Peida täpsed vasted ilma märkusteta; säilita kommentaarid ja ebaselged teated."
+  },
+  "lt": {
+    "Only show non-confirming IDs": "Rodyti tik skirtingus nustatymus",
+    "Checking identifications…": "Tikrinami nustatymai…",
+    "Uncertain updates kept": "Neaiškūs pranešimai išsaugoti",
+    "Open filtered observations ({0})": "Atverti filtruotus stebėjimus ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Slėpti tikslius sutapimus be pastabų; palikti komentarus ir neaiškius pranešimus."
+  },
+  "lv": {
+    "Only show non-confirming IDs": "Rādīt tikai atšķirīgas noteikšanas",
+    "Checking identifications…": "Pārbauda noteikšanas…",
+    "Uncertain updates kept": "Neskaidrie paziņojumi saglabāti",
+    "Open filtered observations ({0})": "Atvērt filtrētos novērojumus ({0})",
+    "Hide exact matches without remarks; keep comments and uncertain updates.": "Slēpt precīzas sakritības bez piezīmēm; saglabāt komentārus un neskaidros paziņojumus."
+  }
+}

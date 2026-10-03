@@ -2,6 +2,8 @@
 
 ## 自動測試
 
+1.1.3 的通知篩選回歸包含 `notification-filter.test.cjs` 的精確 taxon ID、上下級變化、數字／UUID 消息錨點、時間基準與缺失／撤回保留；背景測試驗證批次限額、來源／frame、重複請求合併及去除照片／位置／文字的最小回傳。三瀏覽器 `notification-tabs.spec.cjs` 覆蓋預設關閉、保存偏好、可見消息去重開啟、原生 CSS 下的隱藏／復原、API 失敗、中途停用、清單重畫、同清單新增錨點、重複注入、帳戶變更及 pagehide。`i18n.spec.cjs` 逐一驗證 50 個版本的新開關與篩選後按鈕；這仍是受控頁面，並非登入正式帳號人工驗收。
+
 1.1.2 的 `vision-score.test.cjs` 驗證原始分數從 bridge、原生候選資料、指紋、快取綁定到門檻判定均不作比例換算。`tests/layout/score-values.spec.cjs` 在三瀏覽器中覆蓋上傳／觀察頁、v1／v2、零分及跨 1 分邊界，包含 `0.316(0.382)`、完整原值提示與快取重開；原回應、請求次數及候選順序維持不變。這些是受控 API／DOM 回歸，不代表已用使用者的登入帳號、私人照片或所有真實網站頁面人工驗收。
 
 1.1.1 的 `tests/layout/user-filters.spec.cjs` 依官方 Angular 篩選器的可見 `user_name`／隱藏 `user_id[ng-model]` 結構，驗證原生清除、無 input/change 的值變化、殘留顯示名稱、URL 移除、重設與來源／排除獨立套用。`explore.spec.cjs` 另驗證未修改的對比表單同步已移除地點，手動草稿仍保留。三個瀏覽器執行同一組受控案例；不代表登入正式帳號人工驗收。官方來源：[搜尋控制器](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/controllers/observation_search.js.erb)、[篩選器模板](https://github.com/inaturalist/inaturalist/blob/main/app/assets/javascripts/ang/templates/observation_search/filter_menu.html.haml)。

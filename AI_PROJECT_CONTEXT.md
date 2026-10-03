@@ -60,7 +60,7 @@
 | src/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
-| src/scripts/notification-tabs.js | iNaturalist 各頁右上「新動態」下拉清單的去重開啟按鈕；僅從官方通知列讀取觀察連結 |
+| src/scripts/notification-tabs.js、notification-filter.js | 全站「新動態」清單去重開啟與可選的精確確認鑑定篩選；純規則與 DOM／非同步處理分離 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
 | scripts/i18n.mjs | 建置 50 個語言／地區目錄及中文轉換；OpenCC 為建置依賴，不在執行時使用 |
@@ -124,9 +124,13 @@ taxon-status.js
 
 ### 全站右上「新動態」清單
 
-`i18n-catalog.js` → `i18n.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。
+`i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。
 
 notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析清單直屬通知列的 HTTPS 觀察詳情連結，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。使用者按鈕點擊後傳送 `leafwise-open-update-observations`，背景程序再次驗證發件頁及 ID，以不啟用的新分頁在原視窗打開對應觀察。清單載入前不顯示按鈕；沒有可開啟觀察時禁用。此功能只處理目前顯示的清單，不抓歷史分頁、不改通知已讀狀態。
+
+第一個隔離組在 notification-tabs.js 前載入 notification-filter.js。開關預設關閉；官方 `#activity_identification_<uuid/id>` 精確配對通知鑑定，不解析翻譯後的摘要。參照頁面使用者選單的數字 ID，與消息前最後一筆自己的有效鑑定比較 taxon ID；只有精確相同且無說明者隱藏，上下級／其他類群保留。評論、說明、缺失／撤回／後改／不確定基準不隱藏；不使用目前社群 taxon、disagreement 或 maverick 代替完全相同。
+
+開關啟用時才透過 leafwise-update-identifications，每批最多 20 個觀察查詢公開 `/v1/observations/<ids>`。背景共用既有節流傳輸（最多 2 並發、起始間隔 1.1 秒）並合併相同未完成批次，只回傳最小鑑定 metadata、不存歷史；UI 在本頁記憶體比對。載入期間禁止開啟；成功或失敗後只開可見通知的去重觀察。停用、清單或錨點集合重畫、帳戶變更及 pagehide 都以 generation 拒絕舊回應，恢复原生 hidden／display；pageshow 從 back-forward cache 恢復時重連 observer 並重新查詢。重複注入只產生一組控制項。網站下拉可在無未讀時回顯舊消息，本功能不宣稱是完整未讀 API 篩選。
 
 腳本順序是功能的一部分。調整順序時要同步改 manifest/build 測試，並重新驗證三個瀏覽器。
 
@@ -231,6 +235,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - leafwise-explore-library
 - leafwise-personal-records
 - leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID；返回實際開啟數）
+- leafwise-update-identifications（同一來源／frame 驗證，每批最多 20 個觀察；返回最小 metadata，不保存歷史）
 
 更名或改 payload 形狀前，先搜尋所有 sender、listener 和測試；通常要保持向後相容。
 
@@ -238,6 +243,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 - storage.sync：savedUsernames、savedTaxa；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
 - storage.local：個人次數快取、探索查詢／分組資料庫 leafwiseExploreLibraryV1。
+- storage.local：leafwiseNotificationFilterV1 僅記通知篩選布林值，預設 false、不 sync；鑑定比對資料只在本頁記憶體。
 - storage.local：leafwiseLastSiteLocale 只記最近網站語言碼，用於設定頁；不含帳戶資訊、不 sync，不改其他鍵。名稱訊息新增可選 locale，舊 caller 預設 zh-CN；名稱快取使用包含 locale 的 API URL。
 - storage.session：高階分類快取。
 - 頁面 localStorage：leafwise-upload-ai-panel-open。
@@ -260,7 +266,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 新增權限是高風險變更，必須有明確功能理由、同步隱私文件、三平台 manifest 測試和發版說明。不要為方便存取頁面狀態而增加寬泛權限；優先沿用頁面既有資料與小型平台橋接。
 
-通知按鈕的 content script 需匹配 iNaturalist 各頁的共用 header；只讀取 `#updatessubnav` 已載入的觀察連結，不讀取私訊。建立分頁由背景 `tabs.create` 完成，Chrome／Firefox 均無須新增 `tabs` permission；這不是 host permission 的擴張，也沒有新增背景網路請求。
+通知按鈕的 content script 需匹配 iNaturalist 各頁的共用 header；只讀取 `#updatessubnav` 已載入的觀察連結，不讀取私訊。建立分頁由背景 `tabs.create` 完成，Chrome／Firefox 均無須新增 `tabs` permission。通知篩選啟用後新增按需公開鑑定 metadata 查詢，沿用既有 API host permission 與 credentials: omit，不取得 Token／Cookie，不修改原生已讀行為。
 
 ## 10. 驗證矩陣
 

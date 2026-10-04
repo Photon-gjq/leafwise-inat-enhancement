@@ -4,14 +4,31 @@
   const positiveID = value => Number.isSafeInteger(value) && value > 0;
   const time = value => typeof value === "string" ? Date.parse(value) : NaN;
 
-  function observationLink(href, base) {
+  function notificationURL(href, base) {
     let url;
     try { url = new URL(href, base); } catch { return null; }
-    if (url.protocol !== "https:" || !["inaturalist.org", "www.inaturalist.org"].includes(url.hostname)) return null;
+    if (url.protocol !== "https:" || url.port || url.username || url.password
+      || !["inaturalist.org", "www.inaturalist.org"].includes(url.hostname)) return null;
+    return url;
+  }
+
+  function observationLink(href, base) {
+    const url = notificationURL(href, base);
+    if (!url) return null;
     const match = /^\/observations\/([1-9]\d*)\/?$/.exec(url.pathname);
     if (!match || !positiveID(Number(match[1]))) return null;
     const anchor = /^#activity_identification_([1-9]\d*|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(url.hash);
     return { observationId: Number(match[1]), identification: anchor?.[1].toLowerCase() || null };
+  }
+
+  function activityLink(href, base) {
+    const url = notificationURL(href, base);
+    if (!url) return null;
+    const match = /^\/(comments|identifications)\/([1-9]\d*|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(url.pathname);
+    if (!match || (/^\d+$/.test(match[2]) && !positiveID(Number(match[2])))) return null;
+    // Native mention links point at the notifier, which redirects to its parent.
+    // Drop query/action parameters; only the read-only show route is needed.
+    return url.origin + url.pathname.replace(/\/$/, "");
   }
 
   function classify(identifications, reference, viewerId) {
@@ -38,7 +55,7 @@
     return baseline.taxonId === target.taxonId ? "confirming" : "different";
   }
 
-  const api = { observationLink, classify };
+  const api = { observationLink, activityLink, classify };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LeafwiseNotificationFilter = api;
 })(globalThis);

@@ -184,7 +184,8 @@ async function taxonAncestorIds(taxonId) {
 
 function notificationPage(sender) {
   const page = new URL(sender.url || "about:blank");
-  if (page.protocol !== "https:" || !["inaturalist.org", "www.inaturalist.org"].includes(page.hostname)
+  if (page.protocol !== "https:" || page.port || page.username || page.password
+    || !["inaturalist.org", "www.inaturalist.org"].includes(page.hostname)
     || !Number.isInteger(sender.tab?.id) || !Number.isInteger(sender.tab?.windowId)
     || (sender.frameId != null && sender.frameId !== 0)) {
     throw new Error("Invalid notification tab request");
@@ -238,21 +239,37 @@ async function updateIdentifications(rawIds, sender) {
   try { return await task; } finally { notificationRequests.delete(key); }
 }
 
-async function openUpdateObservations(rawIds, sender) {
+function notificationPermalinks(rawLinks, page) {
+  if (rawLinks == null) return [];
+  if (!Array.isArray(rawLinks) || rawLinks.length > 20) throw new Error("Invalid notification links");
+  return [...new Set(rawLinks.map(link => {
+    if (typeof link !== "string") throw new Error("Invalid notification link");
+    const url = new URL(link);
+    const match = /^\/(comments|identifications)\/([1-9]\d*|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(url.pathname);
+    if (url.protocol !== "https:" || url.port || url.username || url.password
+      || !["inaturalist.org", "www.inaturalist.org"].includes(url.hostname)
+      || !match || (/^\d+$/.test(match[2]) && !positiveInteger(match[2]))) throw new Error("Invalid notification link");
+    return page.origin + url.pathname.replace(/\/$/, "");
+  }))];
+}
+
+async function openUpdateObservations(rawIds, sender, rawLinks) {
   const page = notificationPage(sender);
   const ids = notificationIDs(rawIds);
+  const urls = [...ids.map(id => `https://${page.hostname}/observations/${id}`),
+    ...notificationPermalinks(rawLinks, page)];
   let opened = 0;
-  for (const id of ids) {
+  for (const url of urls) {
     try {
       await chrome.tabs.create({
-        url: `https://${page.hostname}/observations/${id}`,
+        url,
         active: false,
         windowId: sender.tab.windowId
       });
       opened++;
     } catch { /* Report a partial result without retrying successful tabs. */ }
   }
-  return { ok: opened === ids.length, opened, requested: ids.length };
+  return { ok: opened === urls.length, opened, requested: urls.length };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -260,7 +277,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   let task;
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
   else if (message?.type === "leafwise-open-update-observations") {
-    task = openUpdateObservations(message.observationIds, sender);
+    task = openUpdateObservations(message.observationIds, sender, message.unresolvedLinks);
   } else if (message?.type === "leafwise-update-identifications") {
     task = updateIdentifications(message.observationIds, sender);
   } else if (message?.type === "qg-observation-taxon") {

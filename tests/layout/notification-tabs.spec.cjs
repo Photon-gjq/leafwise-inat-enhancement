@@ -84,7 +84,7 @@ async function filterFixture(page, info, options = {}) {
           if (window.delayHistory) await new Promise(resolve => window.historyResolvers.push(resolve));
           return window.historyFailed ? { ok: false } : { ok: true, observations };
         }
-        return { ok: true, opened: message.observationIds.length };
+        return { ok: true, opened: message.observationIds.length + (message.unresolvedLinks?.length || 0) };
       } }
     };
     window.chrome = api;
@@ -213,4 +213,150 @@ test('pagehide restores rows and back-forward cache resume rechecks the filter',
   await expect(page.locator('#same')).toBeHidden();
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   await expect(page.locator('#same')).toBeVisible();
+});
+
+// Official users/new_updates.html.erb uses the notifier permalink for mentions,
+// not the observation resource. Comments and identifications redirect to it.
+// Upstream b1274a0b6cbf757600ff435135867b7b4021f33c (2026-10-04).
+const mentionUpdates = `<ul>
+<li id="mention-comment"><a href="/comments/801#activity_comment_801"><span class="inlineblock">Mention on observation 101</span></a></li>
+<li id="mention-id"><a href="/identifications/802#activity_identification_20">Mention in an identification on 202</a></li>
+<li id="mention-duplicate"><a href="/comments/803">Another mention on 202</a></li>
+<li id="same"><a href="/observations/101#activity_identification_20">Exact confirmation</a></li>
+<li id="favorite"><a href="/observations/303">Favorite</a></li>
+<li id="comment"><a href="/observations/303#activity_comment_804">Comment</a></li>
+<li id="journal"><a href="/comments/805">Mention in a journal, not an observation</a></li>
+<li><center><a href="/home">Dashboard</a></center></li></ul>`;
+
+test('mention permalinks join favorites, comments and IDs in observation-level deduplication, even with the filter on', async ({ page }, info) => {
+  const { checkbox, button } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    window.permalinkRequests = [];
+    // Controlled final fetch URLs, matching the official Rails redirects.
+    // Playwright routing only intercepts the first URL of a redirect chain.
+    window.fetch = async (url, options) => {
+      const id = new URL(url).pathname.split('/').at(-1);
+      window.permalinkRequests.push({ id, credentials: options.credentials });
+      const target = { 801: '/observations/101#activity_comment_801', 802: '/observations/202#identification-802',
+        803: '/observations/202#activity_comment_803', 805: '/journal/user/1' }[id];
+      return { url: location.origin + target, ok: id !== '803', body: { cancel: async () => {} } };
+    };
+  });
+  await page.locator('#updatessubnav').evaluate((menu, html) => { menu.innerHTML = html; }, mentionUpdates);
+  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await expect(button).toBeEnabled();
+  await checkbox.check();
+  await expect(page.locator('#same')).toBeHidden();
+  for (const name of ['mention-comment', 'mention-id', 'mention-duplicate', 'favorite', 'comment', 'journal']) {
+    await expect(page.locator('#' + name)).toBeVisible();
+  }
+  await expect(button).toHaveText('開啟篩選後的觀察（3）');
+  await expect(button).toBeEnabled();
+  expect(await page.evaluate(() => window.permalinkRequests.map(request => request.id).sort())).toEqual(['801', '802', '803', '805']);
+  expect(await page.evaluate(() => window.permalinkRequests.every(request => request.credentials === 'omit'))).toBe(true);
+  expect(await page.evaluate(() => window.sent.filter(message => message.type === 'leafwise-update-identifications')
+    .at(-1).observationIds)).toEqual([101]);
+  await button.click();
+  expect(await page.evaluate(() => window.sent.at(-1).observationIds)).toEqual(['101', '202', '303']);
+});
+
+test('unavailable mention redirects stay visible and open their native permalinks instead of disappearing', async ({ page }, info) => {
+  const { checkbox, button } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    window.permalinkRequests = [];
+    window.fetch = async url => {
+      window.permalinkRequests.push(url);
+      if (url.endsWith('/901')) return { url: location.origin + '/login' };
+      throw new Error('offline');
+    };
+    document.querySelector('#updatessubnav').innerHTML = `<ul>
+      <li id="failed-mention"><a href="/comments/901#activity_comment_901">Mention</a></li>
+      <li><a href="/comments/901?return_to=/home">Same mention</a></li>
+      <li><a href="/identifications/902">ID mention</a></li>
+      <li><a href="/observations/707#activity_comment_903">Comment</a></li>
+      <li><a href="https://evil.example/comments/904">Not iNaturalist</a></li>
+      <li><center><a href="/home">Dashboard</a></center></li></ul>`;
+  });
+  await expect(button).toBeEnabled();
+  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await checkbox.check();
+  await expect(page.locator('#failed-mention')).toBeVisible();
+  await expect(button).toHaveText('開啟篩選後的觀察（3）');
+  expect(await page.evaluate(() => window.permalinkRequests.length)).toBe(2);
+  expect(await page.evaluate(() => window.sent.length)).toBe(0);
+  await button.click();
+  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({
+    type: 'leafwise-open-update-observations', observationIds: ['707'],
+    unresolvedLinks: ['https://www.inaturalist.org/comments/901', 'https://www.inaturalist.org/identifications/902']
+  });
+  await expect(button).toHaveText('已開啟 3 個觀察');
+});
+
+test('mention redirects use at most two workers and menu replacement discards late old-menu destinations', async ({ page }, info) => {
+  const { button } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    window.redirectResolvers = [];
+    window.fetch = (url, options) => new Promise(resolve => window.redirectResolvers.push({ url, signal: options.signal,
+      resolve: observation => resolve({ url: location.origin + '/observations/' + observation }) }));
+    document.querySelector('#updatessubnav').innerHTML = `<ul>
+      <li><a href="/comments/801">Old</a></li><li><a href="/comments/802">Old</a></li>
+      <li><a href="/comments/803">Queued old</a></li><li><center>Dashboard</center></li></ul>`;
+  });
+  await expect.poll(() => page.evaluate(() => window.redirectResolvers.length)).toBe(2);
+  await expect(button).toBeDisabled();
+  await page.locator('#updatessubnav').evaluate(menu => {
+    menu.innerHTML = '<ul><li><a href="/comments/901">Replacement</a></li><li><center>Dashboard</center></li></ul>';
+  });
+  await expect.poll(() => page.evaluate(() => window.redirectResolvers.length)).toBe(3);
+  expect(await page.evaluate(() => window.redirectResolvers.slice(0, 2).every(item => item.signal.aborted))).toBe(true);
+  await page.evaluate(() => { window.redirectResolvers[0].resolve(101); window.redirectResolvers[1].resolve(202); });
+  await expect(button).toBeDisabled();
+  await page.evaluate(() => window.redirectResolvers[2].resolve(909));
+  await expect(button).toBeEnabled();
+  await expect(button).toHaveText('一鍵開啟這些觀察（1）');
+  await button.click();
+  expect(await page.evaluate(() => window.sent.at(-1).observationIds)).toEqual(['909']);
+  expect(await page.evaluate(() => window.redirectResolvers.length)).toBe(3);
+});
+
+test('pagehide cancels mention resolution and BFcache resume resolves again without opening tabs', async ({ page }, info) => {
+  const { button } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    window.redirectResolvers = [];
+    window.fetch = (url, options) => new Promise(resolve => window.redirectResolvers.push({ signal: options.signal,
+      resolve: () => resolve({ url: location.origin + '/observations/101' }) }));
+    document.querySelector('#updatessubnav').innerHTML = '<ul><li><a href="/comments/801">Mention</a></li><li><center>Dashboard</center></li></ul>';
+  });
+  await expect.poll(() => page.evaluate(() => window.redirectResolvers.length)).toBe(1);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  expect(await page.evaluate(() => window.redirectResolvers[0].signal.aborted)).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+  await expect.poll(() => page.evaluate(() => window.redirectResolvers.length)).toBe(2);
+  await page.evaluate(() => window.redirectResolvers[0].resolve());
+  await expect(button).toBeDisabled();
+  await page.evaluate(() => window.redirectResolvers[1].resolve());
+  await expect(button).toBeEnabled();
+  expect(await page.evaluate(() => window.sent.length)).toBe(0);
+});
+
+test('a stalled redirect batch times out without leaving the button disabled or dropping queued mentions', async ({ page }, info) => {
+  const { button, hint } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    const originalTimeout = window.setTimeout;
+    window.setTimeout = (callback, delay, ...args) => originalTimeout(callback, delay === 10000 ? 30 : delay, ...args);
+    window.fetch = (url, { signal }) => new Promise((resolve, reject) => {
+      if (signal.aborted) reject(new Error('aborted'));
+      else signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+    });
+    document.querySelector('#updatessubnav').innerHTML = `<ul>
+      <li><a href="/comments/801">Mention</a></li><li><a href="/comments/802">Mention</a></li>
+      <li><a href="/comments/803">Queued mention</a></li><li><center>Dashboard</center></li></ul>`;
+  });
+  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await expect(button).toBeEnabled();
+  await expect(hint).toHaveText('無法判斷的消息已保留');
+  await button.click();
+  expect(await page.evaluate(() => window.sent.at(-1).unresolvedLinks)).toEqual([
+    'https://www.inaturalist.org/comments/801', 'https://www.inaturalist.org/comments/802', 'https://www.inaturalist.org/comments/803'
+  ]);
 });

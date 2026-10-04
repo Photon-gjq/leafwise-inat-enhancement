@@ -8,7 +8,9 @@ The **僅顯示非完全贊同的鑑定** (Only show non-confirming IDs) switch 
 
 Opening is disabled while checking. Afterwards, **開啟篩選後的觀察（N）** (Open filtered observations) opens the observations with visible notifications, still deduplicating multiple updates about one observation. Turning the switch off restores the list. This only filters the currently loaded menu; it does not fetch all unread updates or history. iNaturalist may show previously read updates when none are unread.
 
-Open the speech-bubble activity menu at the top right of iNaturalist, then click **一鍵開啟這些觀察（N）** (Open these observations). Leafwise opens one background tab per distinct observation in the currently loaded menu. Several updates about the same observation produce just one tab. Direct messages, dashboard links, and other non-observation links are skipped. This does not fetch all historical updates or mark individual updates as read; iNaturalist itself may reset the unread count when its menu is opened.
+Open the speech-bubble activity menu at the top right of iNaturalist, then click **一鍵開啟這些觀察（N）** (Open these observations). Leafwise opens one background tab per resolved observation in the currently loaded menu. Several resolved updates about the same observation produce just one tab. Direct messages, dashboard links, and known non-observation destinations are skipped. This does not fetch all historical updates or mark individual updates as read; iNaturalist itself may reset the unread count when its menu is opened.
+
+Observation mentions (@), favorites, comments and identifications are included. Mentions are never hidden as exact confirmations. The button is briefly disabled while mention permalinks resolve to observations. If resolution fails or requires login, the original notification permalink is opened instead of silently omitted; only identical permalinks can be deduplicated in that fallback, so different links to the same observation may open separate tabs. Known journal and other non-observation destinations are skipped.
 
 ## Installation and updates
 

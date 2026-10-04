@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const extension = require('./extension-path.cjs');
-const { classify, observationLink } = require(path.join(extension, 'scripts/notification-filter.js'));
+const { classify, observationLink, activityLink } = require(path.join(extension, 'scripts/notification-filter.js'));
 const own = { id: 10, userId: 7, taxonId: 100, current: true, createdAt: '2026-10-01T10:00:00Z' };
 const target = { id: 20, userId: 8, taxonId: 100, current: true, createdAt: '2026-10-01T11:00:00Z' };
 const check = (base = own, next = target) => classify([base, next], '20', 7);
@@ -11,6 +11,18 @@ test('only exact same taxon is confirming; sibling, descendant and ancestor IDs 
   assert.equal(check(), 'confirming');
   for (const taxonId of [200, 101, 99]) assert.equal(check(own, { ...target, taxonId }), 'different');
   assert.equal(check(own, { ...target, hasRemark: true }), 'remark');
+});
+
+test('mention targets accept only official comment/ID show permalinks and discard action parameters', () => {
+  const base = 'https://www.inaturalist.org/home';
+  const uuid = '12345678-1234-4567-89ab-123456789abc';
+  assert.equal(activityLink('/comments/123?return_to=https://evil.example#activity_comment_123', base),
+    'https://www.inaturalist.org/comments/123');
+  assert.equal(activityLink('/identifications/' + uuid + '/', base), 'https://www.inaturalist.org/identifications/' + uuid);
+  for (const link of ['/comments/0', '/comments/9007199254740992', '/comments/123/edit', '/identifications/123/agree',
+    '/comments?user_id=7', '/comments/not-an-id', '/observations/123', 'https://evil.example/comments/123',
+    'http://www.inaturalist.org/comments/123', 'https://www.inaturalist.org:444/comments/123',
+    'https://name:password@www.inaturalist.org/comments/123']) assert.equal(activityLink(link, base), null);
 });
 
 test('compare with the latest own identification before the event, not current community taxon', () => {

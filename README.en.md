@@ -8,7 +8,9 @@
 
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
-Version 1.1.3 adds a remembered, default-off “Only show non-confirming IDs” switch to the activity dropdown. It hides only exact matches to your own identification before the update, without remarks; finer, broader, different, comment, and uncertain updates stay visible. Batch-open follows the filtered list and still deduplicates observations. The new controls cover all 50 existing language/region variants.
+Version 1.1.4 fixes missing @mention updates in batch-open by resolving native comment and identification links and deduplicating their observations. If the destination cannot be confirmed, the original link is retained instead of silently skipped; these fallback links can only be deduplicated by identical URL.
+
+It retains the remembered, default-off “Only show non-confirming IDs” switch from 1.1.3. It hides only exact matches to your own identification before the update, without remarks; finer, broader, different, comment, and uncertain updates stay visible. Batch-open follows the filtered list. The controls cover all 50 existing language/region variants.
 
 It retains raw AI score display from 1.1.2, search-filter fixes from 1.1.1, and the website-language UI, regional personal taxon statistics, and saved region groups. Main controls are translated; detailed explanations and some uncommon errors still fall back to English. Translations have not all been reviewed by native speakers. See [language coverage](docs/I18N.md) and the [English user guide](docs/GUIDE.en.md).
 

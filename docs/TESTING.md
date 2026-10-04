@@ -2,6 +2,8 @@
 
 ## 自動測試
 
+1.1.4 的提及通知修復：`notification-filter.test.cjs` 驗證評論／鑑定 show 路徑、數字／UUID、無效主機／端口／ID 及 query 去除；背景測試驗證未解析通知的安全後備與整批拒絕非法目的地。`notification-tabs.spec.cjs` 在三瀏覽器用受控最終 fetch URL 驗證提及、收藏、評論、鑑定混合去重、篩選保留提及、非觀察目的地、HTTP 錯誤頁、登入轉址、失敗後備、最多兩個並發、整批逾時、清單替換及 BFcache 舊回應隔離。這不是正式帳號人工驗收；轉址不可解析時只能按原連結去重。
+
 1.1.3 的通知篩選回歸包含 `notification-filter.test.cjs` 的精確 taxon ID、上下級變化、數字／UUID 消息錨點、時間基準與缺失／撤回保留；背景測試驗證批次限額、來源／frame、重複請求合併及去除照片／位置／文字的最小回傳。三瀏覽器 `notification-tabs.spec.cjs` 覆蓋預設關閉、保存偏好、可見消息去重開啟、原生 CSS 下的隱藏／復原、API 失敗、中途停用、清單重畫、同清單新增錨點、重複注入、帳戶變更及 pagehide。`i18n.spec.cjs` 逐一驗證 50 個版本的新開關與篩選後按鈕；這仍是受控頁面，並非登入正式帳號人工驗收。
 
 1.1.2 的 `vision-score.test.cjs` 驗證原始分數從 bridge、原生候選資料、指紋、快取綁定到門檻判定均不作比例換算。`tests/layout/score-values.spec.cjs` 在三瀏覽器中覆蓋上傳／觀察頁、v1／v2、零分及跨 1 分邊界，包含 `0.316(0.382)`、完整原值提示與快取重開；原回應、請求次數及候選順序維持不變。這些是受控 API／DOM 回歸，不代表已用使用者的登入帳號、私人照片或所有真實網站頁面人工驗收。
@@ -25,6 +27,8 @@ npm run package
 瀏覽器版面測試同時驗證面板預設在「全選」右側收合、收合時不撐高固定工具列且首排卡片叉號仍可命中並刪除、快捷執行不會展開、展開後回到照片欄、網站替換照片欄後重新掛載，以及上傳／具體觀察頁的 `combined(vision)` 只顯示彩色數字，不產生背景框、邊框、列色條或百分號。
 
 通知按鈕的受控 DOM 測試採用官方 `#updatesnav #updatessubnav` 結構及 `/users/new_updates` 的直接 `ul > li > a` 通知列：異步載入後才顯示按鈕，按觀察 ID 去重並略過站外、搜尋及儀表板連結；背景單元測試確認只接受 iNaturalist 頂層頁面、在同一視窗開不啟用的新分頁，且三個建置共用相同行為。它不會登入真實帳號或標記真實通知。
+
+提及 fixture 依官方 `b1274a0b6cbf757600ff435135867b7b4021f33c` 的 [new_updates 模板](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/views/users/new_updates.html.erb)、[評論控制器](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/controllers/comments_controller.rb) 及 [鑑定控制器](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/controllers/identifications_controller.rb)。mention 的連結以 notifier 為目標，show 再轉址到 parent；不可只匹配 observations，也不可把提及的鑑定錨點誤當純確認通知。
 
 觀察詳情 fixture 依據 iNaturalist `0d8074c09ee177b50603c0ed1fcb5405a4f6835b` 的 [ActivityCreatePanel](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/show/components/activity_create_panel.jsx) 與 [TaxonAutocomplete](https://github.com/inaturalist/inaturalist/blob/0d8074c09ee177b50603c0ed1fcb5405a4f6835b/app/webpack/observations/uploader/components/taxon_autocomplete.jsx)：詳情頁傳入 observation ID，視覺候選由 `isVisionResult` 產生 `.ac.vision[data-taxon-id]`。測試覆蓋 jQuery 資料不可讀時仍顯示、手動搜尋列不補分；這是受控 DOM 回歸，不等同登入正式頁面的人工驗收。
 

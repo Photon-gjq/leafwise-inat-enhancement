@@ -20,6 +20,10 @@
   const outcomes = new Map();
   const pending = new Set();
   const hiddenRows = new Map();
+  let linkGeneration = 0;
+  const linkResults = new Map();
+  const pendingLinks = new Set();
+  const linkControllers = new Set();
 
   function viewerId() {
     for (const link of document.querySelectorAll(".navtab.user a.profile_link[href]")) {
@@ -33,9 +37,57 @@
   }
 
   function rows() {
-    return [...menu.querySelectorAll(":scope > ul > li > a[href]")].map(link => ({
-      row: link.parentElement, ...rules.observationLink(link.href, location.href)
-    }));
+    return [...menu.querySelectorAll(":scope > ul > li > a[href]")].map(link => {
+      const direct = rules.observationLink(link.href, location.href);
+      const activityUrl = direct ? null : rules.activityLink(link.href, location.href);
+      // A mention must stay visible even when its ID matches the viewer's ID.
+      const resolved = activityUrl && linkResults.get(activityUrl);
+      return { row: link.parentElement, href: link.href, activityUrl,
+        ...(direct || (resolved ? { observationId: resolved.observationId, identification: null } : {})) };
+    });
+  }
+
+  function resetLinks() {
+    linkGeneration++;
+    for (const controller of linkControllers) controller.abort();
+    linkControllers.clear();
+    pendingLinks.clear();
+    linkResults.clear();
+  }
+
+  async function resolveLinks(urls, token) {
+    urls.forEach(url => pendingLinks.add(url));
+    const controller = new AbortController();
+    linkControllers.add(controller);
+    // Bound the whole menu's wait, not ten seconds for each queued message.
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let next = 0;
+    // Only inspect the final URL, never the comment text or the parent page.
+    const worker = async () => {
+      while (!stopped && token === linkGeneration && next < urls.length) {
+        const url = urls[next++];
+        let result = null;
+        try {
+          const response = await fetch(url, { credentials: "omit", signal: controller.signal });
+          void response.body?.cancel().catch(() => {});
+          result = rules.observationLink(response.url, location.href);
+          // The destination still identifies the observation when its page
+          // body is unavailable (e.g. HTTP 403). Never inspect that body.
+          const destination = new URL(response.url);
+          if (!result && destination.origin === location.origin
+            && /^\/(journal|posts|taxa|trips|taxon_links)\//.test(destination.pathname)) result = false;
+        } catch { /* Keep the native permalink available if resolution fails. */ }
+        if (stopped || token !== linkGeneration) return;
+        linkResults.set(url, result);
+        pendingLinks.delete(url);
+      }
+    };
+    try { await Promise.all([worker(), worker()]); }
+    finally {
+      clearTimeout(timer);
+      linkControllers.delete(controller);
+    }
+    if (!stopped && token === linkGeneration) refresh();
   }
 
   function restoreRows() {
@@ -54,6 +106,11 @@
   function observationIds() {
     return [...new Set(rows().filter(item => item.observationId && !item.row.hidden)
       .map(item => String(item.observationId)))];
+  }
+
+  function unresolvedLinks() {
+    return [...new Set(rows().filter(item => item.activityUrl && !item.row.hidden
+      && linkResults.get(item.activityUrl) == null).map(item => item.activityUrl))];
   }
 
   async function checkBatch(ids, token, viewer) {
@@ -104,16 +161,18 @@
       event.preventDefault();
       if (stopped) return;
       refresh(); // Recheck the signed-in viewer before using filtered results.
-      if (busy || (enabled && pending.size)) return;
+      if (busy || pendingLinks.size || (enabled && pending.size)) return;
       const ids = observationIds();
-      if (!ids.length) return;
+      const links = unresolvedLinks();
+      const count = ids.length + links.length;
+      if (!count) return;
       busy = true;
       status = t("正在開啟觀察…");
       clearTimeout(clearStatusTimer);
       refresh();
       try {
-        const reply = await chrome.runtime.sendMessage({ type: "leafwise-open-update-observations", observationIds: ids });
-        status = reply?.ok && reply.opened === ids.length
+        const reply = await chrome.runtime.sendMessage({ type: "leafwise-open-update-observations", observationIds: ids, unresolvedLinks: links });
+        status = reply?.ok && reply.opened === count
           ? t("已開啟 {0} 個觀察", reply.opened)
           : t("已開啟 {0} 個；其餘未能開啟", reply?.opened || 0);
       } catch { status = t("開啟失敗，請重試"); }
@@ -138,17 +197,21 @@
     if (stopped) return;
     const list = menu.querySelector(":scope > ul");
     const viewer = viewerId();
-    const signature = rows().map(item => `${item.observationId}:${item.identification}`).join(",");
+    const signature = JSON.stringify(rows().map(item => item.href));
     if (list !== currentList || viewer !== currentViewer || signature !== currentSignature) {
       generation++;
       restoreRows();
       outcomes.clear();
       pending.clear();
+      resetLinks();
       currentList = list;
       currentViewer = viewer;
       currentSignature = signature;
     }
     if (!list) return;
+    const links = [...new Set(rows().map(item => item.activityUrl).filter(Boolean))]
+      .filter(url => !linkResults.has(url) && !pendingLinks.has(url));
+    if (links.length) void resolveLinks(links, linkGeneration);
     const control = controls(list);
     const label = control.querySelector("label");
     const checkbox = label.querySelector("input");
@@ -157,7 +220,7 @@
     const text = t("僅顯示非完全贊同的鑑定");
     if (label.lastElementChild.textContent !== text) label.lastElementChild.textContent = text;
     control.dir = ["ar", "he", "fa"].includes(globalThis.LeafwiseI18n?.locale()) ? "rtl" : "ltr";
-    let uncertain = false;
+    let uncertain = unresolvedLinks().some(url => linkResults.has(url));
     const candidates = rows().filter(item => item.identification);
     if (enabled && viewer) {
       const ids = [...new Set(candidates.map(item => item.observationId))]
@@ -179,10 +242,10 @@
       if (enabled && result === "unknown" && !pending.has(item.observationId)) uncertain = true;
     }
     const button = control.querySelector("button");
-    const count = observationIds().length;
+    const count = observationIds().length + unresolvedLinks().length;
     const caption = status || t(enabled ? "開啟篩選後的觀察（{0}）" : "一鍵開啟這些觀察（{0}）", count);
     if (button.textContent !== caption) button.textContent = caption;
-    button.disabled = busy || count === 0 || (enabled && pending.size > 0);
+    button.disabled = busy || count === 0 || pendingLinks.size > 0 || (enabled && pending.size > 0);
     const hint = control.querySelector(".leafwise-notification-filter-status");
     const message = enabled && pending.size ? t("正在篩選鑑定…") : uncertain ? t("無法判斷的消息已保留") : "";
     if (hint.textContent !== message) hint.textContent = message;
@@ -194,6 +257,7 @@
     stopped = true;
     generation++;
     observer.disconnect();
+    resetLinks();
     restoreRows();
     clearTimeout(clearStatusTimer);
   });

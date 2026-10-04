@@ -27,8 +27,8 @@ function background(fetchJSON = async () => ({ results: [] })) {
 function send(listener, observationIds, sender = {
   id: 'leafwise-test', url: 'https://www.inaturalist.org/home', frameId: 0,
   tab: { id: 5, windowId: 7 }
-}, type = 'leafwise-open-update-observations') {
-  return new Promise(resolve => listener({ type, observationIds }, sender, resolve));
+}, type = 'leafwise-open-update-observations', unresolvedLinks) {
+  return new Promise(resolve => listener({ type, observationIds, unresolvedLinks }, sender, resolve));
 }
 
 test('notification action opens one inactive same-window tab per observation ID', async () => {
@@ -40,6 +40,34 @@ test('notification action opens one inactive same-window tab per observation ID'
     { url: 'https://www.inaturalist.org/observations/123', active: false, windowId: 7 },
     { url: 'https://www.inaturalist.org/observations/456', active: false, windowId: 7 }
   ]);
+});
+
+test('unresolved mentions fall back to deduplicated native read-only permalinks without extra permissions', async () => {
+  const { created, onMessage } = background();
+  const uuid = '12345678-1234-4567-89ab-123456789abc';
+  const reply = await send(onMessage, [123, 123], undefined, undefined, [
+    'https://www.inaturalist.org/comments/801#activity_comment_801',
+    'https://inaturalist.org/comments/801?return_to=https://evil.example',
+    'https://www.inaturalist.org/identifications/' + uuid
+  ]);
+  assert.equal(reply.ok, true);
+  assert.equal(reply.opened, 3);
+  assert.deepEqual(JSON.parse(JSON.stringify(created)), [
+    { url: 'https://www.inaturalist.org/observations/123', active: false, windowId: 7 },
+    { url: 'https://www.inaturalist.org/comments/801', active: false, windowId: 7 },
+    { url: 'https://www.inaturalist.org/identifications/' + uuid, active: false, windowId: 7 }
+  ]);
+});
+
+test('invalid mention fallback targets reject the whole request before opening any tabs', async () => {
+  const { created, onMessage } = background();
+  for (const links of [true, [123], ['javascript:alert(1)'], ['https://evil.example/comments/123'],
+    ['https://www.inaturalist.org/comments/123/edit'], ['https://www.inaturalist.org/identifications/123/agree'],
+    ['https://www.inaturalist.org/comments/9007199254740992'], ['https://www.inaturalist.org:444/comments/123'],
+    ['https://name:password@www.inaturalist.org/comments/123'], Array(21).fill('https://www.inaturalist.org/comments/123')]) {
+    assert.equal((await send(onMessage, [123], undefined, undefined, links)).ok, false);
+  }
+  assert.equal(created.length, 0);
 });
 
 test('notification action rejects other origins, iframes and invalid IDs', async () => {

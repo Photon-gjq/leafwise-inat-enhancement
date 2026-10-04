@@ -126,7 +126,9 @@ taxon-status.js
 
 `i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。
 
-notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析清單直屬通知列的 HTTPS 觀察詳情連結，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。使用者按鈕點擊後傳送 `leafwise-open-update-observations`，背景程序再次驗證發件頁及 ID，以不啟用的新分頁在原視窗打開對應觀察。清單載入前不顯示按鈕；沒有可開啟觀察時禁用。此功能只處理目前顯示的清單，不抓歷史分頁、不改通知已讀狀態。
+notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析直屬 `ul > li > a` 通知列，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。官方 mention 以 notifier 而非 observation resource 作 href，可能為 `/comments/<id/uuid>` 或 `/identifications/<id/uuid>`。notification-filter.js 的 activityLink 嚴格限制這兩種 HTTPS show 路徑，移除 query／hash；頁面以 credentials: omit 解析最終轉址 URL，立即取消正文，不讀取評論內容。最多兩個並發、整批最多 10 秒，結果僅留本頁記憶體；清單／原始 href／帳戶變更或 pagehide 取消並以獨立 linkGeneration 拒絕舊回應。解析完成前禁止開啟，toggle 不需重抓轉址。已確認日誌等非觀察目的地略過；未能解析則保留原生連結後備，此時只按連結去重，不能宣稱已知道其觀察 ID。
+
+使用者點擊後傳送 leafwise-open-update-observations 的 observationIds 與可選 unresolvedLinks；背景再次驗證頂層來源、數字 ID 及最多 20 個合法評論／鑑定 show 連結，所有驗證完成才建立不啟用的同視窗分頁。不得將後備擴成任意 URL 或帶修改動作的路由。提及即使轉到 activity_identification 錨點也不列為 confirming 候選，保持可見；其他直接觀察鑑定通知仍走原有篩選。清單載入前不顯示按鈕；沒有可開啟觀察／後備時禁用。此功能只處理目前清單，不抓歷史分頁、不改通知已讀狀態。
 
 第一個隔離組在 notification-tabs.js 前載入 notification-filter.js。開關預設關閉；官方 `#activity_identification_<uuid/id>` 精確配對通知鑑定，不解析翻譯後的摘要。參照頁面使用者選單的數字 ID，與消息前最後一筆自己的有效鑑定比較 taxon ID；只有精確相同且無說明者隱藏，上下級／其他類群保留。評論、說明、缺失／撤回／後改／不確定基準不隱藏；不使用目前社群 taxon、disagreement 或 maverick 代替完全相同。
 
@@ -234,7 +236,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - qg-higher-taxa-names
 - leafwise-explore-library
 - leafwise-personal-records
-- leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID；返回實際開啟數）
+- leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID 及可選 unresolvedLinks 評論／鑑定 show 連結後備；返回實際開啟數）
 - leafwise-update-identifications（同一來源／frame 驗證，每批最多 20 個觀察；返回最小 metadata，不保存歷史）
 
 更名或改 payload 形狀前，先搜尋所有 sender、listener 和測試；通常要保持向後相容。
@@ -266,7 +268,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 新增權限是高風險變更，必須有明確功能理由、同步隱私文件、三平台 manifest 測試和發版說明。不要為方便存取頁面狀態而增加寬泛權限；優先沿用頁面既有資料與小型平台橋接。
 
-通知按鈕的 content script 需匹配 iNaturalist 各頁的共用 header；只讀取 `#updatessubnav` 已載入的觀察連結，不讀取私訊。建立分頁由背景 `tabs.create` 完成，Chrome／Firefox 均無須新增 `tabs` permission。通知篩選啟用後新增按需公開鑑定 metadata 查詢，沿用既有 API host permission 與 credentials: omit，不取得 Token／Cookie，不修改原生已讀行為。
+通知按鈕的 content script 需匹配 iNaturalist 各頁的共用 header；只讀取 `#updatessubnav` 已載入的通知目的地，不讀取私訊。建立分頁由背景 `tabs.create` 完成，Chrome／Firefox 均無須新增 `tabs` permission。提及通知的公開 show 轉址使用 credentials: omit，只解析最終 URL、不读正文；通知篩選啟用後才查詢公開鑑定 metadata，沿用既有 API host permission 與 credentials: omit，不取得 Token／Cookie，不修改原生已讀行為。
 
 ## 10. 驗證矩陣
 

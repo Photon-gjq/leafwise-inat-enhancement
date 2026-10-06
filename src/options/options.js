@@ -14,10 +14,29 @@
   const userStatus = document.querySelector("#user-status");
   const taxaStatus = document.querySelector("#taxa-status");
   const placesInput = document.querySelector("#places");
-  const placesButton = document.querySelector("#places-form button");
+  const placesButton = document.querySelector('#places-form button[type="submit"]');
   const placesStatus = document.querySelector("#places-status");
   const explore = globalThis.LeafwiseExploreTools;
+  const exampleChoice = document.querySelector("#place-example");
+  const exampleButton = document.querySelector("#add-place-example");
+  const exampleMembers = document.querySelector("#place-example-members");
   let savedGroups = null;
+
+  exampleChoice.add(new Option(t("選擇範例…"), ""));
+  for (const example of explore.groups) exampleChoice.add(new Option(t(example.name), example.id));
+  exampleChoice.addEventListener("change", () => {
+    const example = explore.groups.find(item => item.id === exampleChoice.value);
+    exampleMembers.textContent = example ? example.place.split(",").map(id => `${t(explore.places[id])} (${id})`).join(" · ") : "";
+    exampleButton.disabled = !savedGroups || !example;
+  });
+  exampleButton.addEventListener("click", () => {
+    const example = explore.groups.find(item => item.id === exampleChoice.value);
+    if (!savedGroups || !example) return;
+    try {
+      placesInput.value = explore.appendPlaceGroup(placesInput.value, {...example, name:t(example.name)}, globalThis.QGInatHigherTaxa);
+      placesStatus.textContent = t("已加入清单（相同组合不会重复添加）。请点击保存常用地区。");
+    } catch (error) { placesStatus.textContent = localizedError(error.message); }
+  });
 
   async function libraryRequest(action, entry) {
     const reply = await chrome.runtime.sendMessage({type:"leafwise-explore-library", action, entry});
@@ -28,6 +47,7 @@
     savedGroups = library.groups;
     placesInput.value = explore.formatPlaceGroups(savedGroups);
     placesInput.disabled = placesButton.disabled = false;
+    exampleChoice.disabled = false;
   }).catch(error => { placesStatus.textContent = localizedError(error.message); });
 
   document.querySelector("#places-form").addEventListener("submit", async event => {

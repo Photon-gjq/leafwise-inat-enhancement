@@ -2,7 +2,7 @@
 
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。
 
-分類頁地區取自網站原生選擇器狀態及 `.NumObservations` 連結，而非僅依 URL。計數／多樣性／首次最近紀錄與觀察連結共享可選 `placeId`，快取按地區分隔；controller generation 和即時地區 identity 阻止跨地區舊回應回寫。選中但 ID 尚未取得時不冒充全球。設定頁與對比面板共用 local 地區組合庫，bulk 更新用舊 groups 快照作衝突檢查，保留查詢收藏。
+分類頁地區取自網站原生選擇器狀態及 `.NumObservations` 連結，而非僅依 URL。計數／多樣性／首次最近紀錄與觀察連結共享可選 `placeId`，快取按地區分隔；controller generation 和即時地區 identity 阻止跨地區舊回應回寫。選中但 ID 尚未取得時不冒充全球。設定頁、觀察搜尋頁的 `quick-places.js` 快捷選單與對比面板共用 local 地區組合庫，bulk 更新用舊 groups 快照作衝突檢查，保留查詢收藏。原有中國分組僅為設定頁可選範例，不播種至儲存；快捷選取透過 `explore-tools.placeSearchURL` 明確導航，保存設定則只更新選項、不改搜尋。
 
 原生 DOM 範圍依據：[地區 chooser](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/components/place_chooser_popover.jsx)、[觀察連結容器](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/show/containers/num_observations_container.js) 及 [chosenPlace 參數](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/util.js)（2026-10-02 核對）。不讀取私有 React 元件內部或重新按地名搜尋。
 

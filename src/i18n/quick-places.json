@@ -1,0 +1,268 @@
+{
+  "es": {
+    "Quick place groups…": "Grupos de lugares rápidos…",
+    "Manage saved regions…": "Gestionar regiones guardadas…",
+    "Optional region examples": "Ejemplos de regiones opcionales",
+    "Choose an example…": "Elige un ejemplo…",
+    "Add to list": "Añadir a la lista"
+  },
+  "fr": {
+    "Quick place groups…": "Groupes de lieux rapides…",
+    "Manage saved regions…": "Gérer les régions enregistrées…",
+    "Optional region examples": "Exemples de régions facultatifs",
+    "Choose an example…": "Choisir un exemple…",
+    "Add to list": "Ajouter à la liste"
+  },
+  "pt": {
+    "Quick place groups…": "Grupos de locais rápidos…",
+    "Manage saved regions…": "Gerir regiões guardadas…",
+    "Optional region examples": "Exemplos opcionais de regiões",
+    "Choose an example…": "Escolher um exemplo…",
+    "Add to list": "Adicionar à lista"
+  },
+  "pt-BR": {
+    "Quick place groups…": "Grupos de locais rápidos…",
+    "Manage saved regions…": "Gerenciar regiões salvas…",
+    "Optional region examples": "Exemplos opcionais de regiões",
+    "Choose an example…": "Escolher um exemplo…",
+    "Add to list": "Adicionar à lista"
+  },
+  "de": {
+    "Quick place groups…": "Ortsgruppen schnell wählen…",
+    "Manage saved regions…": "Gespeicherte Regionen verwalten…",
+    "Optional region examples": "Optionale Regionsbeispiele",
+    "Choose an example…": "Beispiel auswählen…",
+    "Add to list": "Zur Liste hinzufügen"
+  },
+  "ru": {
+    "Quick place groups…": "Быстрый выбор групп мест…",
+    "Manage saved regions…": "Управление сохранёнными регионами…",
+    "Optional region examples": "Необязательные примеры регионов",
+    "Choose an example…": "Выберите пример…",
+    "Add to list": "Добавить в список"
+  },
+  "ja": {
+    "Quick place groups…": "地域グループをクイック選択…",
+    "Manage saved regions…": "保存した地域を管理…",
+    "Optional region examples": "任意の地域例",
+    "Choose an example…": "例を選択…",
+    "Add to list": "リストに追加"
+  },
+  "ko": {
+    "Quick place groups…": "지역 그룹 빠른 선택…",
+    "Manage saved regions…": "저장한 지역 관리…",
+    "Optional region examples": "선택 가능한 지역 예시",
+    "Choose an example…": "예시 선택…",
+    "Add to list": "목록에 추가"
+  },
+  "it": {
+    "Quick place groups…": "Selezione rapida di gruppi di luoghi…",
+    "Manage saved regions…": "Gestisci regioni salvate…",
+    "Optional region examples": "Esempi facoltativi di regioni",
+    "Choose an example…": "Scegli un esempio…",
+    "Add to list": "Aggiungi all’elenco"
+  },
+  "nl": {
+    "Quick place groups…": "Snel plaatsgroepen kiezen…",
+    "Manage saved regions…": "Opgeslagen regio’s beheren…",
+    "Optional region examples": "Optionele regiovoorbeelden",
+    "Choose an example…": "Kies een voorbeeld…",
+    "Add to list": "Aan lijst toevoegen"
+  },
+  "pl": {
+    "Quick place groups…": "Szybki wybór grup miejsc…",
+    "Manage saved regions…": "Zarządzaj zapisanymi regionami…",
+    "Optional region examples": "Opcjonalne przykłady regionów",
+    "Choose an example…": "Wybierz przykład…",
+    "Add to list": "Dodaj do listy"
+  },
+  "uk": {
+    "Quick place groups…": "Швидкий вибір груп місць…",
+    "Manage saved regions…": "Керування збереженими регіонами…",
+    "Optional region examples": "Необов’язкові приклади регіонів",
+    "Choose an example…": "Виберіть приклад…",
+    "Add to list": "Додати до списку"
+  },
+  "cs": {
+    "Quick place groups…": "Rychlý výběr skupin míst…",
+    "Manage saved regions…": "Spravovat uložené oblasti…",
+    "Optional region examples": "Volitelné příklady oblastí",
+    "Choose an example…": "Vyberte příklad…",
+    "Add to list": "Přidat do seznamu"
+  },
+  "sv": {
+    "Quick place groups…": "Välj platsgrupper snabbt…",
+    "Manage saved regions…": "Hantera sparade regioner…",
+    "Optional region examples": "Valfria regionexempel",
+    "Choose an example…": "Välj ett exempel…",
+    "Add to list": "Lägg till i listan"
+  },
+  "da": {
+    "Quick place groups…": "Vælg stedgrupper hurtigt…",
+    "Manage saved regions…": "Administrer gemte regioner…",
+    "Optional region examples": "Valgfrie regioneksempler",
+    "Choose an example…": "Vælg et eksempel…",
+    "Add to list": "Føj til listen"
+  },
+  "nb": {
+    "Quick place groups…": "Velg stedsgrupper raskt…",
+    "Manage saved regions…": "Administrer lagrede regioner…",
+    "Optional region examples": "Valgfrie regioneksempler",
+    "Choose an example…": "Velg et eksempel…",
+    "Add to list": "Legg til i listen"
+  },
+  "fi": {
+    "Quick place groups…": "Valitse paikkaryhmät nopeasti…",
+    "Manage saved regions…": "Hallinnoi tallennettuja alueita…",
+    "Optional region examples": "Valinnaiset alue-esimerkit",
+    "Choose an example…": "Valitse esimerkki…",
+    "Add to list": "Lisää luetteloon"
+  },
+  "tr": {
+    "Quick place groups…": "Yer gruplarını hızlı seç…",
+    "Manage saved regions…": "Kayıtlı bölgeleri yönet…",
+    "Optional region examples": "İsteğe bağlı bölge örnekleri",
+    "Choose an example…": "Bir örnek seç…",
+    "Add to list": "Listeye ekle"
+  },
+  "ar": {
+    "Quick place groups…": "اختيار سريع لمجموعات الأماكن…",
+    "Manage saved regions…": "إدارة المناطق المحفوظة…",
+    "Optional region examples": "أمثلة اختيارية للمناطق",
+    "Choose an example…": "اختر مثالًا…",
+    "Add to list": "إضافة إلى القائمة"
+  },
+  "he": {
+    "Quick place groups…": "בחירה מהירה של קבוצות מקומות…",
+    "Manage saved regions…": "ניהול אזורים שמורים…",
+    "Optional region examples": "דוגמאות אזורים לבחירה",
+    "Choose an example…": "בחירת דוגמה…",
+    "Add to list": "הוספה לרשימה"
+  },
+  "id": {
+    "Quick place groups…": "Pilih grup tempat dengan cepat…",
+    "Manage saved regions…": "Kelola wilayah tersimpan…",
+    "Optional region examples": "Contoh wilayah opsional",
+    "Choose an example…": "Pilih contoh…",
+    "Add to list": "Tambahkan ke daftar"
+  },
+  "ms": {
+    "Quick place groups…": "Pilih kumpulan tempat dengan cepat…",
+    "Manage saved regions…": "Urus kawasan disimpan…",
+    "Optional region examples": "Contoh kawasan pilihan",
+    "Choose an example…": "Pilih contoh…",
+    "Add to list": "Tambah ke senarai"
+  },
+  "vi": {
+    "Quick place groups…": "Chọn nhanh nhóm địa điểm…",
+    "Manage saved regions…": "Quản lý khu vực đã lưu…",
+    "Optional region examples": "Ví dụ khu vực tùy chọn",
+    "Choose an example…": "Chọn ví dụ…",
+    "Add to list": "Thêm vào danh sách"
+  },
+  "th": {
+    "Quick place groups…": "เลือกกลุ่มสถานที่อย่างรวดเร็ว…",
+    "Manage saved regions…": "จัดการภูมิภาคที่บันทึกไว้…",
+    "Optional region examples": "ตัวอย่างภูมิภาคที่เลือกใช้ได้",
+    "Choose an example…": "เลือกตัวอย่าง…",
+    "Add to list": "เพิ่มในรายการ"
+  },
+  "hi": {
+    "Quick place groups…": "स्थान समूह तुरंत चुनें…",
+    "Manage saved regions…": "सहेजे गए क्षेत्र प्रबंधित करें…",
+    "Optional region examples": "वैकल्पिक क्षेत्र उदाहरण",
+    "Choose an example…": "एक उदाहरण चुनें…",
+    "Add to list": "सूची में जोड़ें"
+  },
+  "fa": {
+    "Quick place groups…": "انتخاب سریع گروه‌های مکان…",
+    "Manage saved regions…": "مدیریت منطقه‌های ذخیره‌شده…",
+    "Optional region examples": "نمونه‌های اختیاری منطقه‌ها",
+    "Choose an example…": "انتخاب یک نمونه…",
+    "Add to list": "افزودن به فهرست"
+  },
+  "ro": {
+    "Quick place groups…": "Selectare rapidă a grupurilor de locuri…",
+    "Manage saved regions…": "Gestionează regiunile salvate…",
+    "Optional region examples": "Exemple opționale de regiuni",
+    "Choose an example…": "Alege un exemplu…",
+    "Add to list": "Adaugă în listă"
+  },
+  "hu": {
+    "Quick place groups…": "Helycsoportok gyors kiválasztása…",
+    "Manage saved regions…": "Mentett régiók kezelése…",
+    "Optional region examples": "Választható régiópéldák",
+    "Choose an example…": "Példa kiválasztása…",
+    "Add to list": "Hozzáadás a listához"
+  },
+  "el": {
+    "Quick place groups…": "Γρήγορη επιλογή ομάδων τόπων…",
+    "Manage saved regions…": "Διαχείριση αποθηκευμένων περιοχών…",
+    "Optional region examples": "Προαιρετικά παραδείγματα περιοχών",
+    "Choose an example…": "Επιλέξτε παράδειγμα…",
+    "Add to list": "Προσθήκη στη λίστα"
+  },
+  "sk": {
+    "Quick place groups…": "Rýchly výber skupín miest…",
+    "Manage saved regions…": "Spravovať uložené oblasti…",
+    "Optional region examples": "Voliteľné príklady oblastí",
+    "Choose an example…": "Vyberte príklad…",
+    "Add to list": "Pridať do zoznamu"
+  },
+  "bg": {
+    "Quick place groups…": "Бърз избор на групи места…",
+    "Manage saved regions…": "Управление на запазени региони…",
+    "Optional region examples": "Незадължителни примери за региони",
+    "Choose an example…": "Изберете пример…",
+    "Add to list": "Добавяне към списъка"
+  },
+  "hr": {
+    "Quick place groups…": "Brzi odabir grupa mjesta…",
+    "Manage saved regions…": "Upravljanje spremljenim regijama…",
+    "Optional region examples": "Neobavezni primjeri regija",
+    "Choose an example…": "Odaberite primjer…",
+    "Add to list": "Dodaj na popis"
+  },
+  "sr": {
+    "Quick place groups…": "Брзи избор група места…",
+    "Manage saved regions…": "Управљање сачуваним регионима…",
+    "Optional region examples": "Необавезни примери региона",
+    "Choose an example…": "Изаберите пример…",
+    "Add to list": "Додај на листу"
+  },
+  "sl": {
+    "Quick place groups…": "Hitra izbira skupin krajev…",
+    "Manage saved regions…": "Upravljanje shranjenih regij…",
+    "Optional region examples": "Izbirni primeri regij",
+    "Choose an example…": "Izberite primer…",
+    "Add to list": "Dodaj na seznam"
+  },
+  "ca": {
+    "Quick place groups…": "Selecció ràpida de grups de llocs…",
+    "Manage saved regions…": "Gestiona les regions desades…",
+    "Optional region examples": "Exemples opcionals de regions",
+    "Choose an example…": "Tria un exemple…",
+    "Add to list": "Afegeix a la llista"
+  },
+  "et": {
+    "Quick place groups…": "Koharühmade kiire valik…",
+    "Manage saved regions…": "Halda salvestatud piirkondi…",
+    "Optional region examples": "Valikulised piirkonnanäited",
+    "Choose an example…": "Vali näide…",
+    "Add to list": "Lisa loendisse"
+  },
+  "lt": {
+    "Quick place groups…": "Greitas vietų grupių pasirinkimas…",
+    "Manage saved regions…": "Tvarkyti išsaugotus regionus…",
+    "Optional region examples": "Pasirenkami regionų pavyzdžiai",
+    "Choose an example…": "Pasirinkite pavyzdį…",
+    "Add to list": "Pridėti į sąrašą"
+  },
+  "lv": {
+    "Quick place groups…": "Ātra vietu grupu atlase…",
+    "Manage saved regions…": "Pārvaldīt saglabātos reģionus…",
+    "Optional region examples": "Izvēles reģionu piemēri",
+    "Choose an example…": "Izvēlieties piemēru…",
+    "Add to list": "Pievienot sarakstam"
+  }
+}

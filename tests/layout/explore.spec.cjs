@@ -6,12 +6,13 @@ const html=`<!doctype html><meta charset="utf-8"><style>body{margin:0;font:14px 
 async function prepare(page, language='') {
  await page.route('https://www.inaturalist.org/**',route=>route.fulfill({contentType:'text/html',body:html.replace('<!doctype html>', `<!doctype html><html lang="${language}">`)}));
  await page.addInitScript(()=>{
+  const storageListeners=new Set();
   const area=(name,defaults={})=>({
    get:async keys=>{const data=JSON.parse(localStorage.getItem(name)||JSON.stringify(defaults));return keys==null?data:Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,data[k]]));},
-   set:async value=>localStorage.setItem(name,JSON.stringify({...JSON.parse(localStorage.getItem(name)||'{}'),...value})),
+   set:async value=>{const previous=JSON.parse(localStorage.getItem(name)||'{}');localStorage.setItem(name,JSON.stringify({...previous,...value}));const changes=Object.fromEntries(Object.entries(value).map(([key,newValue])=>[key,{oldValue:previous[key],newValue}]));storageListeners.forEach(listener=>listener(changes,name));},
    remove:async keys=>{const data=JSON.parse(localStorage.getItem(name)||'{}');for(const key of keys)delete data[key];localStorage.setItem(name,JSON.stringify(data));}
   });
-  let listener;const api={runtime:{id:'test-extension',onMessage:{addListener:f=>listener=f},sendMessage:message=>new Promise(resolve=>listener(message,{id:'test-extension'},resolve)),openOptionsPage:async()=>{}},action:{onClicked:{addListener:()=>{}}},storage:{local:area('local'),session:area('session'),sync:area('sync',{savedUsernames:['observer'],savedTaxa:[{id:3,name:'鳥綱'},{id:48460,name:'全部生物'}]}),onChanged:{addListener:()=>{}}}};
+  let listener;const api={runtime:{id:'test-extension',onMessage:{addListener:f=>listener=f},sendMessage:message=>new Promise(resolve=>listener(message,{id:'test-extension'},resolve)),openOptionsPage:async()=>{window.optionsOpened=(window.optionsOpened||0)+1;}},action:{onClicked:{addListener:()=>{}}},storage:{local:area('local'),session:area('session'),sync:area('sync',{savedUsernames:['observer'],savedTaxa:[{id:3,name:'鳥綱'},{id:48460,name:'全部生物'}]}),onChanged:{addListener:f=>storageListeners.add(f),removeListener:f=>storageListeners.delete(f)}}};
   window.chrome=api;window.browser=api;window.importScripts=()=>{};window.testRequests=[];
   const tree=ids=>({size:ids.length+1,results:[{id:3,parent_id:null,name:'Aves',rank:'class',rank_level:50,direct_obs_count:0,descendant_obs_count:ids.length},...ids.map(id=>({id,parent_id:3,name:'Order '+id,rank:'order',rank_level:40,direct_obs_count:1,descendant_obs_count:1}))]});
   window.fetch=async url=>{
@@ -46,7 +47,7 @@ async function inject(page,testInfo,personal=false,localize=false) {
  // this offline fake API. The real transport is tested separately.
  await page.evaluate(()=>{window.QGInatHigherTaxaService.createTransport=()=>async url=>{const r=await fetch(url);if(!r.ok)throw new Error('API '+r.status);return r.json()}});
  await page.addScriptTag({path:path.join(directory,'background.js')});
- for(const file of personal?['taxon-status.js']:['url-filters.js','saved-users.js','saved-taxa.js','higher-taxa-panel.js'])await page.addScriptTag({path:path.join(directory,file)});
+ for(const file of personal?['taxon-status.js']:['url-filters.js','saved-users.js','saved-taxa.js','quick-places.js','higher-taxa-panel.js'])await page.addScriptTag({path:path.join(directory,file)});
 }
 async function open(page,testInfo,url='https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301') {
  await prepare(page);await page.goto(url);await inject(page,testInfo);
@@ -73,18 +74,18 @@ test('localized comparison preserves API data, requests names in site language a
  expect(await page.locator('nav').textContent()).toContain('我的觀察');
 });
 
-test('named regions show members and a custom place group survives reload',async({page},testInfo)=>{
+test('only saved regions appear in comparison; known members and custom groups survive reload',async({page},testInfo)=>{
  const panel=await open(page,testInfo);
  await expect(panel.locator('#rank option[value="species"]')).toHaveText('种 · species');
- await panel.locator('#place-choice').selectOption('builtin:mainland-hk-mo');
+ await expect(panel.locator('#place-choice option[value^="builtin:"]')).toHaveCount(0);
+ await panel.locator('#place').fill('6903,7613,10301');
  await expect(panel.locator('#place-members')).toContainText('中國大陸（6903）');
  await expect(panel.locator('#place-members')).toContainText('香港（7613）');
  await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
  await expect(panel.locator('#place-members')).not.toContainText('臺灣');
- await panel.locator('#place-choice').selectOption('builtin:south');
+ await panel.locator('#place').fill('53101,66994,7825,7613,10301');
  await expect(panel.locator('#place-members')).toContainText('香港（7613）');await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
- await panel.locator('#place-choice').selectOption('builtin:east');await expect(panel.locator('#place-members')).not.toContainText('臺灣');
- await panel.locator('#place-choice').selectOption('builtin:all');await expect(panel.locator('#place-choice')).toHaveValue('builtin:all');
+ await panel.locator('#place').fill('6904,7285,53098,65973,54517,57829,13358');await expect(panel.locator('#place-members')).not.toContainText('臺灣');
  await panel.getByText('查詢收藏與自訂地點組合',{exact:true}).click();
  await panel.locator('#place').fill('7613,10301');await panel.locator('#place-name').fill('我的兩地');await panel.locator('#save-place').click();
  await expect(panel.locator('#status')).toContainText('已保存自訂');
@@ -234,16 +235,145 @@ test('settings and comparison share region groups, preserve searches and reject 
  for(const file of ['saved-users.js','saved-taxa.js'])await page.addScriptTag({path:path.join(directory,'scripts',file)});
  await page.addScriptTag({path:path.join(directory,'options/options.js')});
  await expect(page.locator('#places')).toHaveValue('7613,10301 = My region');
- await page.locator('#places').fill('10301,7613 = Renamed\n6903 = My mainland');await page.locator('#places-form button').click();
+ await page.locator('#places').fill('10301,7613 = Renamed\n6903 = My mainland');await page.locator('#places-form button[type="submit"]').click();
  await expect(page.locator('#places-status')).toHaveText('Saved 2 region groups.');
  const saved=await page.evaluate(async()=> (await chrome.storage.local.get('leafwiseExploreLibraryV1')).leafwiseExploreLibraryV1);
  expect(saved.groups[0].id).toBe('p1');expect(saved.queries).toEqual([{id:'q1',name:'Saved query'}]);
  await page.evaluate(async()=>{const key='leafwiseExploreLibraryV1';const data=(await chrome.storage.local.get(key))[key];data.groups[0].name='Other page';await chrome.storage.local.set({[key]:data});});
- await page.locator('#places').fill('6903 = Old form');await page.locator('#places-form button').click();
+ await page.locator('#places').fill('6903 = Old form');await page.locator('#places-form button[type="submit"]').click();
  await expect(page.locator('#places-status')).toContainText('another page');
  await page.screenshot({path:info.outputPath('saved-regions-settings.png'),fullPage:true});
  await page.goto('https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301');await inject(page,info);
  await page.locator('#qg-inat-higher-taxa-trigger button').click();const panel=page.locator('#qg-inat-higher-taxa');
  await expect(panel.locator('#place-choice option')).toContainText(['Other page','My mainland']);
  await panel.locator('#place-choice').selectOption('p1');await expect(panel.locator('#place')).toHaveValue('7613,10301');
+});
+
+test('outer quick selector applies saved regions without opening comparison and keeps other filters',async({page},info)=>{
+ await prepare(page,'en');
+ const initial='https://www.inaturalist.org/observations?user_id=observer&unobserved_by_user_id=other&taxon_id=3&month=9&project_id=12&quality_grade=research&place_id=10301&swlat=1&swlng=2&nelat=3&nelng=4&lat=5&lng=6&radius=7&page=4&leafwise_query=missing#map';
+ await page.goto(initial);await inject(page,info,false,true);
+ const quick=page.locator('#leafwise-quick-places');
+ await expect(quick.locator('select option[value^="builtin:"]')).toHaveCount(0);
+ await expect(page.locator('#qg-inat-higher-taxa')).toBeHidden();
+ expect(page.url()).toBe(initial);
+ await quick.locator('select').selectOption('settings');
+ await expect.poll(()=>page.evaluate(()=>optionsOpened)).toBe(1);expect(page.url()).toBe(initial);
+ await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p1',name:'Two regions',place:'7613,10301'}]}}));
+ await expect(quick.locator('select option[value="p1"]')).toHaveText('Two regions');expect(page.url()).toBe(initial);
+ await quick.locator('select').selectOption('p1');
+ await expect(page).toHaveURL(/place_id=7613%2C10301/);
+ const url=new URL(page.url());
+ for(const key of ['swlat','swlng','nelat','nelng','lat','lng','radius','page','leafwise_query'])expect(url.searchParams.has(key)).toBe(false);
+ for(const key of ['user_id','unobserved_by_user_id','taxon_id','month','project_id','quality_grade'])expect(url.searchParams.get(key)).toBe(new URL(initial).searchParams.get(key));
+ expect(url.hash).toBe('#map');
+ await inject(page,info,false,true);await expect(quick.locator('select')).toHaveValue('p1');
+ await expect(page.locator('#qg-inat-higher-taxa')).toBeHidden();
+ await quick.locator('select').selectOption('any');await expect(page).toHaveURL(/place_id=any/);
+ await inject(page,info,false,true);await expect(quick.locator('select')).toHaveValue('any');
+});
+
+test('quick regions coexist with user controls, follow native removal and remount without duplicates',async({page},info)=>{
+ await prepare(page,'en');await page.goto('https://www.inaturalist.org/observations?place_id=7613,10301');
+ await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p1',name:'My regions',place:'7613,10301'}]}}));
+ await inject(page,info,false,true);
+ const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0],'scripts');
+ await page.addScriptTag({path:path.join(directory,'content.js')});
+ await page.addScriptTag({path:path.join(directory,'quick-places.js')});
+ const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('select')).toHaveValue('p1');
+ await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(1);
+ await expect(page.locator('#filters h1 #qg-inat-higher-taxa-trigger')).toHaveCount(1);
+ await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=3'));
+ await expect(quick.locator('select')).toHaveValue('any');
+ await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p2',name:'A different group',place:'6803'}]}}));
+ await expect(quick.locator('select option[value="p1"]')).toHaveCount(0);
+ await expect(quick.locator('select option[value="p2"]')).toHaveText('A different group');
+ expect(new URL(page.url()).searchParams.has('place_id')).toBe(false);
+ await page.evaluate(()=>{document.querySelector('#filters h1').replaceWith(Object.assign(document.createElement('h1'),{textContent:'Observations'}));});
+ await expect(page.locator('#filters h1 #leafwise-quick-places')).toHaveCount(1);
+ await expect(page.locator('#qg-inat-higher-taxa-trigger')).toHaveCount(1);
+ await page.evaluate(()=>history.replaceState({},'', '/observations/123'));
+ await expect(quick).toBeHidden();
+ await page.evaluate(()=>history.replaceState({},'', '/observations?place_id=6803'));
+ await expect(quick).toBeVisible();await expect(quick.locator('select')).toHaveValue('p2');
+ await page.setViewportSize({width:375,height:720});
+ const box=await quick.boundingBox();expect(box.x+box.width).toBeLessThanOrEqual(375);
+ await page.screenshot({path:info.outputPath('quick-regions-mobile.png'),fullPage:true});
+});
+
+test('optional region examples never seed settings, append without duplicates and save only on request',async({page},info)=>{
+ const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0]);
+ const settings=(await fs.readFile(path.join(directory,'options/options.html'),'utf8')).replace(/<script[^>]*><\/script>/g,'').replace('lang="zh-CN"','lang="en"');
+ await prepare(page,'en');await page.route('https://www.inaturalist.org/options-fixture',r=>r.fulfill({contentType:'text/html',body:settings}));
+ async function settingsPage(){
+  await page.goto('https://www.inaturalist.org/options-fixture');
+  await page.evaluate(()=>chrome.storage.local.set({leafwiseLastSiteLocale:'en'}));
+  await inject(page,info,true,true);
+  for(const file of ['saved-users.js','saved-taxa.js'])await page.addScriptTag({path:path.join(directory,'scripts',file)});
+  await page.addStyleTag({path:path.join(directory,'options/options.css')});
+  await page.addScriptTag({path:path.join(directory,'options/options.js')});
+  await expect(page.locator('#places')).toBeEnabled();
+ }
+ await settingsPage();await expect(page.locator('#places')).toHaveValue('');
+ await expect(page.locator('#place-examples')).not.toHaveAttribute('open','');
+ await page.locator('#place-examples summary').click();
+ await expect(page.locator('#place-example option')).toHaveCount(15);
+ await page.locator('#places').fill('6744,6803 = My Australia and NZ');
+ await page.locator('#place-example').selectOption('builtin:mainland-hk-mo');await page.locator('#add-place-example').click();
+ await expect(page.locator('#places')).toHaveValue('6744,6803 = My Australia and NZ\n6903,7613,10301 = Mainland China + Hong Kong + Macao');
+ await page.locator('#add-place-example').click();
+ expect((await page.locator('#places').inputValue()).split('\n')).toHaveLength(2);
+ expect(await page.evaluate(async()=>(await chrome.storage.local.get('leafwiseExploreLibraryV1')).leafwiseExploreLibraryV1)).toBeUndefined();
+ await settingsPage();await expect(page.locator('#places')).toHaveValue('');
+ await page.locator('#place-examples summary').click();await page.locator('#place-example').selectOption('builtin:mainland-hk-mo');
+ await page.locator('#add-place-example').click();await page.locator('#places-form button[type="submit"]').click();
+ await expect(page.locator('#places-status')).toHaveText('Saved 1 region groups.');
+ await page.screenshot({path:info.outputPath('optional-region-examples.png'),fullPage:true});
+ await page.goto('https://www.inaturalist.org/observations?taxon_id=3');await inject(page,info,false,true);
+ const quick=page.locator('#leafwise-quick-places');
+ await expect(quick.locator('select option').filter({hasText:'Mainland China + Hong Kong + Macao'})).toHaveCount(1);
+ await expect(quick.locator('select')).toHaveValue('any');expect(new URL(page.url()).searchParams.has('place_id')).toBe(false);
+ await page.locator('#qg-inat-higher-taxa-trigger button').click();
+ const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#place')).toHaveValue('');
+ await expect(panel.locator('#place')).toHaveAttribute('placeholder','any');
+ await expect(panel.locator('#place-choice option')).toHaveCount(3);
+});
+
+test('quick selector ignores a stale library reply and repeated injection before the heading appears',async({page},info)=>{
+ await prepare(page);await page.goto('https://www.inaturalist.org/observations');
+ const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0],'scripts');
+ await page.evaluate(()=>{
+  document.querySelector('#filters').remove();
+  chrome.runtime.sendMessage=()=>new Promise(resolve=>window.releaseLibrary=resolve);
+ });
+ for(const file of ['url-filters.js','higher-taxa-core.js','explore-tools.js','quick-places.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
+ await page.evaluate(async()=>{
+  await chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'new',name:'Newest',place:'6803'}]}});
+  releaseLibrary({ok:true,library:{queries:[],groups:[{id:'old',name:'Stale',place:'7613'}]}});
+  const filters=document.createElement('div');filters.id='filters';filters.innerHTML='<h1>Observations</h1>';document.body.prepend(filters);
+ });
+ const quick=page.locator('#leafwise-quick-places');await expect(quick).toHaveCount(1);
+ await expect(quick.locator('select option[value="new"]')).toHaveText('Newest');
+ await expect(quick.locator('select option[value="old"]')).toHaveCount(0);
+ await page.evaluate(()=>{
+  dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));
+  chrome.runtime.sendMessage=async()=>({ok:true,library:{queries:[],groups:[{id:'back',name:'Changed while away',place:'6744'}]}});
+  dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
+ });
+ await expect(quick.locator('select option[value="back"]')).toHaveText('Changed while away');
+ await expect(quick.locator('select option[value="new"]')).toHaveCount(0);
+});
+
+test('unavailable region library preserves filters and recovers from a later settings update',async({page},info)=>{
+ await prepare(page,'en');const initial='https://www.inaturalist.org/observations?place_id=10301&month=9';
+ await page.goto(initial);
+ const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0],'scripts');
+ await page.evaluate(()=>{chrome.runtime.sendMessage=async()=>{throw new Error('Unavailable');};});
+ for(const file of ['i18n-catalog.js','i18n.js','url-filters.js','higher-taxa-core.js','explore-tools.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
+ const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('.status')).toHaveText('Unavailable');
+ await expect(quick.locator('option[value="settings"]')).toHaveText('Manage saved regions…');
+ expect(page.url()).toBe(initial);
+ await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p1',name:'Recovered',place:'10301'}]}}));
+ await expect(quick.locator('.status')).toHaveText('');await expect(quick.locator('select')).toHaveValue('p1');
+ expect(page.url()).toBe(initial);
 });

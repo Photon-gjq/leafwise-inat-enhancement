@@ -23,7 +23,7 @@ export function translations(root) {
     else if (code.includes('-') && Object.hasOwn(names, code.split('-')[0])) locales[code] = {};
     else throw new Error(`Missing translation catalog: ${code}`);
   }
-  for (const file of ['place-settings.json', 'notification-filter.json']) {
+  for (const file of ['place-settings.json', 'quick-places.json', 'notification-filter.json']) {
     for (const [code, catalog] of Object.entries(read(file))) {
       if (!Object.hasOwn(locales, code)) throw new Error(`Unsupported ${file} locale: ${code}`);
       Object.assign(locales[code], catalog);

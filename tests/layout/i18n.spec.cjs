@@ -7,6 +7,30 @@ async function inject(page, info, names) {
 }
 const helpers = ['i18n-catalog.js', 'i18n.js'];
 
+test('all 50 locales translate quick region controls without altering custom names', async ({page}, info) => {
+  test.setTimeout(120000);
+  const names = require('../../src/i18n/locales.json');
+  let lang='en';
+  await page.route('https://www.inaturalist.org/**', route => route.fulfill({contentType:'text/html',body:
+    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><div id="filters"><h1>Native</h1></div></body></html>`}));
+  for(const code of Object.keys(names)){
+    lang=code;await page.goto('https://www.inaturalist.org/observations?place_id=6803');
+    await page.evaluate(()=>{
+      const api={runtime:{sendMessage:async()=>({ok:true,library:{groups:[{id:'p1',name:'我的自訂地區',place:'6803'}]}})},storage:{onChanged:{addListener:()=>{}}}};
+      window.chrome=api;window.browser=api;
+    });
+    await inject(page,info,[...helpers,'url-filters.js','higher-taxa-core.js','explore-tools.js','quick-places.js']);
+    const quick=page.locator('#leafwise-quick-places');
+    const labels=await page.evaluate(()=>({label:LeafwiseI18n.t('快速選擇地點組合…'),manage:LeafwiseI18n.t('管理常用地區…')}));
+    await expect(quick.locator('select')).toHaveAttribute('aria-label',labels.label);
+    await expect(quick.locator('option[value="settings"]')).toHaveText(labels.manage);
+    await expect(quick.locator('select')).toHaveValue('p1');
+    await expect(quick.locator('option[value="p1"]')).toHaveText('我的自訂地區');
+    await expect(quick).toHaveAttribute('dir',['ar','he','fa'].includes(code)?'rtl':'ltr');
+    await expect(page.locator('#filters h1')).toContainText('Native');
+  }
+});
+
 test('all 50 locales render the translated notification action and keep native content intact', async ({ page }, info) => {
   test.setTimeout(120000);
   const names = require('../../src/i18n/locales.json');

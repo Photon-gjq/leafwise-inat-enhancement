@@ -8,6 +8,11 @@ label { display: block; font-weight: 600; margin-bottom: 8px; }
 textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #879a80; border-radius: 5px; font: inherit; resize: vertical; }
 button { background: #446d26; color: white; border: 0; border-radius: 5px; padding: 9px 24px; font: inherit; cursor: pointer; }
 button:disabled { opacity: .5; }
+details { margin: 16px 0; padding: 12px; border: 1px solid #dce4d6; border-radius: 5px; }
+summary { cursor: pointer; font-weight: 600; }
+.example-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+select { box-sizing: border-box; min-width: 0; max-width: 100%; flex: 1 1 220px; padding: 9px; border: 1px solid #879a80; border-radius: 5px; background: white; color: inherit; font: inherit; }
+#place-example-members { overflow-wrap: anywhere; font-size: 14px; }
 p { color: #53604f; }
 .status { min-height: 1.6em; font-weight: 600; }
 :focus-visible { outline: 3px solid #86b74e; outline-offset: 2px; }

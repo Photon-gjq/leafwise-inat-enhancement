@@ -1,7 +1,7 @@
 (function (root) {
   "use strict";
   // Official place IDs checked against /v1/places on 2026-09-10.
-  // Display labels and regional groupings are user-selected conveniences.
+  // Optional settings examples only: never seed the user's saved library.
   const places = { 6903:"中國大陸", 7613:"香港", 10301:"澳門", 7887:"臺灣",
     6907:"北京",12698:"天津",13350:"河北",12697:"山西",6910:"內蒙古",
     13355:"遼寧",13354:"吉林",8949:"黑龍江",6904:"上海",7285:"江蘇",53098:"浙江",
@@ -33,6 +33,15 @@
     url.searchParams.delete("leafwise_query");
     return url.href;
   }
+  function placeSearchURL(href, place, core) {
+    const url = new URL(searchURL(href));
+    const ids = core.placeIDs(place);
+    url.searchParams.set("place_id", ids.length ? ids.join(",") : "any");
+    // Replace the positive geographic scope, not unrelated/exclusion filters.
+    // A saved-query pointer would restore its old comparison region on reload.
+    for (const key of ["swlat", "swlng", "nelat", "nelng", "lat", "lng", "radius", "page"]) url.searchParams.delete(key);
+    return url.href;
+  }
   function title(value) {
     const name = String(value ?? "").trim();
     if (!name || name.length > 80) throw new Error("名稱請填 1–80 個字。");
@@ -54,7 +63,15 @@
     });
   }
   function formatPlaceGroups(items) {
-    return items.map(item => `${item.place} = ${item.name.replace(/[\r\n]+/g, " ")}`).join("\n");
+    return items.map(item => item.name ? `${item.place} = ${item.name.replace(/[\r\n]+/g, " ")}` : item.place).join("\n");
+  }
+  function appendPlaceGroup(text, example, core) {
+    const items = parsePlaceGroups(text, core);
+    const [item] = parsePlaceGroups(formatPlaceGroups([example]), core);
+    if (items.some(existing => existing.place === item.place)) return text;
+    if (items.length >= 50) throw new Error("最多保存 50 项地区组合。");
+    // Only edit the draft. Keep existing names, order and whitespace verbatim.
+    return `${String(text).trimEnd()}${String(text).trim() ? "\n" : ""}${formatPlaceGroups([item])}`;
   }
   function replacePlaceGroups(library, entry, core, makeID) {
     const current = Array.isArray(library?.groups) ? library.groups : [];
@@ -104,6 +121,6 @@
       place:typeof item.place_guess==="string"?item.place_guess:"地點未公開或未提供",
       url:`https://www.inaturalist.org/observations/${item.id}` };
   }
-  const api={places,groups,placeLabel,searchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,replacePlaceGroups,exportTable,observationSummary};
+  const api={places,groups,placeLabel,searchURL,placeSearchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,appendPlaceGroup,replacePlaceGroups,exportTable,observationSummary};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.LeafwiseExploreTools=api;
 })(globalThis);

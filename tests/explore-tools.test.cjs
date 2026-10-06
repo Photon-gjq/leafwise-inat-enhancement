@@ -58,6 +58,31 @@ test('query and place collections round-trip full URLs and settings; updates and
  assert.throws(()=>tools.editLibrary({},'save-query',{name:'',url,options},core,'q1'));
 });
 
+test('quick region URLs replace geographic scope only, reject unsafe input and never restore a saved query',()=>{
+ const href='https://www.inaturalist.org/observations/?user_id=observer&unobserved_by_user_id=other&taxon_id=3&month=9&quality_grade=research&project_id=123&view=species&preferred_place_id=1&not_in_place=14&swlat=1&swlng=2&nelat=3&nelng=4&lat=5&lng=6&radius=10&page=9&per_page=50&leafwise_query=q1#map';
+ const url=new URL(tools.placeSearchURL(href,'10301,7613,7613',core));
+ assert.equal(url.searchParams.get('place_id'),'7613,10301');assert.equal(url.hash,'#map');
+ for(const key of ['swlat','swlng','nelat','nelng','lat','lng','radius','page','leafwise_query'])assert.equal(url.searchParams.has(key),false,key);
+ const before=new URL(href);for(const key of ['user_id','unobserved_by_user_id','taxon_id','month','quality_grade','project_id','view','preferred_place_id','not_in_place','per_page'])assert.equal(url.searchParams.get(key),before.searchParams.get(key),key);
+ assert.equal(new URL(tools.placeSearchURL(url.href,'any',core)).searchParams.get('place_id'),'any');
+ for(const bad of ['',undefined,'0','1e3','6903,',Array.from({length:21},(_,i)=>i+1).join(',')])assert.throws(()=>tools.placeSearchURL(href,bad,core));
+ for(const bad of ['https://example.com/observations','https://user@www.inaturalist.org/observations','https://www.inaturalist.org/observations/123','http://www.inaturalist.org/observations'])assert.throws(()=>tools.placeSearchURL(bad,'any',core));
+});
+
+test('optional examples append to drafts only and keep duplicate names, order and whitespace intact',()=>{
+ const example=tools.groups.find(group=>group.id==='builtin:mainland-hk-mo');
+ assert.equal(tools.appendPlaceGroup('',example,core),'6903,7613,10301 = 中國大陸+港澳');
+ const duplicate=' 10301，7613,6903 = My own name\n';
+ assert.equal(tools.appendPlaceGroup(duplicate,example,core),duplicate);
+ const draft='7613 = Mine\n6803\n';const snapshot=JSON.stringify(example);
+ assert.equal(tools.appendPlaceGroup(draft,example,core),'7613 = Mine\n6803\n6903,7613,10301 = 中國大陸+港澳');
+ assert.equal(JSON.stringify(example),snapshot);
+ assert.throws(()=>tools.appendPlaceGroup('bad',example,core));
+ const full=Array.from({length:50},(_,i)=>`${i+1} = Group`).join('\n');
+ assert.throws(()=>tools.appendPlaceGroup(full,example,core),/50/);
+ assert.equal(tools.appendPlaceGroup(full,{place:'1',name:'Duplicate'},core),full);
+});
+
 test('exports quote names, neutralize formulas, include query metadata and use current leaf values',()=>{
  const rows=[{id:41,name:'=DANGEROUS()',commonName:'測試,"名"\n',rank:'order',count:5,leaves:2}];
  const csv=tools.exportTable(rows,{...base,months:'9'},core);

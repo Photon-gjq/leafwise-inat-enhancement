@@ -46,9 +46,9 @@ Supported ranks are kingdom, phylum, class, order, suborder, superfamily, family
 
 All modes first form a regional candidate list. Month, local date range, project, and regional quality filters restrict that candidate list only. They do not redefine the user's lifetime baseline. Years use the observation date, not the upload date.
 
-### Built-in place groups
+### Optional region examples
 
-Important presets include:
+The original presets are now optional examples in extension settings, not default choices. Select an example, click **Add to list**, optionally edit its IDs/name, then **Save regions**. No groups are added or applied automatically; other regions can be entered directly. Important examples include:
 
 - **中國大陸+港澳** — Mainland China + Hong Kong + Macau (`6903,7613,10301`), excluding Taiwan.
 - **中國大陸+港澳臺** — Mainland China + Hong Kong + Macau + Taiwan (`6903,7613,7887,10301`).
@@ -65,12 +65,14 @@ Changing only the rank reuses the downloaded taxonomy trees. Errors are shown as
 
 ## Saved queries and custom place groups
 
-You can also manage the same custom groups in the extension's settings page under **Saved regions**. Enter one `ID,ID = name` per line, for example `6903,7613,10301 = Mainland China + Hong Kong + Macao`. Names may be omitted. Save an empty list to remove custom groups only; built-in presets and saved searches remain unchanged. If another page edited the groups while settings were open, reopen settings before saving to avoid overwriting its changes.
+The **Quick place groups…** selector beside the observation search heading applies saved groups without opening comparison. It updates the search immediately, preserving user, taxon, date, quality, project and exclusion filters, but replacing place IDs, clearing old bounding-box/radius constraints, resetting pagination, and removing the saved-query restore pointer. **Worldwide** uses `place_id=any`. Selection does not run taxon comparison automatically.
+
+Choose **Manage saved regions…** to open settings. Under **Saved regions**, enter one `ID,ID = name` per line; names may be omitted. The quick selector and comparison share this list. Saving an empty list clears custom groups without deleting saved searches or optional examples. Saving settings does not change an active search. If another page edited the groups while settings were open, reopen settings before saving to avoid overwriting its changes.
 
 Expand **查詢收藏與自訂地點組合** (Saved queries and custom place groups).
 
 - A saved query keeps the complete observations URL and the current valid comparison settings. Loading it restores the page and panel but does not start a comparison automatically.
-- A custom place group accepts up to 20 distinct iNaturalist place IDs. Editing a built-in preset and saving it creates a custom copy; built-in presets are not overwritten.
+- A custom place group accepts up to 20 distinct iNaturalist place IDs. Examples only append to the unsaved settings draft, without duplicates or replacing existing names. With no place condition, comparison uses worldwide, not a default China preset.
 - Saved data stays in the current browser profile. A saved observations URL may contain personal search parameters.
 
 ## Upload AI helper

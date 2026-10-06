@@ -60,6 +60,7 @@
 | src/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
+| src/scripts/quick-places.js | 觀察搜尋頁外層地點組合快捷選單；共用既有地區清單，不自動套用 |
 | src/scripts/notification-tabs.js、notification-filter.js | 全站「新動態」清單去重開啟與可選的精確確認鑑定篩選；純規則與 DOM／非同步處理分離 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
@@ -116,7 +117,7 @@ scripts/build.mjs 會複製 src/，把 package.json 版本和平台 manifest 合
 
 ### 觀察搜尋／探索頁
 
-url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-taxa-core.js → explore-tools.js → higher-taxa-panel.js
+url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-taxa-core.js → explore-tools.js → quick-places.js → higher-taxa-panel.js
 
 ### 分類單元詳情 /taxa/<id>
 
@@ -215,7 +216,9 @@ higher-taxa-service.js（由背景載入）負責 API、快取和節流：
 
 explore-tools.js 管理分區預設、自訂分組、已存查詢和 CSV。查詢 URL 只允許 HTTPS 的 iNaturalist observations URL；收藏各最多 50 筆；CSV 必須正確引用並中和公式注入。
 
-設定頁常用地區與面板共用 `leafwiseExploreLibraryV1.groups`。`parsePlaceGroups` 驗證 `ID,ID = 名稱`、20 個地區／50 組上限及重複聯集；`replacePlaceGroups` 保留相同聯集的既有 ID 及最新 queries，以 `expectedGroups` 快照拒絕舊表單覆蓋其他頁面變更。背景仍以 libraryTask 序列化操作；`leafwise-explore-library` 新增 `replace-places` action，entry 為 `{text, expectedGroups}`。不改 sync 儲存、不修改內建 groups。面板监听 local library 變更，只更新選項，不自動套用篩選。
+設定頁、外層快捷選單與面板共用 `leafwiseExploreLibraryV1.groups`。`parsePlaceGroups` 驗證 `ID,ID = 名稱`、20 個地區／50 組上限及重複聯集；`replacePlaceGroups` 保留相同聯集的既有 ID 及最新 queries，以 `expectedGroups` 快照拒絕舊表單覆蓋其他頁面變更。背景仍以 libraryTask 序列化操作；`leafwise-explore-library` 的 `replace-places` action，entry 為 `{text, expectedGroups}`。不改 sync 儲存。`explore-tools.groups` 只作設定頁可選範例與名稱顯示，不再當成選單預設清單；不播種、不遷移或清空既有自訂組合。`appendPlaceGroup` 只附加草稿且按聯集去重，不改已有名稱或順序；最後須手動保存。面板空地點以 `any`（全球）對比，不回退中國組合；明確點擊範例按鈕仍為手動操作。
+
+`quick-places.js` 僅在 observations 搜尋頁掛載於 `#filters h1`。注入前全域標记防重，即使 heading 尚未出現；掛載不反覆調整兄弟控制項次序，避免與來源摘要／對比觸發器爭位置。local library 變更只刷新選項，不套用篩選；初次讀取的舊回應不得蓋過較新的 storage 事件。明確選取才透過 `placeSearchURL` 導航：驗證當前 HTTPS iNaturalist 搜尋網址及地區 ID，保留非地理和排除條件，改 `place_id`，清除 bbox／半徑、page 及 `leafwise_query`，避免重載後還原舊地點。不改核心分類／統計／AI 邏輯、權限或背景訊息契約。
 
 higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果、逐列 Leaf taxa 驗證、兩個名稱 worker、leafwise_query 還原，以及 DOM 異步重掛載。
 

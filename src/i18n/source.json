@@ -345,5 +345,16 @@
   "正在篩選鑑定…": "Checking identifications…",
   "無法判斷的消息已保留": "Uncertain updates kept",
   "開啟篩選後的觀察（{0}）": "Open filtered observations ({0})",
-  "只隱藏與您此前鑑定完全相同且無文字說明的鑑定；評論及無法判斷的消息保留。": "Hide exact matches without remarks; keep comments and uncertain updates."
+  "只隱藏與您此前鑑定完全相同且無文字說明的鑑定；評論及無法判斷的消息保留。": "Hide exact matches without remarks; keep comments and uncertain updates.",
+  "快速選擇地點組合…": "Quick place groups…",
+  "管理常用地區…": "Manage saved regions…",
+  "可選地區範例": "Optional region examples",
+  "選擇範例…": "Choose an example…",
+  "加入清單": "Add to list",
+  "自选搭配地区 ID，保存后可在观察搜索页直接快捷选择，也可在类群对比中使用。两处共用清单，仅保存在此浏览器。": "Combine place IDs for quick selection on the observation search page and in taxon comparison. Both use the same list, stored only in this browser.",
+  "每行一个组合，格式为“ID,ID = 名称”。名称可以省略；每组最多 20 个地区，最多 50 组。可添加、删除或调整顺序；留空保存可清空清单。地区的数字 ID 可从 iNaturalist 地区页面的网址获取。": "One group per line: ID,ID = name. Names are optional. Maximum 20 places per group and 50 groups. Add, delete or reorder entries; save an empty field to clear the list. Find numeric place IDs in iNaturalist place-page URLs.",
+  "以下是原有的中国及分区组合，仅供选择，不会自动加入或套用。可加入清单后修改名称和 ID，再点击保存；其他地区可直接在上方自行搭配。": "These original China and regional groups are optional examples, never added or applied automatically. Add them to the list, edit names and IDs, then save. Combine any other places directly in the field above.",
+  "先在上方填入 ID，再保存組合；可選地區範例可從插件設定頁加入。": "Enter IDs above and save your group. Optional region examples can be added from extension settings.",
+  "ID,ID = 名称": "ID,ID = name",
+  "已加入清单（相同组合不会重复添加）。请点击保存常用地区。": "Added to the draft (duplicate groups are not added). Click Save regions to keep your changes."
 }

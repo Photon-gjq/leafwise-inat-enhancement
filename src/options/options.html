@@ -33,12 +33,21 @@
     </section>
     <section>
       <h2>常用地区组合</h2>
-      <p>自选搭配地区 ID，保存后可在类群对比面板的地区组合中选择。与面板中的自订组合共用清单，仅保存在此浏览器。</p>
+      <p>自选搭配地区 ID，保存后可在观察搜索页直接快捷选择，也可在类群对比中使用。两处共用清单，仅保存在此浏览器。</p>
       <form id="places-form">
         <label for="places">常用地区 ID 与名称</label>
-        <textarea id="places" name="places" rows="6" placeholder="6903,7613,10301 = 中国大陆+港澳&#10;7613 = 香港" autocomplete="off" spellcheck="false" disabled></textarea>
-        <p>每行一个组合，格式为“ID,ID = 名称”。名称可以省略；每组最多 20 个地区，最多 50 组。可添加、删除或调整顺序，留空保存可清空自订组合，不影响内建组合。</p>
-        <p>常用代码：中国大陆 6903，香港 7613，澳门 10301，台湾 7887。其他地区可从 iNaturalist 地区页面的网址获取数字 ID。</p>
+        <textarea id="places" name="places" rows="6" placeholder="ID,ID = 名称" autocomplete="off" spellcheck="false" disabled></textarea>
+        <p>每行一个组合，格式为“ID,ID = 名称”。名称可以省略；每组最多 20 个地区，最多 50 组。可添加、删除或调整顺序；留空保存可清空清单。地区的数字 ID 可从 iNaturalist 地区页面的网址获取。</p>
+        <details id="place-examples">
+          <summary>可選地區範例</summary>
+          <p>以下是原有的中国及分区组合，仅供选择，不会自动加入或套用。可加入清单后修改名称和 ID，再点击保存；其他地区可直接在上方自行搭配。</p>
+          <label for="place-example">可選地區範例</label>
+          <div class="example-controls">
+            <select id="place-example" disabled></select>
+            <button id="add-place-example" type="button" disabled>加入清單</button>
+          </div>
+          <p id="place-example-members"></p>
+        </details>
         <button type="submit" disabled>保存常用地区</button>
       </form>
       <p id="places-status" class="status" role="status" aria-live="polite"></p>

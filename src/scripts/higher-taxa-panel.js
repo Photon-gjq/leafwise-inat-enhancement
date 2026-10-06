@@ -73,7 +73,7 @@
         <form>
           <div class="fields">
             <label>对比用户<select id="user-choice" aria-label="选择对比用户" disabled></select><input id="user" aria-label="指定其他对比用户" placeholder="用户名或用户 ID" required autocomplete="off" spellcheck="false" hidden><span class="hint">個人基準包含 Casual</span></label>
-            <label>地點組合<select id="place-choice" aria-label="地點組合"></select><input id="place" aria-label="地點 ID" placeholder="6903,7613,7887,10301" maxlength="400" autocomplete="off" spellcheck="false"><span id="place-members" class="hint"></span><span class="hint">多個 ID 用逗號分隔；any＝全球</span></label>
+            <label>地點組合<select id="place-choice" aria-label="地點組合"></select><input id="place" aria-label="地點 ID" placeholder="any" maxlength="400" autocomplete="off" spellcheck="false"><span id="place-members" class="hint"></span><span class="hint">多個 ID 用逗號分隔；any＝全球</span></label>
             <label>类群 ID<select id="taxon-choice" aria-label="选择常用类群" disabled></select><input id="taxon" aria-label="指定其他类群 ID" placeholder="输入类群 ID" inputmode="numeric" pattern="[0-9]+" required hidden><span class="hint">可选择常用类群或输入其他 ID</span></label>
             <label>统计层级<select id="rank"></select><span class="hint">包含该层级下所有后代</span></label>
             <label>当地观察范围<select id="quality"><option value="any">全部（含 Casual）</option><option value="verifiable">可验证观察</option><option value="research">仅 Research Grade</option></select><span class="hint">全部可能包含圈养／栽培记录</span></label>
@@ -92,7 +92,7 @@
           <p class="muted">收藏會保存完整搜尋網址及本面板條件。載入後請按「開始對比」。資料保存在此瀏覽器。</p>
           <div class="actions"><select id="query-choice" aria-label="查詢收藏"></select><input id="query-name" aria-label="查詢收藏名稱" placeholder="收藏名稱" maxlength="80"><button id="save-query" type="button">保存／更新查詢</button><button id="load-query" type="button">載入查詢</button><button id="remove-query" type="button">刪除查詢</button></div>
           <div class="actions"><input id="place-name" aria-label="自訂地點組合名稱" placeholder="自訂地點組合名稱" maxlength="80"><button id="save-place" type="button">保存／更新地點組合</button><button id="remove-place" type="button">刪除自訂組合</button></div>
-          <p class="muted">先在上方選擇組合並修改 ID，再保存；內建組合會另存為自訂組合。</p>
+          <p class="muted">先在上方填入 ID，再保存組合；可選地區範例可從插件設定頁加入。</p>
         </details>
         <div id="status" class="status" role="status" aria-live="polite"></div>
         <div id="results" hidden>
@@ -190,10 +190,10 @@
   function populatePlaces(selected) {
     const select = $("#place-choice");
     select.replaceChildren(new Option(t("自訂 ID…"), ""), new Option(t("全球"), "any"));
-    for (const group of [...tools.groups, ...library.groups]) select.add(new Option(group.id.startsWith("builtin:") ? t(group.name) : group.name, group.id));
+    for (const group of library.groups) select.add(new Option(group.name, group.id));
     let canonical;
     try { canonical = core.placeIDs($("#place").value).join(","); } catch {}
-    const group = [...tools.groups, ...library.groups].find(item => item.place === canonical);
+    const group = library.groups.find(item => item.place === canonical);
     select.value = selected ?? ($("#place").value === "any" ? "any" : group?.id || "");
     $("#place-members").textContent = canonical
       ? String(canonical).split(",").map(id => `${tools.places[id] ? t(tools.places[id]) : t("地點")}（${id}）`).join("、")
@@ -221,7 +221,7 @@
     });
   }
   $("#place-choice").addEventListener("change", () => {
-    const group = [...tools.groups, ...library.groups]
+    const group = library.groups
       .find(item => item.id === $("#place-choice").value);
     if (group) {
       $("#place").value = group.place;

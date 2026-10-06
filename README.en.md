@@ -32,9 +32,9 @@ A GitHub Release updates the downloadable files; it does not automatically repla
 
 - **Taxon comparison:** find branches you have never observed, branches missing from a selected year or place, or first records for a year. Aggregate from kingdom down to species.
 - **Seasonal target lists:** restrict regional candidates by month, date range, project, and quality grade without accidentally narrowing the personal baseline.
-- **Place groups and saved queries:** includes Mainland China + Hong Kong + Macau, Mainland China + Hong Kong + Macau + Taiwan, and several regional presets. Custom unions and complete search URLs can be saved locally.
+- **Quick place groups and saved queries:** choose saved groups directly on the observation search page without opening taxon comparison. Selection updates the search immediately while keeping user, taxon, date and other non-geographic filters. Complete search URLs can also be saved locally.
 - **Personal record cards and taxon statistics:** taxon pages show `(observations|leaf taxa|species)` for the region selected at the top right, or worldwide when no region is selected. First/latest records and browse links use the same scope. Individual observation pages retain global personal counts.
-- **Saved regions in settings:** enter one `ID,ID = name` group per line, with up to 20 places per group and 50 groups. Settings and the comparison panel share the local custom-group list; built-in presets and active filters are unchanged.
+- **Saved regions in settings:** enter one `ID,ID = name` group per line, with up to 20 places per group and 50 groups. The quick selector and comparison share this local list. The original China/regional groups are optional settings examples only: add and save them explicitly, with no prefilled groups or automatic filters. Existing custom groups are preserved.
 - **Filter and batch-open activity:** optionally hide exact confirming identifications without remarks, then open each distinct observation from the visible activity dropdown in one background tab. Only currently loaded updates are processed; uncertain updates remain visible, read state is unchanged, and private messages are not inspected.
 - **Copy and CSV export:** export the complete filtered comparison result with scope metadata and verified leaf-taxon counts.
 - **AI suggestion enhancement:** show iNaturalist's existing `combined_score(vision_score)` beside visual suggestions on upload and observation pages, and optionally apply upload suggestions in batches.
@@ -46,7 +46,7 @@ The extension preserves iNaturalist's suggestion order. It does not rerank candi
 - [English user guide](docs/GUIDE.en.md)
 - [Chinese usage guide](docs/USAGE.md)
 - [Installation and updates](docs/INSTALL.md)
-- [Built-in place groups](docs/REGIONS.md)
+- [Optional region examples](docs/REGIONS.md)
 - [Data and permissions](docs/PRIVACY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)

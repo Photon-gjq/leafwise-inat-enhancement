@@ -9,6 +9,9 @@ const read = file => fs.readFileSync(file, 'utf8');
 const manifest = JSON.parse(read(path.join(extension, 'manifest.json')));
 
 test('built version has one source and all manifest/HTML script references resolve', () => {
+  const search = manifest.content_scripts.find(group => group.js.includes('scripts/quick-places.js')).js;
+  assert.ok(search.indexOf('scripts/quick-places.js') > search.indexOf('scripts/explore-tools.js'));
+  assert.ok(search.indexOf('scripts/quick-places.js') > search.indexOf('scripts/higher-taxa-core.js'));
   assert.equal(manifest.version, JSON.parse(read(path.join(project, 'package.json'))).version);
   assert.equal(manifest.version, JSON.parse(read(path.join(project, 'package-lock.json'))).version);
   assert.equal(JSON.parse(read(path.join(project, 'src/manifest.json'))).version, undefined);

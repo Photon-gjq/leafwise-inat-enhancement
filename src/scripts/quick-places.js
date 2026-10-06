@@ -14,8 +14,16 @@
   const shadow = host.attachShadow({mode:"open"});
   shadow.innerHTML = `<style>
     :host {display:flex;clear:both;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;margin:8px 0 0;color-scheme:light}
-    :host([hidden]) {display:none}
     :host([data-page="identify"]) {margin:-12px 0 20px}
+    :host([data-placement="stats"]) {position:absolute;inset:7px 15px auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:28px 28px;gap:5px 6px;margin:0;pointer-events:none;--leafwise-trigger-background:#484f42;--leafwise-trigger-color:#fff;--leafwise-trigger-border:#afbe97}
+    :host([data-placement="stats"]) slot {display:block;grid-column:1 / -1;justify-self:end;max-width:50%;pointer-events:auto}
+    :host([data-placement="stats"]) select {width:100%;height:28px;pointer-events:auto;background:#484f42;color:#fff;border-color:#afbe97}
+    :host([data-placement="stats"]) option {background:#fff;color:#333}
+    :host([data-placement="stats"]) .status {position:absolute;top:100%;inset-inline-start:0;z-index:5;max-width:100%;white-space:normal;background:#fff;padding:4px;border-radius:4px;pointer-events:auto}
+    :host([data-aligned]) {display:block;position:relative;height:28px}
+    :host([data-aligned]) select {position:absolute;top:0;height:28px;width:var(--field-width);left:var(--field-left)}
+    :host([data-aligned]) .status {position:relative;top:30px}
+    :host([hidden]) {display:none}
     slot {display:contents}
     select {box-sizing:border-box;min-width:0;max-width:100%;width:180px;flex:0 1 180px;padding:3px 9px;border:1px solid #a9b99d;border-radius:6px;background:#f4f7f1;color:#49613d;font:12px/1.4 system-ui,sans-serif;cursor:pointer}
     select:focus-visible {outline:3px solid #83af53;outline-offset:2px}
@@ -27,6 +35,37 @@
   const status = shadow.querySelector("#place-status");
   const taxonSelect = shadow.querySelector("#taxon-choice");
   const taxaStatus = shadow.querySelector("#taxa-status");
+  // Scope the only native style adjustment to the statistics place column.
+  // Keep its Angular spans/clear controls intact; no React/Angular reparenting.
+  const statsStyle = document.createElement("style");
+  statsStyle.textContent = `
+    #stats-container .col-xs-4[data-leafwise-shortcuts] {position:relative;overflow:visible}
+    #stats-container .col-xs-4[data-leafwise-shortcuts] > .geo {display:inline-block;vertical-align:top;line-height:28px;margin-top:7px;max-width:calc(50% - 3px);overflow:hidden;text-overflow:ellipsis}
+    #stats-container .col-xs-4[data-leafwise-shortcuts] > .geo.selected {position:relative;box-sizing:border-box;line-height:24px;padding:0 22px 0 4px}
+    #stats-container .col-xs-4[data-leafwise-shortcuts] > .geo.selected > .glyphicon-remove-sign {position:absolute;inset-inline-end:4px;top:7px;background:#565656}
+  `;
+  host.append(statsStyle);
+  let statsColumn = null, resizeTargets = [];
+  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => scheduleMount()) : null;
+  function observeLayout(targets) {
+    if (targets.length === resizeTargets.length && targets.every((target, index) => target === resizeTargets[index])) return;
+    resizeObserver?.disconnect();
+    resizeTargets = targets;
+    for (const target of targets) resizeObserver?.observe(target);
+  }
+  function alignIdentify(searchBar) {
+    const taxon = searchBar.querySelector('.TaxonAutocomplete input[type="search"], input[name="taxon_name"], input[type="search"]');
+    const place = searchBar.querySelector('input[name="place_name"]');
+    observeLayout([searchBar.parentElement, searchBar, taxon, place].filter(Boolean));
+    const fields = [taxon, place].map(field => field?.getBoundingClientRect());
+    if (fields.some(box => !box?.width)) { delete host.dataset.aligned; return; }
+    host.dataset.aligned = "";
+    const origin = host.getBoundingClientRect().left;
+    for (const [index, control] of [taxonSelect, select].entries()) {
+      control.style.setProperty("--field-left", `${fields[index].left - origin}px`);
+      control.style.setProperty("--field-width", `${fields[index].width}px`);
+    }
+  }
   select.setAttribute("aria-label", t("快速選擇地點組合…"));
   taxonSelect.setAttribute("aria-label", t("选择常用类群"));
   let groups = [], taxa = [], scope = "", revision = 0, readToken = 0, taxaRevision = 0, taxaReadToken = 0;
@@ -104,16 +143,26 @@
   function mount() {
     const page = tools.quickSearchPage(location.href);
     const searchBar = page === "identify" ? document.querySelector("#Identify .SearchBar") : null;
+    const nextColumn = page === "observations" ? document.querySelector("#stats-container .row > .col-xs-4") : null;
+    if (statsColumn !== nextColumn) {
+      statsColumn?.removeAttribute("data-leafwise-shortcuts");
+      statsColumn = nextColumn;
+    }
     host.hidden = !page || page === "identify" && (!searchBar || searchBar.classList.contains("disabled") || document.querySelector("#Identify.blind"));
-    if (host.hidden) return;
+    if (host.hidden) { observeLayout([]); return; }
     host.dataset.page = page;
-    const container = page === "identify" ? searchBar.parentElement : document.querySelector("#filters");
-    // Keep the native title/search row untouched. Only our own row can wrap.
-    // On Identify use a sibling, never nest inside the native React form.
+    host.dataset.placement = statsColumn ? "stats" : "fallback";
+    statsColumn?.setAttribute("data-leafwise-shortcuts", "");
+    const container = page === "identify" ? searchBar.parentElement : statsColumn || document.querySelector("#filters");
+    // The real search page has a fixed-height statistics column. Keep all
+    // shortcuts there, leaving the native white header at its original height.
+    // If upstream omits it, retain the previous safe standalone fallback.
     if (container && (host.parentElement !== container || page === "identify" && searchBar.nextElementSibling !== host)) {
       if (page === "identify") searchBar.after(host);
       else container.append(host);
     }
+    if (page === "identify") alignIdentify(searchBar);
+    else { delete host.dataset.aligned; observeLayout(statsColumn ? [statsColumn] : []); }
     const nextScope = `${location.href}|${nativePlace()}`;
     if (scope !== nextScope) { scope = nextScope; refresh(); }
   }
@@ -159,14 +208,17 @@
     });
   }
   let scheduled = false;
-  const observer = new MutationObserver(() => {
+  function scheduleMount() {
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => { scheduled = false; mount(); });
-  });
+  }
+  const observer = new MutationObserver(scheduleMount);
   observer.observe(document.body, {childList:true,subtree:true});
   setInterval(mount, 750);
   window.addEventListener("popstate", mount);
+  window.addEventListener("resize", scheduleMount);
+  document.fonts?.ready.then(scheduleMount);
   window.addEventListener("pagehide", () => { readToken++; taxaReadToken++; });
   window.addEventListener("pageshow", event => { if (event.persisted) { readLibrary(); readTaxa(); mount(); } });
   readLibrary();

@@ -12,7 +12,7 @@ test('all 50 locales translate quick region and taxon controls without altering 
   const names = require('../../src/i18n/locales.json');
   let lang='en';
   await page.route('https://www.inaturalist.org/**', route => route.fulfill({contentType:'text/html',body:
-    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><div id="filters"><h1>Native</h1></div></body></html>`}));
+    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><div id="filters"><h1>Native</h1></div><div id="stats-container"><div class="row"><div class="col-xs-4" style="width:340px;height:75px;background:#565656"><span class="geo">World</span></div></div></div></body></html>`}));
   for(const code of Object.keys(names)){
     lang=code;await page.goto('https://www.inaturalist.org/observations?place_id=6803&taxon_id=3');
     await page.evaluate(()=>{
@@ -21,6 +21,7 @@ test('all 50 locales translate quick region and taxon controls without altering 
     });
     await inject(page,info,[...helpers,'url-filters.js','saved-users.js','saved-taxa.js','content.js','higher-taxa-core.js','explore-tools.js','quick-places.js','higher-taxa-panel.js']);
     const quick=page.locator('#leafwise-quick-places');
+    await expect(quick).toHaveAttribute('data-placement','stats');
     const labels=await page.evaluate(()=>({label:LeafwiseI18n.t('快速選擇地點組合…'),manage:LeafwiseI18n.t('管理常用地區…')}));
     await expect(quick.locator('#place-choice')).toHaveAttribute('aria-label',labels.label);
     await expect(quick.locator('#place-choice option[value="settings"]')).toHaveText(labels.manage);

@@ -6,11 +6,11 @@ const files = ['i18n-catalog.js', 'i18n.js', 'url-filters.js', 'saved-users.js',
 // place_autocomplete.jsx at b1274a0b6cbf757600ff435135867b7b4021f33c.
 const fixture = lang => `<!doctype html><html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><meta charset="utf-8"><style>
 *{box-sizing:border-box}body{margin:0;min-width:980px;font:14px Arial;color:#333}.container-fluid{padding:0 15px}.row{margin:0 -15px}.col-xs-12{padding:0 15px}h2{font-size:30px;margin:20px 0 10px}.SearchBar{margin-bottom:20px}
-.form-group{display:inline-block;vertical-align:middle}input[type=search]{width:220px}input,button{padding:6px 12px;height:34px;border:1px solid #ccc;border-radius:4px;background:white;font:14px Arial}.pull-right{float:right}[dir=rtl] .pull-right{float:left}.mainrow{background:#eee;padding:30px}.SearchBar.disabled{opacity:.5;pointer-events:none}
+.form-group{display:inline-block;vertical-align:middle}.TaxonAutocomplete{display:inline-flex;align-items:center;gap:8px}.search-icon{font-size:24px;width:28px}input[type=search]{width:220px}input,button{padding:6px 12px;height:34px;border:1px solid #ccc;border-radius:4px;background:white;font:14px Arial}.pull-right{float:right}[dir=rtl] .pull-right{float:left}.mainrow{background:#eee;padding:30px}.SearchBar.disabled{opacity:.5;pointer-events:none}
 </style><body><div id="Identify"><div class="container-fluid"><div class="row"><div class="col-xs-12"><h2>Identify</h2></div></div>
 <div class="row"><div class="col-xs-12" id="search-column"><form class="SearchBar form-inline">
 <div class="pull-right"><button id="mark-all" type="button">Mark all as reviewed</button></div>
-<span class="form-group"><input id="native-taxon" type="search" placeholder="Taxon"></span>
+<span class="form-group"><span class="TaxonAutocomplete"><span class="search-icon">⌕</span><input id="native-taxon" name="taxon_name" type="search" placeholder="Taxon"></span></span>
 <span class="form-group PlaceAutocomplete"><input name="place_name" type="search" placeholder="Place"><input name="place_id" type="hidden"></span>
 <button id="native-go" type="submit">Go</button> <button id="native-filters" type="button">Filters</button>
 <span class="form-group"><label><input id="reviewed" type="checkbox"> Reviewed</label></span></form></div></div>
@@ -155,6 +155,23 @@ for (const language of ['en', 'ar']) for (const width of [1280, 375]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialWidth);
     expect(await quick(page).evaluate(host => host.previousElementSibling.matches('.SearchBar') && host.closest('form') === null)).toBe(true);
     await expect(quick(page)).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
+    const aligned = async () => {
+      for (const [choice, field] of [['#taxon-choice', '#native-taxon'], ['#place-choice', '[name=place_name]']]) {
+        const control = await quick(page).locator(choice).boundingBox(), native = await page.locator(field).boundingBox();
+        expect(Math.abs(control.x - native.x)).toBeLessThan(1);
+        expect(Math.abs(control.width - native.width)).toBeLessThan(1);
+        expect(control.y).toBeGreaterThanOrEqual(native.y + native.height);
+      }
+    };
+    await expect(quick(page)).toHaveAttribute('data-aligned', '');
+    await aligned();
+    // Resize the actual fields without a window resize. ResizeObserver must
+    // follow changed native geometry (including the magnifier offset / RTL).
+    await page.locator('#native-taxon').evaluate(el => { el.style.width = '247px'; });
+    await page.locator('[name=place_name]').evaluate(el => { el.style.width = '193px'; });
+    await expect.poll(async () => Math.abs((await quick(page).locator('#taxon-choice').boundingBox()).width - 247)).toBeLessThan(1);
+    await expect.poll(async () => Math.abs((await quick(page).locator('#place-choice').boundingBox()).width - 193)).toBeLessThan(1);
+    await aligned();
     await page.locator('#native-filters').click();
     expect(await page.evaluate(() => window.nativeActions)).toEqual(['native-filters']);
     await page.screenshot({ path: info.outputPath(`identify-shortcuts-${language}-${width}.png`), fullPage: true });

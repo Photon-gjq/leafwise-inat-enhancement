@@ -2,7 +2,7 @@
 
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。
 
-觀察搜尋工具列由 `quick-places.js` 掛在 `#filters` 的原生浮動搜尋列下方，`clear:both` 只讓自有控制項換行，不向原生 h1 加內容或覆寫網站 CSS。鑑定頁沿用同一 host，掛作 `#Identify .SearchBar` 的下一個兄弟，避免嵌入 React form；禁用／blind 表單不啟用，URL 省略預設地區時僅讀公開原生 hidden input 判斷選項。`quickSearchPage` 僅放行兩個 HTTPS 正式搜尋路徑，原有 `searchURL`／`isSearchPage` 限制不放寬，故不把用戶／對比表單帶入鑑定頁。
+觀察搜尋工具列由 `quick-places.js` 掛在 `#stats-container .row > .col-xs-4`，以兩列放進原生 75px 深灰地區區塊，不增高白色標頭；對比入口在第一列末端，類群／地區選單等分第二列。僅標記的地區欄套用 scoped `.geo` 行高／省略及清除圖示位置，不移動 Angular 元素；離頁或換欄移除標記。缺失統計區塊時沿用舊獨立後備列。鑑定頁沿用同一 host，掛作 `#Identify .SearchBar` 的下一個兄弟，避免嵌入 React form；依公開 input 的 bounding rect 對齊位置及寬度，ResizeObserver／resize／字體就緒與重掛重新量測。禁用／blind 表單不啟用，URL 省略預設地區時僅讀公開原生 hidden input 判斷選項。`quickSearchPage` 僅放行兩個 HTTPS 正式搜尋路徑，原有 `searchURL`／`isSearchPage` 限制不放寬，故不把用戶／對比表單帶入鑑定頁。
 
 地區共用 local 組合庫，類群共用既有 `storage.sync.savedTaxa`；可選 `withoutTaxonIds: number[]` 按 ID 排序去重，舊無排除條目形狀不變。設定格式 `ID !排除ID,ID = 名稱`，以根＋排除聯集辨認；對比僅讀無排除條目，核心統計不變。明確選取才用 `taxonSearchURL` 取代 `taxon_id`／`without_taxon_id` 並清除分頁及查詢還原指標，普通條目及不限清除舊類群排除，其餘條件保留。兩份異步讀取各自以 storage revision／讀取 token 拒絕舊回應，BFcache 返回重讀。
 

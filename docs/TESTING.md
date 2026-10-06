@@ -2,6 +2,10 @@
 
 ## 自動測試
 
+1.2.1 發版前驗證（2026-10-07）：`npm ci --ignore-scripts`、`npm run check`（302 項）、啟用 Edge 的完整單 worker Playwright（252 項）、`npm run package`（六個套件）及 `v1.2.1` 發版說明校驗全部通過。檢視三瀏覽器 LTR／RTL、長地名及鑑定頁對齊截圖；未做登入正式帳號人工驗收。
+
+1.2.1 版面回歸：`search-toolbar.spec.cjs` 的受控 fixture 補入官方統計列／地區欄，注入前後比較白色標頭、統計列與原生統計欄位置／高度；快捷選單完全留在 75px 地區塊內，LTR／RTL、長名稱、整欄重掛及離頁清理均覆蓋，原生地圖與清除按鈕仍可點擊。`identify-shortcuts.spec.cjs` 加入放大鏡偏移，驗證兩個選單各自與原生 input 的 x／寬度誤差小於 1px，欄位自行 resize 也對齊。50 語言測試在深灰掛載點驗證原有翻譯。這些是公開 DOM 形狀的受控測試，不是登入正式帳號人工驗收；官方來源未發現結構變更，修正的是插件掛載／排版。
+
 1.2.0 發版前驗證（2026-10-07）：`npm run check` 的三瀏覽器功能測試及商店腳本測試共 302 項通過；啟用 Edge、單 worker 執行完整 Playwright 套件，249 項通過。`npm run package` 的六個套件均通過解壓逐檔及 manifest 版本校驗；發版說明與 `v1.2.0` 一致。檢視觀察搜尋／鑑定頁的受控截圖；未做登入正式帳號人工驗收。
 
 1.2.0 的排除組合與 Identify 快捷選單：`saved-taxa.test.cjs` 驗證舊儲存形狀／清空、`ID !排除ID = 名稱` 往返、同根不同排除組合去重及非法 ID；URL 測試確保只替換兩個類群參數、普通／不限清除舊排除、地區選取保留排除及 Identify 的 reviewed 等條件。`explore.spec.cjs` 用設定頁驗證保存／重開／非法草稿不覆蓋、觀察頁選取及對比排除不支援組合。`identify-shortcuts.spec.cjs` 依官方 [SearchBar](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/observations/identify/components/search_bar.jsx)／[PlaceAutocomplete](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/observations/identify/components/place_autocomplete.jsx) 的公開 DOM 建立受控 fixture，覆蓋同根選項、共享設定、原生 URL／預設地區、延遲掛載／重掛、禁用／blind、LTR／RTL 與窄視窗不新增溢出，確認快捷操作不觸發原生提交／批次已檢視。50 語言測試追加排除標籤及 Identify 重掛。這不是登入正式帳號人工驗收。

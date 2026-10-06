@@ -24,13 +24,13 @@ For a locally loaded Chrome or Edge build, download and extract the new release,
 
 Open an iNaturalist observations search page and click **類群對比** (Taxon comparison).
 
-The compact toolbar below the native search row contains comparison, saved taxa and saved regions. **User filters** now lives inside comparison: open the panel, click the user summary, then choose observation source and exclusion users, swap if needed, and apply. This changes the search, not the comparison results; the native filter-menu controls remain available. Closing and reopening the panel preserves same-page drafts.
+The dark statistics bar's region block contains comparison, saved taxa and saved regions, without an extra white header row. **User filters** lives inside comparison: open the panel, click the user summary, then choose observation source and exclusion users, swap if needed, and apply. This changes the search, not the comparison results; the native filter-menu controls remain available. Closing and reopening the panel preserves same-page drafts.
 
 The **Saved taxa** shortcut replaces `taxon_id` and optional `without_taxon_id`, resets pagination, and preserves place, user, user exclusions, dates and other filters. **Any** clears both taxon parameters. **Manage saved taxa…** opens settings: enter one `ID = name` per line, optionally omit names, reorder, or save an empty list to clear it. Existing entries remain compatible. Saving settings never changes the active search automatically, and custom names are not translated.
 
 Optional exclusions use `125816 !50186 = My preset`, applying `taxon_id=125816&without_taxon_id=50186`. Use commas after `!` for up to 20 excluded IDs. Different exclusion presets may share the same root. Selecting a plain entry clears the previous taxon exclusions rather than leaving them behind. Comparison shares the settings list, but exclusion presets are not offered there: comparison does not yet support taxon-exclusion statistics.
 
-The **Identify** page (`/observations/identify`) also offers the same saved taxon and region selectors below its native search form. Selecting a preset reloads the search and preserves reviewed status, quality grade, user and other filters; it never submits an identification or marks observations reviewed. **Worldwide** explicitly sets `place_id=any`, overriding an account's preferred search place. Shortcuts are not enabled for disabled native forms or the blind identification experiment.
+The **Identify** page (`/observations/identify`) offers the same saved taxon and region selectors aligned below their corresponding native inputs. Selecting a preset reloads the search and preserves reviewed status, quality grade, user and other filters; it never submits an identification or marks observations reviewed. **Worldwide** explicitly sets `place_id=any`, overriding an account's preferred search place. Shortcuts are not enabled for disabled native forms or the blind identification experiment.
 
 | Chinese label | Meaning |
 | --- | --- |

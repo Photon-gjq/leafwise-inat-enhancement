@@ -8,7 +8,7 @@
 
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
-Version 1.2.0 adds shared saved taxon/place shortcuts to Observation search and Identify. Taxon presets accept optional exclusions, such as `125816 !50186 = name`. User filters move inside taxon comparison, with a compact toolbar below the native search row. Existing settings remain compatible; AI and statistics core logic are unchanged.
+Version 1.2.1 fixes shortcut layout: Observation search places comparison and the saved taxon/place selectors inside the dark statistics bar's region block, without adding header height. Identify aligns each selector with its corresponding native input. Shared settings, optional exclusion presets (such as `125816 !50186 = name`) and user filters inside comparison remain unchanged, as do AI and statistics core logic.
 
 It retains the 1.1.4 @mention batch-open fix: native comment and identification links are resolved and their observations deduplicated. If the destination cannot be confirmed, the original link is retained instead of silently skipped; these fallback links can only be deduplicated by identical URL.
 
@@ -33,7 +33,7 @@ A GitHub Release updates the downloadable files; it does not automatically repla
 ## Features
 
 - **Taxon comparison:** find branches you have never observed, branches missing from a selected year or place, or first records for a year. Aggregate from kingdom down to species.
-- **Saved taxa and user filters:** a compact toolbar below the native search row contains saved taxon/place shortcuts. Save taxa as `ID = name` in settings; comparison shares the same list, and only selecting a shortcut changes the search. User-source/exclusion controls now live inside taxon comparison, retaining swapping and native-filter synchronization.
+- **Saved taxa and user filters:** Observation search places comparison and saved taxon/place shortcuts in the dark statistics bar's region block. Identify aligns shortcuts below their corresponding native inputs. Save taxa as `ID = name` in settings; comparison shares the same list, and only selecting a shortcut changes the search. User-source/exclusion controls live inside taxon comparison, retaining swapping and native-filter synchronization.
 - **Seasonal target lists:** restrict regional candidates by month, date range, project, and quality grade without accidentally narrowing the personal baseline.
 - **Quick regions and taxa:** choose saved groups on Observation search or Identify without opening comparison. Taxon settings accept `ID = name` or optional `ID !ExcludedIDs = name`; plain entries clear previous taxon exclusions. Other filters remain. Exclusion presets apply to search only; plain taxa are also available in comparison. Complete observation search URLs can be saved locally.
 - **Personal record cards and taxon statistics:** taxon pages show `(observations|leaf taxa|species)` for the region selected at the top right, or worldwide when no region is selected. First/latest records and browse links use the same scope. Individual observation pages retain global personal counts.

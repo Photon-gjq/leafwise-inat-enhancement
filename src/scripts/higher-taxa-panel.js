@@ -15,8 +15,8 @@
     <style>
       :host { display: inline-flex; max-width: 100%; vertical-align: middle; }
       :host([hidden]) { display: none; }
-      button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
-      button:hover { border-color: #66834f; background: #eaf1e4; }
+      button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; border: 1px solid var(--leafwise-trigger-border, #a9b99d); border-radius: 999px; background: var(--leafwise-trigger-background, #f4f7f1); color: var(--leafwise-trigger-color, #49613d); font: 12px/1.4 system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+      button:hover { border-color: #83af53; filter:brightness(1.1); }
       button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
     </style>
     <button type="button">類群對比</button>`);

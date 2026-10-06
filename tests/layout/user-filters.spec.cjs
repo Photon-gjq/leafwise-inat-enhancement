@@ -21,7 +21,7 @@ async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_i
     document.querySelector('[name=user_name]').value = params.get('user_id') || '';
     document.querySelector('[name=user_id]').value = params.get('user_id') || '';
     document.querySelector('[name=place_id]').value = params.get('place_id') || '';
-    const api = { runtime: { sendMessage: async () => ({ ok: true }) }, storage: {
+    const api = { runtime: { sendMessage: async () => ({ ok: true, library: {groups:[],queries:[]} }) }, storage: {
       sync: { get: async () => ({ savedUsernames: ['observer'] }) }, onChanged: { addListener: () => {} }
     } };
     window.chrome = api; window.browser = api;
@@ -39,7 +39,7 @@ async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_i
     });
   });
   const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
-  for (const file of ['url-filters.js', 'saved-users.js', 'content.js']) await page.addScriptTag({ path: path.join(directory, file) });
+  for (const file of ['url-filters.js', 'saved-users.js', 'saved-taxa.js', 'content.js', 'higher-taxa-core.js', 'explore-tools.js', 'quick-places.js', 'higher-taxa-panel.js']) await page.addScriptTag({ path: path.join(directory, file) });
   const modal = page.locator('#qg-inat-native-filter-tools');
   await expect(modal.locator('#modal-source')).toBeEnabled();
   return modal;
@@ -87,6 +87,7 @@ test('native user changes and reset update both extension forms without overwrit
   await expect(modal.locator('#modal-source-name')).toHaveValue('draft_observer');
   await page.locator('.btn-default').click();
   await expect(modal.locator('#modal-source')).toHaveValue('none');
+  await page.locator('#qg-inat-higher-taxa-trigger button').click();
   await page.locator('#qg-inat-user-filters-summary button').click();
   await expect(page.locator('#qg-inat-user-filters #source')).toHaveValue('none');
   await page.locator('.btn-primary').click();
@@ -103,4 +104,45 @@ test('source and exclusion chosen in the extension survive native update indepen
   await expect.poll(() => new URL(page.url()).searchParams.get('unobserved_by_user_id')).toBe('other_observer');
   expect(new URL(page.url()).searchParams.get('user_id')).toBe('observer');
   expect(new URL(page.url()).searchParams.get('place_id')).toBe('7613');
+});
+
+test('nested user filters preserve swap and drafts across closing without dirtying comparison', async ({ page }, info) => {
+  await open(page, info);
+  const panel = page.locator('#qg-inat-higher-taxa'), user = page.locator('#qg-inat-user-filters');
+  await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(0);
+  await expect(user).toBeHidden();
+  await page.locator('#qg-inat-higher-taxa-trigger button').click();
+  await page.locator('#qg-inat-user-filters-summary button').click();
+  await user.locator('#source').selectOption('custom');
+  await user.locator('#source-name').fill('draft_observer');
+  await user.locator('#exclude').selectOption('user:observer');
+  await user.locator('.swap').click();
+  await expect(user.locator('#source')).toHaveValue('user:observer');
+  await expect(user.locator('#exclude-name')).toHaveValue('draft_observer');
+  await user.locator('#exclude-name').press('Escape');
+  await expect(user).toBeHidden();
+  await expect(page.locator('#qg-inat-higher-taxa-trigger button')).toBeFocused();
+  await page.locator('#qg-inat-higher-taxa-trigger button').click();
+  await expect(user.locator('#exclude-name')).toHaveValue('draft_observer');
+  await expect(user.locator('#source')).toHaveValue('user:observer');
+  // User-filter input events are not comparison edits: native place changes
+  // should still update an unedited comparison rather than preserve a draft.
+  await page.evaluate(() => history.replaceState({}, '', '/observations?user_id=observer&taxon_id=3&month=9'));
+  await expect(panel.locator('#place')).toHaveValue('');
+  await expect(panel.locator('#status')).not.toContainText('保留当前填写内容');
+});
+
+test('applying user filters inside comparison preserves taxon, places and dates', async ({ page }, info) => {
+  await open(page, info);
+  await page.locator('#qg-inat-higher-taxa-trigger button').click();
+  await page.locator('#qg-inat-user-filters-summary button').click();
+  const user = page.locator('#qg-inat-user-filters');
+  await user.locator('#source').selectOption('custom');
+  await user.locator('#source-name').fill('new_observer');
+  await user.locator('#exclude').selectOption('user:observer');
+  await user.locator('button[type="submit"]').click();
+  await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBe('new_observer');
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('unobserved_by_user_id')).toBe('observer');
+  expect(params.get('taxon_id')).toBe('3'); expect(params.get('place_id')).toBe('7613'); expect(params.get('month')).toBe('9');
 });

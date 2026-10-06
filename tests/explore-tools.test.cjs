@@ -3,10 +3,52 @@ const assert=require('node:assert/strict');
 const extension=require('./extension-path.cjs');
 const core=require(extension+'/scripts/higher-taxa-core.js');
 const tools=require(extension+'/scripts/explore-tools.js');
+const savedTaxa=require(extension+'/scripts/saved-taxa.js');
 const {createService}=require(extension+'/scripts/higher-taxa-service.js');
 const base={user:'observer',place:10301,taxon:3,rank:'order',quality:'any'};
 const rawTree=(ids)=>({size:ids.length+1,results:[{id:3,parent_id:null,name:'Aves',rank:'class',rank_level:50,direct_obs_count:0,descendant_obs_count:ids.length},...ids.map(id=>({id,parent_id:3,name:`Order ${id}`,rank:'order',rank_level:40,direct_obs_count:1,descendant_obs_count:1}))]});
 const tree=ids=>core.tree(rawTree(ids));
+
+test('taxon shortcuts validate IDs and only replace the taxon, page and saved-query pointer',()=>{
+ const href='https://www.inaturalist.org/observations?taxon_id=3&user_id=observer&unobserved_by_user_id=other&place_id=7613,10301&month=9&project_id=12&quality_grade=research&view=species&swlat=1&swlng=2&nelat=3&nelng=4&lat=5&lng=6&radius=7&hrank=family&lrank=species&page=4&per_page=50&leafwise_query=q1#map';
+ const url=new URL(tools.taxonSearchURL(href,'00047158',savedTaxa));
+ assert.equal(url.searchParams.get('taxon_id'),'47158');
+ assert.equal(url.searchParams.has('page'),false);assert.equal(url.searchParams.has('leafwise_query'),false);assert.equal(url.hash,'#map');
+ for(const [key,value] of new URL(href).searchParams)if(!['taxon_id','page','leafwise_query'].includes(key))assert.equal(url.searchParams.get(key),value,key);
+ assert.equal(new URL(tools.taxonSearchURL(url.href,'any',savedTaxa)).searchParams.has('taxon_id'),false);
+ for(const bad of ['',undefined,'0','-1','1.5','1e3','3,4','9007199254740992',{}])assert.throws(()=>tools.taxonSearchURL(href,bad,savedTaxa));
+ for(const bad of ['https://example.com/observations','http://www.inaturalist.org/observations','https://user@www.inaturalist.org/observations','https://www.inaturalist.org:8443/observations','https://www.inaturalist.org/observations/123'])assert.throws(()=>tools.taxonSearchURL(bad,3,savedTaxa));
+});
+
+test('taxon exclusion shortcuts replace both taxon parameters on Observations and Identify, never other filters',()=>{
+ for(const pathname of ['/observations','/observations/identify/']) {
+  const href=`https://www.inaturalist.org${pathname}?taxon_id=3&without_taxon_id=4&without_taxon_id=5&place_id=10301&user_id=observer&unobserved_by_user_id=other&reviewed=false&quality_grade=needs_id&identifications=most_agree&not_in_place=12&month=9&per_page=30&page=8&leafwise_query=q1#grid`;
+  const entry={id:125816,withoutTaxonIds:[50186,3,50186],name:'preset'};
+  const before=JSON.stringify(entry);
+  const next=new URL(tools.taxonSearchURL(href,entry,savedTaxa));
+  assert.equal(next.pathname,pathname);assert.equal(next.hash,'#grid');
+  assert.equal(next.searchParams.get('taxon_id'),'125816');
+  assert.deepEqual(next.searchParams.getAll('without_taxon_id'),['3,50186']);
+  for(const [key,value] of new URL(href).searchParams)if(!['taxon_id','without_taxon_id','page','leafwise_query'].includes(key))assert.equal(next.searchParams.get(key),value,key);
+  for(const key of ['page','leafwise_query'])assert.equal(next.searchParams.has(key),false);
+  assert.equal(JSON.stringify(entry),before);
+  const plain=new URL(tools.taxonSearchURL(next.href,{id:125816},savedTaxa));
+  assert.equal(plain.searchParams.has('without_taxon_id'),false);
+  const any=new URL(tools.taxonSearchURL(next.href,'any',savedTaxa));
+  assert.equal(any.searchParams.has('taxon_id'),false);assert.equal(any.searchParams.has('without_taxon_id'),false);
+  const region=new URL(tools.placeSearchURL(next.href,'7613,10301',core));
+  assert.equal(region.searchParams.get('without_taxon_id'),'3,50186');
+  assert.equal(region.searchParams.get('reviewed'),'false');assert.equal(region.pathname,pathname);
+ }
+ for(const bad of [null,'https://example.com/observations/identify','http://www.inaturalist.org/observations/identify','https://user@www.inaturalist.org/observations/identify','https://www.inaturalist.org:8443/observations/identify','https://www.inaturalist.org/observations/identify/123','https://www.inaturalist.org/observations/upload']) {
+  assert.equal(tools.quickSearchPage(bad),null);
+  assert.throws(()=>tools.taxonSearchURL(bad,3,savedTaxa));
+  assert.throws(()=>tools.placeSearchURL(bad,'any',core));
+ }
+ assert.equal(tools.quickSearchPage('https://inaturalist.org/observations/identify'),'identify');
+ // Extending quick navigation must not extend saved-query/comparison scope.
+ assert.throws(()=>tools.searchURL('https://www.inaturalist.org/observations/identify'));
+});
 
 test('four comparison scopes distinguish never seen, missed this year/local, and first recorded this year',()=>{
  const region=tree([41,42,43]),known=tree([41,42]),year=tree([42]),local=tree([41]);

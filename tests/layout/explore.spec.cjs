@@ -47,7 +47,7 @@ async function inject(page,testInfo,personal=false,localize=false) {
  // this offline fake API. The real transport is tested separately.
  await page.evaluate(()=>{window.QGInatHigherTaxaService.createTransport=()=>async url=>{const r=await fetch(url);if(!r.ok)throw new Error('API '+r.status);return r.json()}});
  await page.addScriptTag({path:path.join(directory,'background.js')});
- for(const file of personal?['taxon-status.js']:['url-filters.js','saved-users.js','saved-taxa.js','quick-places.js','higher-taxa-panel.js'])await page.addScriptTag({path:path.join(directory,file)});
+ for(const file of personal?['taxon-status.js']:['url-filters.js','saved-users.js','saved-taxa.js','content.js','quick-places.js','higher-taxa-panel.js'])await page.addScriptTag({path:path.join(directory,file)});
 }
 async function open(page,testInfo,url='https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301') {
  await prepare(page);await page.goto(url);await inject(page,testInfo);
@@ -60,7 +60,7 @@ test('localized comparison preserves API data, requests names in site language a
  await page.locator('#qg-inat-higher-taxa-trigger button').click();
  const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#user-choice')).toBeEnabled();
  await expect(panel.locator('#rank option[value="species"]')).toHaveText('Espèce · species');
- await panel.locator('button[type="submit"]').click();
+ await panel.locator('#comparison-form button[type="submit"]').click();
  await expect(panel.locator('#status')).toContainText('Chargé');
  await expect(panel.locator('tbody tr[data-taxon-id]')).toHaveCount(50);
  const nameRequests=await page.evaluate(()=>testRequests.filter(url=>/\/taxa\/100/.test(url)));
@@ -254,23 +254,23 @@ test('outer quick selector applies saved regions without opening comparison and 
  const initial='https://www.inaturalist.org/observations?user_id=observer&unobserved_by_user_id=other&taxon_id=3&month=9&project_id=12&quality_grade=research&place_id=10301&swlat=1&swlng=2&nelat=3&nelng=4&lat=5&lng=6&radius=7&page=4&leafwise_query=missing#map';
  await page.goto(initial);await inject(page,info,false,true);
  const quick=page.locator('#leafwise-quick-places');
- await expect(quick.locator('select option[value^="builtin:"]')).toHaveCount(0);
+ await expect(quick.locator('#place-choice option[value^="builtin:"]')).toHaveCount(0);
  await expect(page.locator('#qg-inat-higher-taxa')).toBeHidden();
  expect(page.url()).toBe(initial);
- await quick.locator('select').selectOption('settings');
+ await quick.locator('#place-choice').selectOption('settings');
  await expect.poll(()=>page.evaluate(()=>optionsOpened)).toBe(1);expect(page.url()).toBe(initial);
  await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p1',name:'Two regions',place:'7613,10301'}]}}));
- await expect(quick.locator('select option[value="p1"]')).toHaveText('Two regions');expect(page.url()).toBe(initial);
- await quick.locator('select').selectOption('p1');
+ await expect(quick.locator('#place-choice option[value="p1"]')).toHaveText('Two regions');expect(page.url()).toBe(initial);
+ await quick.locator('#place-choice').selectOption('p1');
  await expect(page).toHaveURL(/place_id=7613%2C10301/);
  const url=new URL(page.url());
  for(const key of ['swlat','swlng','nelat','nelng','lat','lng','radius','page','leafwise_query'])expect(url.searchParams.has(key)).toBe(false);
  for(const key of ['user_id','unobserved_by_user_id','taxon_id','month','project_id','quality_grade'])expect(url.searchParams.get(key)).toBe(new URL(initial).searchParams.get(key));
  expect(url.hash).toBe('#map');
- await inject(page,info,false,true);await expect(quick.locator('select')).toHaveValue('p1');
+ await inject(page,info,false,true);await expect(quick.locator('#place-choice')).toHaveValue('p1');
  await expect(page.locator('#qg-inat-higher-taxa')).toBeHidden();
- await quick.locator('select').selectOption('any');await expect(page).toHaveURL(/place_id=any/);
- await inject(page,info,false,true);await expect(quick.locator('select')).toHaveValue('any');
+ await quick.locator('#place-choice').selectOption('any');await expect(page).toHaveURL(/place_id=any/);
+ await inject(page,info,false,true);await expect(quick.locator('#place-choice')).toHaveValue('any');
 });
 
 test('quick regions coexist with user controls, follow native removal and remount without duplicates',async({page},info)=>{
@@ -280,22 +280,23 @@ test('quick regions coexist with user controls, follow native removal and remoun
  const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0],'scripts');
  await page.addScriptTag({path:path.join(directory,'content.js')});
  await page.addScriptTag({path:path.join(directory,'quick-places.js')});
- const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('select')).toHaveValue('p1');
- await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(1);
- await expect(page.locator('#filters h1 #qg-inat-higher-taxa-trigger')).toHaveCount(1);
+ const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('#place-choice')).toHaveValue('p1');
+ await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(0);
+ await expect(page.locator('#qg-inat-higher-taxa > #qg-inat-user-filters-summary')).toHaveCount(1);
+ await expect(quick.locator('#qg-inat-higher-taxa-trigger')).toHaveCount(1);
  await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=3'));
- await expect(quick.locator('select')).toHaveValue('any');
+ await expect(quick.locator('#place-choice')).toHaveValue('any');
  await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p2',name:'A different group',place:'6803'}]}}));
- await expect(quick.locator('select option[value="p1"]')).toHaveCount(0);
- await expect(quick.locator('select option[value="p2"]')).toHaveText('A different group');
+ await expect(quick.locator('#place-choice option[value="p1"]')).toHaveCount(0);
+ await expect(quick.locator('#place-choice option[value="p2"]')).toHaveText('A different group');
  expect(new URL(page.url()).searchParams.has('place_id')).toBe(false);
  await page.evaluate(()=>{document.querySelector('#filters h1').replaceWith(Object.assign(document.createElement('h1'),{textContent:'Observations'}));});
- await expect(page.locator('#filters h1 #leafwise-quick-places')).toHaveCount(1);
+ await expect(page.locator('#filters > #leafwise-quick-places')).toHaveCount(1);
  await expect(page.locator('#qg-inat-higher-taxa-trigger')).toHaveCount(1);
  await page.evaluate(()=>history.replaceState({},'', '/observations/123'));
  await expect(quick).toBeHidden();
  await page.evaluate(()=>history.replaceState({},'', '/observations?place_id=6803'));
- await expect(quick).toBeVisible();await expect(quick.locator('select')).toHaveValue('p2');
+ await expect(quick).toBeVisible();await expect(quick.locator('#place-choice')).toHaveValue('p2');
  await page.setViewportSize({width:375,height:720});
  const box=await quick.boundingBox();expect(box.x+box.width).toBeLessThanOrEqual(375);
  await page.screenshot({path:info.outputPath('quick-regions-mobile.png'),fullPage:true});
@@ -331,8 +332,8 @@ test('optional region examples never seed settings, append without duplicates an
  await page.screenshot({path:info.outputPath('optional-region-examples.png'),fullPage:true});
  await page.goto('https://www.inaturalist.org/observations?taxon_id=3');await inject(page,info,false,true);
  const quick=page.locator('#leafwise-quick-places');
- await expect(quick.locator('select option').filter({hasText:'Mainland China + Hong Kong + Macao'})).toHaveCount(1);
- await expect(quick.locator('select')).toHaveValue('any');expect(new URL(page.url()).searchParams.has('place_id')).toBe(false);
+ await expect(quick.locator('#place-choice option').filter({hasText:'Mainland China + Hong Kong + Macao'})).toHaveCount(1);
+ await expect(quick.locator('#place-choice')).toHaveValue('any');expect(new URL(page.url()).searchParams.has('place_id')).toBe(false);
  await page.locator('#qg-inat-higher-taxa-trigger button').click();
  const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#place')).toHaveValue('');
  await expect(panel.locator('#place')).toHaveAttribute('placeholder','any');
@@ -346,22 +347,22 @@ test('quick selector ignores a stale library reply and repeated injection before
   document.querySelector('#filters').remove();
   chrome.runtime.sendMessage=()=>new Promise(resolve=>window.releaseLibrary=resolve);
  });
- for(const file of ['url-filters.js','higher-taxa-core.js','explore-tools.js','quick-places.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
+ for(const file of ['url-filters.js','saved-taxa.js','higher-taxa-core.js','explore-tools.js','quick-places.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
  await page.evaluate(async()=>{
   await chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'new',name:'Newest',place:'6803'}]}});
   releaseLibrary({ok:true,library:{queries:[],groups:[{id:'old',name:'Stale',place:'7613'}]}});
   const filters=document.createElement('div');filters.id='filters';filters.innerHTML='<h1>Observations</h1>';document.body.prepend(filters);
  });
  const quick=page.locator('#leafwise-quick-places');await expect(quick).toHaveCount(1);
- await expect(quick.locator('select option[value="new"]')).toHaveText('Newest');
- await expect(quick.locator('select option[value="old"]')).toHaveCount(0);
+ await expect(quick.locator('#place-choice option[value="new"]')).toHaveText('Newest');
+ await expect(quick.locator('#place-choice option[value="old"]')).toHaveCount(0);
  await page.evaluate(()=>{
   dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));
   chrome.runtime.sendMessage=async()=>({ok:true,library:{queries:[],groups:[{id:'back',name:'Changed while away',place:'6744'}]}});
   dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
  });
- await expect(quick.locator('select option[value="back"]')).toHaveText('Changed while away');
- await expect(quick.locator('select option[value="new"]')).toHaveCount(0);
+ await expect(quick.locator('#place-choice option[value="back"]')).toHaveText('Changed while away');
+ await expect(quick.locator('#place-choice option[value="new"]')).toHaveCount(0);
 });
 
 test('unavailable region library preserves filters and recovers from a later settings update',async({page},info)=>{
@@ -369,11 +370,162 @@ test('unavailable region library preserves filters and recovers from a later set
  await page.goto(initial);
  const directory=path.resolve(__dirname,'../../build',info.project.name.split('-')[0],'scripts');
  await page.evaluate(()=>{chrome.runtime.sendMessage=async()=>{throw new Error('Unavailable');};});
- for(const file of ['i18n-catalog.js','i18n.js','url-filters.js','higher-taxa-core.js','explore-tools.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
- const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('.status')).toHaveText('Unavailable');
- await expect(quick.locator('option[value="settings"]')).toHaveText('Manage saved regions…');
+ for(const file of ['i18n-catalog.js','i18n.js','url-filters.js','saved-taxa.js','higher-taxa-core.js','explore-tools.js','quick-places.js'])await page.addScriptTag({path:path.join(directory,file)});
+ const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('#place-status')).toHaveText('Unavailable');
+ await expect(quick.locator('#place-choice option[value="settings"]')).toHaveText('Manage saved regions…');
  expect(page.url()).toBe(initial);
  await page.evaluate(()=>chrome.storage.local.set({leafwiseExploreLibraryV1:{queries:[],groups:[{id:'p1',name:'Recovered',place:'10301'}]}}));
- await expect(quick.locator('.status')).toHaveText('');await expect(quick.locator('select')).toHaveValue('p1');
+ await expect(quick.locator('#place-status')).toHaveText('');await expect(quick.locator('#place-choice')).toHaveValue('p1');
+ expect(page.url()).toBe(initial);
+});
+
+test('taxon shortcuts share saved settings, preserve other filters and apply only on explicit choice', async ({ page }, info) => {
+ await prepare(page, 'en');
+ const initial = 'https://www.inaturalist.org/observations?taxon_id=3&place_id=7613,10301&user_id=observer&unobserved_by_user_id=other&month=9&quality_grade=research&project_id=12&swlat=1&swlng=2&nelat=3&nelng=4&page=4#map';
+ await page.goto(initial); await inject(page, info, false, true);
+ const quick = page.locator('#leafwise-quick-places');
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3');
+ await quick.locator('#taxon-choice').selectOption('settings');
+ await expect.poll(() => page.evaluate(() => optionsOpened)).toBe(1);
+ expect(page.url()).toBe(initial);
+ const taxa = [{ id: 47158, name: 'My insects' }, { id: 3, name: '我的鳥類' }];
+ await page.evaluate(savedTaxa => chrome.storage.sync.set({ savedTaxa }), taxa);
+ await expect(quick.locator('#taxon-choice option[value^="taxon:"]')).toHaveText(['My insects', '我的鳥類']);
+ const panel = page.locator('#qg-inat-higher-taxa');
+ await expect(panel.locator('#taxon-choice option[value="taxon:47158"]')).toHaveText('My insects（47158）');
+ expect(page.url()).toBe(initial);
+ await quick.locator('#taxon-choice').selectOption('taxon:47158');
+ await expect(page).toHaveURL(/taxon_id=47158/);
+ const next = new URL(page.url()), original = new URL(initial);
+ for (const [key, value] of original.searchParams) {
+  if (!['taxon_id', 'page'].includes(key)) expect(next.searchParams.get(key)).toBe(value);
+ }
+ expect(next.searchParams.has('page')).toBe(false); expect(next.hash).toBe('#map');
+ await inject(page, info, false, true);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:47158');
+ await quick.locator('#taxon-choice').selectOption('any');
+ await expect.poll(() => new URL(page.url()).searchParams.get('taxon_id')).toBeNull();
+ await inject(page, info, false, true);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('any');
+ await page.evaluate(() => history.replaceState({}, '', '/observations?taxon_id=999&place_id=10301'));
+ await expect(quick.locator('#taxon-choice')).toHaveValue('');
+ await page.evaluate(() => chrome.storage.sync.set({ savedTaxa: [] }));
+ await expect(quick.locator('#taxon-choice option[value^="taxon:"]')).toHaveCount(0);
+ expect(new URL(page.url()).searchParams.get('taxon_id')).toBe('999');
+});
+
+test('saved taxa edited in settings persist after reload and update both selectors', async ({ page }, info) => {
+ const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0]);
+ const settings = (await fs.readFile(path.join(directory, 'options/options.html'), 'utf8')).replace(/<script[^>]*><\/script>/g, '');
+ await prepare(page, 'en');
+ await page.route('https://www.inaturalist.org/options-fixture', route => route.fulfill({ contentType: 'text/html', body: settings }));
+ async function settingsPage() {
+  await page.goto('https://www.inaturalist.org/options-fixture');
+  await page.evaluate(() => chrome.storage.local.set({ leafwiseLastSiteLocale: 'en' }));
+  await inject(page, info, true, true);
+  for (const file of ['saved-users.js', 'saved-taxa.js']) await page.addScriptTag({ path: path.join(directory, 'scripts', file) });
+  await page.addScriptTag({ path: path.join(directory, 'options/options.js') });
+  await expect(page.locator('#taxa')).toBeEnabled();
+ }
+ await settingsPage();
+ await page.locator('#taxa').fill('47158 = My insects\n3 = 我的鳥類');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('2');
+ await settingsPage();
+ await expect(page.locator('#taxa')).toHaveValue('47158 = My insects\n3 = 我的鳥類');
+ await page.goto('https://www.inaturalist.org/observations?taxon_id=3'); await inject(page, info, false, true);
+ await expect(page.locator('#leafwise-quick-places #taxon-choice option[value^="taxon:"]')).toHaveText(['My insects', '我的鳥類']);
+ await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value="taxon:47158"]')).toHaveText('My insects（47158）');
+ await settingsPage(); await page.locator('#taxa').fill('');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toHaveText(await page.evaluate(() => LeafwiseI18n.t('已清空常用类群列表。')));
+ await settingsPage(); await expect(page.locator('#taxa')).toHaveValue('');
+});
+
+test('taxon storage races, BFcache and repeated mounting never overwrite newer settings or filters', async ({ page }, info) => {
+ await prepare(page); await page.goto('https://www.inaturalist.org/observations?taxon_id=3');
+ const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
+ await page.evaluate(() => {
+  document.querySelector('#filters').remove();
+  chrome.storage.sync.get = () => new Promise(resolve => window.releaseTaxa = resolve);
+  chrome.runtime.sendMessage = async () => ({ ok: true, library: { groups: [], queries: [] } });
+ });
+ for (const file of ['url-filters.js', 'saved-taxa.js', 'higher-taxa-core.js', 'explore-tools.js', 'quick-places.js', 'quick-places.js']) await page.addScriptTag({ path: path.join(directory, file) });
+ await page.evaluate(async () => {
+  await chrome.storage.sync.set({ savedTaxa: [{ id: 47158, name: 'Newest' }] });
+  releaseTaxa({ savedTaxa: [{ id: 3, name: 'Stale' }] });
+  document.body.insertAdjacentHTML('afterbegin', '<div id="filters"><h1>Observations</h1></div>');
+ });
+ const quick = page.locator('#leafwise-quick-places');
+ await expect(quick).toHaveCount(1);
+ await expect(quick.locator('#taxon-choice option[value^="taxon:"]')).toHaveText(['Newest']);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('');
+ await page.evaluate(() => {
+  dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+  chrome.storage.sync.get = async () => ({ savedTaxa: [{ id: 3, name: 'Changed while away' }] });
+  dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+ });
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3');
+ await expect(quick.locator('#taxon-choice option[value^="taxon:"]')).toHaveText(['Changed while away']);
+ expect(new URL(page.url()).searchParams.get('taxon_id')).toBe('3');
+});
+
+test('settings exclusion presets persist and apply on search, without entering the unsupported comparison list', async ({ page }, info) => {
+ const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0]);
+ // This fixture uses an official-site URL, so align its HTML locale too: the
+ // real options page has an extension URL and does not remember a site locale.
+ const settings = (await fs.readFile(path.join(directory, 'options/options.html'), 'utf8')).replace(/<script[^>]*><\/script>/g, '').replace('lang="zh-CN"', 'lang="en"');
+ await prepare(page, 'en');
+ await page.route('https://www.inaturalist.org/options-fixture', route => route.fulfill({ contentType: 'text/html', body: settings }));
+ async function settingsPage() {
+  await page.goto('https://www.inaturalist.org/options-fixture');
+  await page.evaluate(() => chrome.storage.local.set({ leafwiseLastSiteLocale: 'en' }));
+  await inject(page, info, true, true);
+  for (const file of ['saved-users.js', 'saved-taxa.js']) await page.addScriptTag({ path: path.join(directory, 'scripts', file) });
+  await page.addScriptTag({ path: path.join(directory, 'options/options.js') });
+  await expect(page.locator('#taxa')).toBeEnabled();
+ }
+ await settingsPage();
+ await page.locator('#taxa').fill('125816 = All\n125816 !50186 = Custom\n125816 !3,50186');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('3');
+ const expected = '125816 = All\n125816 !50186 = Custom\n125816 !3,50186 = 類群 125816';
+ await settingsPage(); await expect(page.locator('#taxa')).toHaveValue(expected);
+ // A malformed draft must not partially overwrite the last valid presets.
+ await page.locator('#taxa').fill('3 = Valid\n125816 !bad');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('Invalid format');
+ await settingsPage(); await expect(page.locator('#taxa')).toHaveValue(expected);
+ const href = 'https://www.inaturalist.org/observations?taxon_id=125816&without_taxon_id=50186&place_id=10301&user_id=observer&unobserved_by_user_id=other&month=9';
+ await page.goto(href); await inject(page, info, false, true);
+ const quick = page.locator('#leafwise-quick-places');
+ await expect(quick.locator('#taxon-choice option[value^="taxon:"]')).toHaveCount(3);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:125816!50186');
+ await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value^="taxon:"]')).toHaveCount(1);
+ await quick.locator('#taxon-choice').selectOption('taxon:125816!3,50186');
+ await expect.poll(() => new URL(page.url()).searchParams.get('without_taxon_id')).toBe('3,50186');
+ await inject(page, info, false, true);
+ await quick.locator('#taxon-choice').selectOption('taxon:125816');
+ await expect.poll(() => new URL(page.url()).searchParams.get('without_taxon_id')).toBeNull();
+ const next = new URL(page.url());
+ expect(next.searchParams.get('taxon_id')).toBe('125816'); expect(next.searchParams.get('unobserved_by_user_id')).toBe('other');
+ expect(next.searchParams.get('place_id')).toBe('10301'); expect(next.searchParams.get('month')).toBe('9');
+});
+
+test('unavailable taxon settings leave the native search intact and recover on storage update', async ({ page }, info) => {
+ await prepare(page, 'en'); const initial = 'https://www.inaturalist.org/observations?taxon_id=3&place_id=10301';
+ await page.goto(initial);
+ await page.evaluate(() => {
+  chrome.storage.sync.get = async () => { throw new Error('Unavailable'); };
+  chrome.runtime.sendMessage = async () => ({ ok: true, library: { groups: [], queries: [] } });
+ });
+ const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
+ for (const file of ['i18n-catalog.js', 'i18n.js', 'url-filters.js', 'saved-taxa.js', 'higher-taxa-core.js', 'explore-tools.js', 'quick-places.js']) await page.addScriptTag({ path: path.join(directory, file) });
+ const quick = page.locator('#leafwise-quick-places');
+ await expect(quick.locator('#taxa-status')).toHaveText('Unavailable');
+ expect(page.url()).toBe(initial);
+ await page.evaluate(() => chrome.storage.sync.set({ savedTaxa: [{ id: 3, name: 'Recovered' }] }));
+ await expect(quick.locator('#taxa-status')).toHaveText('');
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3');
  expect(page.url()).toBe(initial);
 });

@@ -6,15 +6,16 @@
   const core = globalThis.QGInatHigherTaxa;
   const tools = globalThis.LeafwiseExploreTools;
   const filters = globalThis.QGInatFilters;
-  if (!core || !filters?.isSearchPage(location.href) || document.getElementById("qg-inat-higher-taxa")) return;
+  if (!core || !filters?.isSearchPage(location.href) || globalThis.LeafwiseComparisonPanel) return;
+  globalThis.LeafwiseComparisonPanel = true;
   const triggerHost = document.createElement("span");
   triggerHost.id = "qg-inat-higher-taxa-trigger";
   const triggerShadow = triggerHost.attachShadow({ mode: "open" });
   triggerShadow.innerHTML = html(`
     <style>
-      :host { display: inline-flex; margin-left: 8px; vertical-align: middle; }
+      :host { display: inline-flex; max-width: 100%; vertical-align: middle; }
       :host([hidden]) { display: none; }
-      button { padding: 3px 9px; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+      button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
       button:hover { border-color: #66834f; background: #eaf1e4; }
       button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
     </style>
@@ -69,8 +70,9 @@
     <div class="qg">
       <section id="panel" class="panel" aria-label="類群對比" hidden>
         <div class="heading"><h2>類群對比</h2><button type="button" class="close" aria-label="收起面板">×</button></div>
+        <section class="user-tools" aria-label="QG 用户筛选"><slot name="user-filter-summary"></slot><slot name="user-filters"></slot></section>
         <p class="muted">比較當地已記錄的目、科、屬、種等。使用者在該單元或任一後代有記錄，即視為見過；年份以觀察日期計算，無日期記錄不參與年份對比。</p>
-        <form>
+        <form id="comparison-form">
           <div class="fields">
             <label>对比用户<select id="user-choice" aria-label="选择对比用户" disabled></select><input id="user" aria-label="指定其他对比用户" placeholder="用户名或用户 ID" required autocomplete="off" spellcheck="false" hidden><span class="hint">個人基準包含 Casual</span></label>
             <label>地點組合<select id="place-choice" aria-label="地點組合"></select><input id="place" aria-label="地點 ID" placeholder="any" maxlength="400" autocomplete="off" spellcheck="false"><span id="place-members" class="hint"></span><span class="hint">多個 ID 用逗號分隔；any＝全球</span></label>
@@ -314,7 +316,7 @@
     if (open) {
       requestAnimationFrame(() => {
         host.scrollIntoView({ behavior: "smooth", block: "start" });
-        $("#user").focus({ preventScroll: true });
+        $("#user-choice").focus({ preventScroll: true });
       });
     } else trigger.focus();
   }
@@ -592,9 +594,9 @@
     status(t("已匯出 {0} 項結果。", filteredRows().length));
   });
   function mountPanel() {
-    const existing = document.getElementById("qg-inat-user-filters");
-    if (existing?.parentElement) {
-      if (existing.nextElementSibling !== host) existing.after(host);
+    const filtersContainer = document.querySelector("#filters");
+    if (filtersContainer?.parentElement) {
+      if (host.parentElement !== filtersContainer.parentElement || filtersContainer.nextElementSibling !== host) filtersContainer.after(host);
     } else if (!host.isConnected) {
       const container = document.querySelector("#observations-search, #observations, main, #wrapper, #main") || document.body;
       container.prepend(host);
@@ -605,14 +607,10 @@
     host.hidden = !searchPage;
     triggerHost.hidden = !searchPage;
     if (!searchPage) return;
-    const heading = document.querySelector("#filters > h1, #filters h1");
-    const summary = document.getElementById("qg-inat-user-filters-summary");
-    if (heading) {
-      if (summary?.parentElement === heading) {
-        if (summary.nextElementSibling !== triggerHost) summary.after(triggerHost);
-      } else if (triggerHost.parentElement !== heading) heading.append(triggerHost);
-    }
-    // Do not compete with content.js for SearchBar.nextElementSibling.
+    const toolbar = document.getElementById("leafwise-quick-places");
+    triggerHost.slot = "comparison-trigger";
+    if (toolbar && triggerHost.parentElement !== toolbar) toolbar.append(triggerHost);
+    else if (!toolbar) triggerHost.remove();
     mountPanel();
     if (lastHref !== location.href) {
       // Follow native/URL changes until the user deliberately edits our form.
@@ -637,7 +635,9 @@
   chrome.storage.sync.get(settingKeys).then(data => {
     userSettings = data;
     usernames = globalThis.QGInatUsers.read(userSettings);
-    commonTaxa = globalThis.QGInatSavedTaxa.read(data);
+    // Comparison does not support taxon exclusions: never silently drop one
+    // from a saved search preset. Plain saved roots remain available as before.
+    commonTaxa = globalThis.QGInatSavedTaxa.read(data).filter(taxon => !taxon.withoutTaxonIds);
     if (!dirty && !busy && !result) setFields(core.pageDefaults(location.href, fallbackUser()));
   }).catch(() => { /* Manual entry remains available without synced settings. */ });
   libraryAction("list").then(()=>{
@@ -668,7 +668,7 @@
     }
     if (changes.savedTaxa) {
       const current = $("#taxon").value;
-      commonTaxa = globalThis.QGInatSavedTaxa.read({ savedTaxa: changes.savedTaxa.newValue });
+      commonTaxa = globalThis.QGInatSavedTaxa.read({ savedTaxa: changes.savedTaxa.newValue }).filter(taxon => !taxon.withoutTaxonIds);
       populateTaxon(current);
     }
   });

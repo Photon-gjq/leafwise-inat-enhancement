@@ -31,6 +31,8 @@
     return false;
   }
   if (finishPendingNativeFilter()) return;
+  if (globalThis.LeafwiseUserFilters) return;
+  globalThis.LeafwiseUserFilters = true;
   const host = document.createElement("div");
   host.id = "qg-inat-user-filters";
   const shadow = host.attachShadow({ mode: "open" });
@@ -39,9 +41,9 @@
   const summaryShadow = summaryHost.attachShadow({ mode: "open" });
   summaryShadow.innerHTML = html(`
     <style>
-      :host { display: inline-flex; margin-left: 10px; vertical-align: middle; }
+      :host { display: inline-flex; max-width: 100%; margin: 4px 0; vertical-align: middle; }
       :host([hidden]) { display: none; }
-      button { max-width: 440px; padding: 3px 9px; overflow: hidden; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+      button { max-width: 100%; padding: 3px 9px; overflow: hidden; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
       button:hover { border-color: #66834f; background: #eaf1e4; }
       button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
     </style>
@@ -87,15 +89,15 @@
     </div>`);
   shadow.innerHTML = html(`
     <style>
-      :host { display: block; clear: both; margin: 12px 16px; color-scheme: light; }
+      :host { display: block; clear: both; margin: 8px 0 12px; color-scheme: light; }
       :host([hidden]) { display: none; }
       * { box-sizing: border-box; }
       form { margin: 0; padding: 12px 16px; border: 1px solid #ccd9c0; border-radius: 6px; background: #f5f8f0; color: #293524; font: 14px/1.5 system-ui, sans-serif; }
       .row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
-      .field { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      .field { display: flex; max-width: 100%; align-items: center; flex-wrap: wrap; gap: 8px; }
       label { font-weight: 600; }
       select, input, button { font: inherit; border: 1px solid #95a58b; border-radius: 4px; padding: 6px 9px; background: white; color: #293524; min-height: 34px; }
-      select { max-width: 260px; } input { width: 170px; }
+      select { max-width: min(260px, 100%); } input { width: 170px; max-width: 100%; }
       button { cursor: pointer; } button[type=submit] { background: #496f29; border-color: #496f29; color: white; }
       button:disabled { opacity: .5; cursor: default; }
       .swap { width: 34px; padding-inline: 0; color: #496f29; font-size: 18px; line-height: 1; }
@@ -159,6 +161,7 @@
     summaryHost.hidden = !value;
     summaryButton.textContent = summaryText(href);
     summaryButton.title = t("{0}；点击展开用户筛选", summaryButton.textContent);
+    summaryButton.setAttribute("aria-expanded", String(!value));
     if (persist) saveCollapsed(value);
   }
   summaryButton.addEventListener("click", () => setCollapsed(false));
@@ -388,23 +391,21 @@
       }, 1200);
     }, true);
   }
-  // Prefer the search toolbar; fallback remains in normal document flow.
+  // Share the comparison panel's named slots, keeping independent form logic.
   function mount() {
     if (!api.isSearchPage(location.href)) { host.remove(); summaryHost.remove(); modalHost.remove(); return; }
-    const heading = document.querySelector("#filters > h1, #filters h1");
-    if (heading && summaryHost.parentElement !== heading) heading.append(summaryHost);
     const nativePerson = nativePersonInput();
     const nativePersonGroup = nativePerson?.closest(".form-group");
     const middleColumn = document.querySelector("#more-filters > .row > .col-xs-4:nth-child(2)");
     if (middleColumn && modalHost.parentElement !== middleColumn) middleColumn.append(modalHost);
     else if (!middleColumn && nativePersonGroup && modalHost.parentElement !== nativePersonGroup.parentElement) nativePersonGroup.after(modalHost);
     bindNativeUpdate();
-    const anchor = document.querySelector("#observations-search .SearchBar, #observations .SearchBar, .Observations .SearchBar, #observations-search .search-bar");
-    if (anchor) {
-      if (anchor.nextElementSibling !== host) anchor.after(host);
-    } else if (!host.isConnected) {
-      const container = document.querySelector("#observations-search, #observations, main, #wrapper, #main") || document.body;
-      container.prepend(host);
+    const panel = document.getElementById("qg-inat-higher-taxa");
+    if (panel) {
+      host.slot = "user-filters";
+      summaryHost.slot = "user-filter-summary";
+      if (host.parentElement !== panel) panel.append(host);
+      if (summaryHost.parentElement !== panel) panel.append(summaryHost);
     }
     host.hidden = collapsed;
     summaryHost.hidden = !collapsed;

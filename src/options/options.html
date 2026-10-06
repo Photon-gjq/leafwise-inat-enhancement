@@ -22,18 +22,19 @@
     </section>
     <section>
       <h2>常用类群</h2>
-      <p>这些类群会出现在“未观察的高阶”面板的类群下拉框中。</p>
+      <p>观察搜索页和鉴定页共用此常用类群清单；不含排除条件的条目也可用于类群对比。保存设置不会自动改变当前页面的筛选。</p>
       <form id="taxa-form">
         <label for="taxa">常用类群 ID 与名称</label>
-        <textarea id="taxa" name="taxa" rows="8" placeholder="3 = 鸟纲&#10;48460 = 全部生物" autocomplete="off" spellcheck="false" disabled></textarea>
+        <textarea id="taxa" name="taxa" rows="8" placeholder="3 = 鸟纲&#10;48460 = 全部生物&#10;125816 !50186 = 自订组合" autocomplete="off" spellcheck="false" disabled></textarea>
         <p>每行一个，格式为“ID = 名称”。名称可以省略，保存时会尝试从 iNaturalist 获取中文名；获取失败仍会保存 ID。可添加、删除或调整顺序，留空保存可清空列表。</p>
+        <p>可选排除格式：125816 !50186 = 名称。多个排除 ID 用逗号分隔，每项最多 20 个。不含排除的条目或“不限”会清除之前的类群排除条件；其他筛选保留。排除组合仅用于搜索快捷选择，不参与类群对比。</p>
         <button type="submit" disabled>保存常用类群</button>
       </form>
       <p id="taxa-status" class="status" role="status" aria-live="polite"></p>
     </section>
     <section>
       <h2>常用地区组合</h2>
-      <p>自选搭配地区 ID，保存后可在观察搜索页直接快捷选择，也可在类群对比中使用。两处共用清单，仅保存在此浏览器。</p>
+      <p>自选搭配地区 ID，保存后可在观察搜索页和鉴定页直接快捷选择，也可在类群对比中使用。共用清单，仅保存在此浏览器。</p>
       <form id="places-form">
         <label for="places">常用地区 ID 与名称</label>
         <textarea id="places" name="places" rows="6" placeholder="ID,ID = 名称" autocomplete="off" spellcheck="false" disabled></textarea>

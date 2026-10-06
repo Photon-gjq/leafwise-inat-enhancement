@@ -8,7 +8,9 @@
 
 Leafwise is a browser extension that adds comparison, planning, personal-record, and upload-assistance tools to the iNaturalist website. One shared source tree builds the Chrome, Edge, and Firefox editions. Leafwise is not an official iNaturalist product.
 
-Version 1.1.4 fixes missing @mention updates in batch-open by resolving native comment and identification links and deduplicating their observations. If the destination cannot be confirmed, the original link is retained instead of silently skipped; these fallback links can only be deduplicated by identical URL.
+Version 1.2.0 adds shared saved taxon/place shortcuts to Observation search and Identify. Taxon presets accept optional exclusions, such as `125816 !50186 = name`. User filters move inside taxon comparison, with a compact toolbar below the native search row. Existing settings remain compatible; AI and statistics core logic are unchanged.
+
+It retains the 1.1.4 @mention batch-open fix: native comment and identification links are resolved and their observations deduplicated. If the destination cannot be confirmed, the original link is retained instead of silently skipped; these fallback links can only be deduplicated by identical URL.
 
 It retains the remembered, default-off “Only show non-confirming IDs” switch from 1.1.3. It hides only exact matches to your own identification before the update, without remarks; finer, broader, different, comment, and uncertain updates stay visible. Batch-open follows the filtered list. The controls cover all 50 existing language/region variants.
 
@@ -31,8 +33,9 @@ A GitHub Release updates the downloadable files; it does not automatically repla
 ## Features
 
 - **Taxon comparison:** find branches you have never observed, branches missing from a selected year or place, or first records for a year. Aggregate from kingdom down to species.
+- **Saved taxa and user filters:** a compact toolbar below the native search row contains saved taxon/place shortcuts. Save taxa as `ID = name` in settings; comparison shares the same list, and only selecting a shortcut changes the search. User-source/exclusion controls now live inside taxon comparison, retaining swapping and native-filter synchronization.
 - **Seasonal target lists:** restrict regional candidates by month, date range, project, and quality grade without accidentally narrowing the personal baseline.
-- **Quick place groups and saved queries:** choose saved groups directly on the observation search page without opening taxon comparison. Selection updates the search immediately while keeping user, taxon, date and other non-geographic filters. Complete search URLs can also be saved locally.
+- **Quick regions and taxa:** choose saved groups on Observation search or Identify without opening comparison. Taxon settings accept `ID = name` or optional `ID !ExcludedIDs = name`; plain entries clear previous taxon exclusions. Other filters remain. Exclusion presets apply to search only; plain taxa are also available in comparison. Complete observation search URLs can be saved locally.
 - **Personal record cards and taxon statistics:** taxon pages show `(observations|leaf taxa|species)` for the region selected at the top right, or worldwide when no region is selected. First/latest records and browse links use the same scope. Individual observation pages retain global personal counts.
 - **Saved regions in settings:** enter one `ID,ID = name` group per line, with up to 20 places per group and 50 groups. The quick selector and comparison share this local list. The original China/regional groups are optional settings examples only: add and save them explicitly, with no prefilled groups or automatic filters. Existing custom groups are preserved.
 - **Filter and batch-open activity:** optionally hide exact confirming identifications without remarks, then open each distinct observation from the visible activity dropdown in one background tab. Only currently loaded updates are processed; uncertain updates remain visible, read state is unchanged, and private messages are not inspected.

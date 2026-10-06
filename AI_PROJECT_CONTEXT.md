@@ -60,7 +60,7 @@
 | src/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
-| src/scripts/quick-places.js | 觀察搜尋頁外層地點組合快捷選單；共用既有地區清單，不自動套用 |
+| src/scripts/quick-places.js | 觀察搜尋／鑑定頁緊湊工具列、地區及常用類群／排除組合快捷選單；共用既有兩份清單，不自動套用 |
 | src/scripts/notification-tabs.js、notification-filter.js | 全站「新動態」清單去重開啟與可選的精確確認鑑定篩選；純規則與 DOM／非同步處理分離 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
@@ -118,6 +118,8 @@ scripts/build.mjs 會複製 src/，把 package.json 版本和平台 manifest 合
 ### 觀察搜尋／探索頁
 
 url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-taxa-core.js → explore-tools.js → quick-places.js → higher-taxa-panel.js
+
+同組也匹配 `/observations/identify`；只有 `quick-places.js` 啟用兩個快捷選單。`content.js`／對比仍用原有 observations 根路徑 guard，不把搜尋用戶及對比表單帶入 Identify。
 
 ### 分類單元詳情 /taxa/<id>
 
@@ -218,7 +220,11 @@ explore-tools.js 管理分區預設、自訂分組、已存查詢和 CSV。查�
 
 設定頁、外層快捷選單與面板共用 `leafwiseExploreLibraryV1.groups`。`parsePlaceGroups` 驗證 `ID,ID = 名稱`、20 個地區／50 組上限及重複聯集；`replacePlaceGroups` 保留相同聯集的既有 ID 及最新 queries，以 `expectedGroups` 快照拒絕舊表單覆蓋其他頁面變更。背景仍以 libraryTask 序列化操作；`leafwise-explore-library` 的 `replace-places` action，entry 為 `{text, expectedGroups}`。不改 sync 儲存。`explore-tools.groups` 只作設定頁可選範例與名稱顯示，不再當成選單預設清單；不播種、不遷移或清空既有自訂組合。`appendPlaceGroup` 只附加草稿且按聯集去重，不改已有名稱或順序；最後須手動保存。面板空地點以 `any`（全球）對比，不回退中國組合；明確點擊範例按鈕仍為手動操作。
 
-`quick-places.js` 僅在 observations 搜尋頁掛載於 `#filters h1`。注入前全域標记防重，即使 heading 尚未出現；掛載不反覆調整兄弟控制項次序，避免與來源摘要／對比觸發器爭位置。local library 變更只刷新選項，不套用篩選；初次讀取的舊回應不得蓋過較新的 storage 事件。明確選取才透過 `placeSearchURL` 導航：驗證當前 HTTPS iNaturalist 搜尋網址及地區 ID，保留非地理和排除條件，改 `place_id`，清除 bbox／半徑、page 及 `leafwise_query`，避免重載後還原舊地點。不改核心分類／統計／AI 邏輯、權限或背景訊息契約。
+`quick-places.js` 在 observations 搜尋頁掛載於 `#filters` 的獨立緊湊列，`clear:both` 放在原生浮動搜尋列下方；不向 `#filters h1` 加內容、不覆寫原生控制項排版。具名 `comparison-trigger` slot 接收對比入口，自有兩個快捷選單只在自身一列換行。Identify 掛在 `#Identify .SearchBar` 之後、原生 form 外；React 重掛時移動既有 host。原生 disabled／blind 模式不啟用；帳號預設地區可能省略於 URL，僅用公開 `input[name=place_id]` 補充選項判斷，不讀 React 私有狀態或改預設。`quickSearchPage` 僅放行 HTTPS 官方 observations 根路徑與 identify；收藏的 `searchURL` 及用戶／對比的 `isSearchPage` 不擴充。
+
+常用類群與設定／對比共用既有 `storage.sync.savedTaxa`，地區共用 local library。類群條目可選 `withoutTaxonIds: number[]`，最多 20 個正整數，排序去重；`saved-taxa.key` 以根＋排除 ID 聯集辨認，同根不同排除可共存。無排除的舊條目維持 `{id,name}` 形狀，無需遷移；設定格式 `ID !排除ID,ID = 名稱`，名稱可省略。對比仍不支援排除統計，故只讀無排除條目，不靜默丟掉組合排除再使用。兩份 storage 變更只刷新選項、不套用篩選；各自 revision／read token 避免舊回應覆蓋新設定，BFcache 返回重讀。明確選取才透過 `placeSearchURL`／`taxonSearchURL` 導航並清除 page／`leafwise_query`；地區替換 `place_id` 及 bbox／半徑，類群替換／清除 `taxon_id` 與 `without_taxon_id`（普通條目及不限清除舊排除），其他條件包含 user 排除／reviewed／quality 等均保留。不改核心分類／統計／AI 邏輯、權限或背景訊息契約。
+
+`higher-taxa-panel.js` 的 host 掛在 `#filters` 後；`user-filter-summary`／`user-filters` slots 在 comparison form 外接收 `content.js` 原有的摘要與用戶 form。兩份表單各有 Shadow DOM 和事件，來源／排除、互換、套用與原生 modal 同步不改；用戶欄位事件不可令對比 dirty。關閉面板隱藏用戶表單、重開保留同頁草稿。三個 UI 入口均以注入前全域 singleton 防重；mount 只移動既有 host，不反覆調整互相競爭的兄弟位置。新增文件須區分這種受控 DOM 測試與正式帳號驗收。
 
 higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果、逐列 Leaf taxa 驗證、兩個名稱 worker、leafwise_query 還原，以及 DOM 異步重掛載。
 
@@ -246,7 +252,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 ### 主要儲存位置
 
-- storage.sync：savedUsernames、savedTaxa；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
+- storage.sync：savedUsernames、savedTaxa（`{id,name,withoutTaxonIds?}`，無排除條目仍為舊形狀）；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
 - storage.local：個人次數快取、探索查詢／分組資料庫 leafwiseExploreLibraryV1。
 - storage.local：leafwiseNotificationFilterV1 僅記通知篩選布林值，預設 false、不 sync；鑑定比對資料只在本頁記憶體。
 - storage.local：leafwiseLastSiteLocale 只記最近網站語言碼，用於設定頁；不含帳戶資訊、不 sync，不改其他鍵。名稱訊息新增可選 locale，舊 caller 預設 zh-CN；名稱快取使用包含 locale 的 API URL。

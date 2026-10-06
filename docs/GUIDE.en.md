@@ -24,6 +24,14 @@ For a locally loaded Chrome or Edge build, download and extract the new release,
 
 Open an iNaturalist observations search page and click **類群對比** (Taxon comparison).
 
+The compact toolbar below the native search row contains comparison, saved taxa and saved regions. **User filters** now lives inside comparison: open the panel, click the user summary, then choose observation source and exclusion users, swap if needed, and apply. This changes the search, not the comparison results; the native filter-menu controls remain available. Closing and reopening the panel preserves same-page drafts.
+
+The **Saved taxa** shortcut replaces `taxon_id` and optional `without_taxon_id`, resets pagination, and preserves place, user, user exclusions, dates and other filters. **Any** clears both taxon parameters. **Manage saved taxa…** opens settings: enter one `ID = name` per line, optionally omit names, reorder, or save an empty list to clear it. Existing entries remain compatible. Saving settings never changes the active search automatically, and custom names are not translated.
+
+Optional exclusions use `125816 !50186 = My preset`, applying `taxon_id=125816&without_taxon_id=50186`. Use commas after `!` for up to 20 excluded IDs. Different exclusion presets may share the same root. Selecting a plain entry clears the previous taxon exclusions rather than leaving them behind. Comparison shares the settings list, but exclusion presets are not offered there: comparison does not yet support taxon-exclusion statistics.
+
+The **Identify** page (`/observations/identify`) also offers the same saved taxon and region selectors below its native search form. Selecting a preset reloads the search and preserves reviewed status, quality grade, user and other filters; it never submits an identification or marks observations reviewed. **Worldwide** explicitly sets `place_id=any`, overriding an account's preferred search place. Shortcuts are not enabled for disabled native forms or the blind identification experiment.
+
 | Chinese label | Meaning |
 | --- | --- |
 | 对比用户 | iNaturalist user name or numeric user ID |
@@ -65,7 +73,7 @@ Changing only the rank reuses the downloaded taxonomy trees. Errors are shown as
 
 ## Saved queries and custom place groups
 
-The **Quick place groups…** selector beside the observation search heading applies saved groups without opening comparison. It updates the search immediately, preserving user, taxon, date, quality, project and exclusion filters, but replacing place IDs, clearing old bounding-box/radius constraints, resetting pagination, and removing the saved-query restore pointer. **Worldwide** uses `place_id=any`. Selection does not run taxon comparison automatically.
+The **Quick place groups…** selector below the observation search row applies saved groups without opening comparison. It updates the search immediately, preserving user, taxon, date, quality, project and exclusion filters, but replacing place IDs, clearing old bounding-box/radius constraints, resetting pagination, and removing the saved-query restore pointer. **Worldwide** uses `place_id=any`. Selection does not run taxon comparison automatically.
 
 Choose **Manage saved regions…** to open settings. Under **Saved regions**, enter one `ID,ID = name` per line; names may be omitted. The quick selector and comparison share this list. Saving an empty list clears custom groups without deleting saved searches or optional examples. Saving settings does not change an active search. If another page edited the groups while settings were open, reopen settings before saving to avoid overwriting its changes.
 

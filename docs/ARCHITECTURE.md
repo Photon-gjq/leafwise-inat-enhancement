@@ -2,6 +2,12 @@
 
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。
 
+觀察搜尋工具列由 `quick-places.js` 掛在 `#filters` 的原生浮動搜尋列下方，`clear:both` 只讓自有控制項換行，不向原生 h1 加內容或覆寫網站 CSS。鑑定頁沿用同一 host，掛作 `#Identify .SearchBar` 的下一個兄弟，避免嵌入 React form；禁用／blind 表單不啟用，URL 省略預設地區時僅讀公開原生 hidden input 判斷選項。`quickSearchPage` 僅放行兩個 HTTPS 正式搜尋路徑，原有 `searchURL`／`isSearchPage` 限制不放寬，故不把用戶／對比表單帶入鑑定頁。
+
+地區共用 local 組合庫，類群共用既有 `storage.sync.savedTaxa`；可選 `withoutTaxonIds: number[]` 按 ID 排序去重，舊無排除條目形狀不變。設定格式 `ID !排除ID,ID = 名稱`，以根＋排除聯集辨認；對比僅讀無排除條目，核心統計不變。明確選取才用 `taxonSearchURL` 取代 `taxon_id`／`without_taxon_id` 並清除分頁及查詢還原指標，普通條目及不限清除舊類群排除，其餘條件保留。兩份異步讀取各自以 storage revision／讀取 token 拒絕舊回應，BFcache 返回重讀。
+
+對比觸發器以具名 slot 掛在快捷工具列；`content.js` 的用戶摘要／表單則以具名 slots 掛在對比面板內、對比 form 外。三個 UI 入口都有注入前 singleton guard，重掛載只移動既有 host。用戶及對比表單保留各自 Shadow DOM／事件與判定，不合併核心邏輯，也不把用戶輸入當成對比草稿變動。
+
 分類頁地區取自網站原生選擇器狀態及 `.NumObservations` 連結，而非僅依 URL。計數／多樣性／首次最近紀錄與觀察連結共享可選 `placeId`，快取按地區分隔；controller generation 和即時地區 identity 阻止跨地區舊回應回寫。選中但 ID 尚未取得時不冒充全球。設定頁、觀察搜尋頁的 `quick-places.js` 快捷選單與對比面板共用 local 地區組合庫，bulk 更新用舊 groups 快照作衝突檢查，保留查詢收藏。原有中國分組僅為設定頁可選範例，不播種至儲存；快捷選取透過 `explore-tools.placeSearchURL` 明確導航，保存設定則只更新選項、不改搜尋。
 
 原生 DOM 範圍依據：[地區 chooser](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/components/place_chooser_popover.jsx)、[觀察連結容器](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/show/containers/num_observations_container.js) 及 [chosenPlace 參數](https://github.com/inaturalist/inaturalist/blob/main/app/webpack/taxa/shared/util.js)（2026-10-02 核對）。不讀取私有 React 元件內部或重新按地名搜尋。

@@ -2,6 +2,12 @@
 
 ## 自動測試
 
+1.2.0 發版前驗證（2026-10-07）：`npm run check` 的三瀏覽器功能測試及商店腳本測試共 302 項通過；啟用 Edge、單 worker 執行完整 Playwright 套件，249 項通過。`npm run package` 的六個套件均通過解壓逐檔及 manifest 版本校驗；發版說明與 `v1.2.0` 一致。檢視觀察搜尋／鑑定頁的受控截圖；未做登入正式帳號人工驗收。
+
+1.2.0 的排除組合與 Identify 快捷選單：`saved-taxa.test.cjs` 驗證舊儲存形狀／清空、`ID !排除ID = 名稱` 往返、同根不同排除組合去重及非法 ID；URL 測試確保只替換兩個類群參數、普通／不限清除舊排除、地區選取保留排除及 Identify 的 reviewed 等條件。`explore.spec.cjs` 用設定頁驗證保存／重開／非法草稿不覆蓋、觀察頁選取及對比排除不支援組合。`identify-shortcuts.spec.cjs` 依官方 [SearchBar](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/observations/identify/components/search_bar.jsx)／[PlaceAutocomplete](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/observations/identify/components/place_autocomplete.jsx) 的公開 DOM 建立受控 fixture，覆蓋同根選項、共享設定、原生 URL／預設地區、延遲掛載／重掛、禁用／blind、LTR／RTL 與窄視窗不新增溢出，確認快捷操作不觸發原生提交／批次已檢視。50 語言測試追加排除標籤及 Identify 重掛。這不是登入正式帳號人工驗收。
+
+1.2.0 的常用類群／緊湊工具列：純函數驗證 ID 與 URL 安全、只改類群並保留其他篩選。`explore.spec.cjs` 驗證實際設定頁保存／清空／重開、兩處共用、顯式選取、storage 競態、BFcache 及失敗恢復；`user-filters.spec.cjs` 覆蓋移入面板後的套用、互換、Escape／重開草稿、與對比表單事件隔離。`search-toolbar.spec.cjs` 依官方固定提交的 [搜尋頁模板](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/views/observations/index.html.haml)／[CSS](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/assets/stylesheets/observations/search.scss) 建立受控 native float fixture，對比注入前後原生標題、類群／地點欄、前往及過濾器位置／大小，覆蓋 LTR／RTL、窄視窗、長名稱、整欄重掛載及重複注入。官方頁有 980px 最小寬度，窄視窗測試要求不新增溢出；另有 375px 自適應容器壓力測試，不宣稱已改好網站行動版。`i18n.spec.cjs` 逐一驗證全部 50 語言的類群／地區快捷及移入的用戶摘要。均為受控頁面，不是登入正式帳號人工驗收。
+
 1.1.5 的地區快捷選擇：`explore-tools.test.cjs` 驗證 URL 地區聯集、全球、範圍替換、非地理／排除條件保留、分頁重設及非法輸入；可選範例只編輯草稿、聯集去重且保留原名稱。三瀏覽器 `explore.spec.cjs` 驗證空清單不播種、手動加入後保存、舊自訂清單／queries 保留、原生移除／路由／heading 重掛載、防重注入、storage 更新不自動套用、舊回應隔離、BFcache 返回重讀及讀取失敗後恢復。`i18n.spec.cjs` 驗證 50 個語言／地區版本的快捷選單和自訂名稱保留。均為受控頁面／API，非正式帳號人工驗收。
 
 1.1.4 的提及通知修復：`notification-filter.test.cjs` 驗證評論／鑑定 show 路徑、數字／UUID、無效主機／端口／ID 及 query 去除；背景測試驗證未解析通知的安全後備與整批拒絕非法目的地。`notification-tabs.spec.cjs` 在三瀏覽器用受控最終 fetch URL 驗證提及、收藏、評論、鑑定混合去重、篩選保留提及、非觀察目的地、HTTP 錯誤頁、登入轉址、失敗後備、最多兩個並發、整批逾時、清單替換及 BFcache 舊回應隔離。這不是正式帳號人工驗收；轉址不可解析時只能按原連結去重。

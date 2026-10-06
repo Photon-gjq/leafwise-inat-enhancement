@@ -33,13 +33,43 @@
     url.searchParams.delete("leafwise_query");
     return url.href;
   }
+  function quickSearchPage(value) {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" || !["www.inaturalist.org", "inaturalist.org"].includes(url.hostname) || url.username || url.password || url.port) return null;
+      if (/^\/observations\/?$/.test(url.pathname)) return "observations";
+      if (/^\/observations\/identify\/?$/.test(url.pathname)) return "identify";
+    } catch { /* Unsupported/malformed pages must not mount or navigate. */ }
+    return null;
+  }
+  function quickSearchURL(value) {
+    if (!quickSearchPage(value)) throw new Error("仅支持 iNaturalist 观察搜索或鉴定页。");
+    const url = new URL(value);
+    url.searchParams.delete("leafwise_query");
+    return url.href;
+  }
   function placeSearchURL(href, place, core) {
-    const url = new URL(searchURL(href));
+    const url = new URL(quickSearchURL(href));
     const ids = core.placeIDs(place);
     url.searchParams.set("place_id", ids.length ? ids.join(",") : "any");
     // Replace the positive geographic scope, not unrelated/exclusion filters.
     // A saved-query pointer would restore its old comparison region on reload.
     for (const key of ["swlat", "swlng", "nelat", "nelng", "lat", "lng", "radius", "page"]) url.searchParams.delete(key);
+    return url.href;
+  }
+  function taxonSearchURL(href, taxon, savedTaxa) {
+    const url = new URL(quickSearchURL(href));
+    // Each shortcut replaces the whole taxon scope, not just its positive ID.
+    // Plain entries / Any explicitly clear the previous taxon exclusion.
+    url.searchParams.delete("without_taxon_id");
+    if (taxon === "any") url.searchParams.delete("taxon_id");
+    else {
+      const [item] = savedTaxa.normalize([taxon]);
+      url.searchParams.set("taxon_id", String(item.id));
+      if (item.withoutTaxonIds) url.searchParams.set("without_taxon_id", item.withoutTaxonIds.join(","));
+    }
+    // A saved-query pointer would restore its old taxon after navigation.
+    url.searchParams.delete("page");
     return url.href;
   }
   function title(value) {
@@ -121,6 +151,6 @@
       place:typeof item.place_guess==="string"?item.place_guess:"地點未公開或未提供",
       url:`https://www.inaturalist.org/observations/${item.id}` };
   }
-  const api={places,groups,placeLabel,searchURL,placeSearchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,appendPlaceGroup,replacePlaceGroups,exportTable,observationSummary};
+  const api={places,groups,placeLabel,searchURL,quickSearchPage,placeSearchURL,taxonSearchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,appendPlaceGroup,replacePlaceGroups,exportTable,observationSummary};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.LeafwiseExploreTools=api;
 })(globalThis);

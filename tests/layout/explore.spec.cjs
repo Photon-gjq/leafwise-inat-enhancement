@@ -282,7 +282,7 @@ test('quick regions coexist with user controls, follow native removal and remoun
  await page.addScriptTag({path:path.join(directory,'quick-places.js')});
  const quick=page.locator('#leafwise-quick-places');await expect(quick.locator('#place-choice')).toHaveValue('p1');
  await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(0);
- await expect(page.locator('#qg-inat-higher-taxa > #qg-inat-user-filters-summary')).toHaveCount(1);
+ await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
  await expect(quick.locator('#qg-inat-higher-taxa-trigger')).toHaveCount(1);
  await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=3'));
  await expect(quick.locator('#place-choice')).toHaveValue('any');
@@ -421,25 +421,57 @@ test('saved taxa edited in settings persist after reload and update both selecto
  await page.route('https://www.inaturalist.org/options-fixture', route => route.fulfill({ contentType: 'text/html', body: settings }));
  async function settingsPage() {
   await page.goto('https://www.inaturalist.org/options-fixture');
-  await page.evaluate(() => chrome.storage.local.set({ leafwiseLastSiteLocale: 'en' }));
+  // Unlike the real extension URL, this HTTPS fixture also runs the site's
+  // locale observer. Match its locale so it cannot overwrite our saved "en".
+  await page.evaluate(() => { document.documentElement.lang = 'en'; return chrome.storage.local.set({ leafwiseLastSiteLocale: 'en' }); });
   await inject(page, info, true, true);
   for (const file of ['saved-users.js', 'saved-taxa.js']) await page.addScriptTag({ path: path.join(directory, 'scripts', file) });
   await page.addScriptTag({ path: path.join(directory, 'options/options.js') });
   await expect(page.locator('#taxa')).toBeEnabled();
  }
  await settingsPage();
- await page.locator('#taxa').fill('47158 = My insects\n3 = 我的鳥類');
+ const settingsText = '47158 = My insects\n3 = 我的鳥類\n26036,20978 = 兩爬\n26036,20978 !50186 = My filtered herps';
+ await page.locator('#taxa').fill(settingsText);
  await page.locator('#taxa-form button[type="submit"]').click();
- await expect(page.locator('#taxa-status')).toContainText('2');
+ await expect(page.locator('#taxa-status')).toContainText('4');
+ const canonical = settingsText.replaceAll('26036,20978', '20978,26036');
  await settingsPage();
- await expect(page.locator('#taxa')).toHaveValue('47158 = My insects\n3 = 我的鳥類');
+ await expect(page.locator('#taxa')).toHaveValue(canonical);
+ await page.locator('#taxa').fill(canonical + '\n26036,,20978 = invalid');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('Invalid taxon ID');
+ await settingsPage(); await expect(page.locator('#taxa')).toHaveValue(canonical);
  await page.goto('https://www.inaturalist.org/observations?taxon_id=3'); await inject(page, info, false, true);
- await expect(page.locator('#leafwise-quick-places #taxon-choice option[value^="taxon:"]')).toHaveText(['My insects', '我的鳥類']);
+ await expect(page.locator('#leafwise-quick-places #taxon-choice option[value^="taxon:"]')).toHaveText(['My insects', '我的鳥類', '兩爬', 'My filtered herps · Exclude 50186']);
  await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value="taxon:47158"]')).toHaveText('My insects（47158）');
+ await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value^="taxon:"]')).toHaveCount(2);
+ await page.locator('#leafwise-quick-places #taxon-choice').selectOption('taxon:20978,26036!50186');
+ await expect.poll(() => new URL(page.url()).searchParams.get('taxon_id')).toBe('20978,26036');
+ expect(new URL(page.url()).searchParams.get('without_taxon_id')).toBe('50186');
+ await inject(page, info, false, true);
+ await expect(page.locator('#leafwise-quick-places #taxon-choice')).toHaveValue('taxon:20978,26036!50186');
  await settingsPage(); await page.locator('#taxa').fill('');
  await page.locator('#taxa-form button[type="submit"]').click();
  await expect(page.locator('#taxa-status')).toHaveText(await page.evaluate(() => LeafwiseI18n.t('已清空常用类群列表。')));
  await settingsPage(); await expect(page.locator('#taxa')).toHaveValue('');
+ await page.evaluate(() => { window.testRequests = []; });
+ await page.locator('#taxa').fill('26036,20978\n20978\n26036 = My reptile');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('3');
+ await expect(page.locator('#taxa')).toHaveValue('20978,26036 = 類群 20978 / 類群 26036\n20978 = 類群 20978\n26036 = My reptile');
+ const lookups = await page.evaluate(() => testRequests.filter(url => new URL(url).pathname.startsWith('/v1/taxa/')));
+ expect(lookups).toHaveLength(1);
+ expect(new URL(lookups[0]).pathname).toBe('/v1/taxa/20978,26036');
+ expect(new URL(lookups[0]).searchParams.get('locale')).toBe('en');
+ await settingsPage();
+ await expect(page.locator('#taxa')).toHaveValue('20978,26036 = 類群 20978 / 類群 26036\n20978 = 類群 20978\n26036 = My reptile');
+ await page.evaluate(() => { window.fetch = async () => { throw new Error('Offline name lookup'); }; });
+ await page.locator('#taxa').fill('26036,20978');
+ await page.locator('#taxa-form button[type="submit"]').click();
+ await expect(page.locator('#taxa-status')).toContainText('1');
+ await expect(page.locator('#taxa')).toHaveValue('20978,26036 = Taxon 20978 / Taxon 26036');
+ await settingsPage();
+ await expect(page.locator('#taxa')).toHaveValue('20978,26036 = Taxon 20978 / Taxon 26036');
 });
 
 test('taxon storage races, BFcache and repeated mounting never overwrite newer settings or filters', async ({ page }, info) => {

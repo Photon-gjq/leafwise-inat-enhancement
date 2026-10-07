@@ -79,3 +79,14 @@ test('legacy core errors are localized only at the presentation boundary', () =>
   assert.equal(context.LeafwiseI18n.legacy('首選綜合分數 15.9 未超過 80；沒有官方「非常確定」提示，保留原值'),
     'Top combined score 15.9 does not exceed 80; No official confident hint; original value kept');
 });
+
+test('multi-taxon help, examples and errors use the locale catalog without translating saved names', () => {
+  const english = setup('en').LeafwiseI18n;
+  const error = '格式无效：26036,20978 = 兩爬；请使用“ID,ID = 名称”或“ID,ID !排除ID = 名称”。';
+  assert.equal(english.legacy(error), 'Invalid format: 26036,20978 = 兩爬; use ID,ID = Name or ID,ID !ExcludedIDs = Name. A single included ID is also supported.');
+  assert.equal(english.legacy('每项最多包含 20 个类群。'), 'Include at most 20 taxa per entry.');
+  const example = '3 = 鸟纲\n48460 = 全部生物\n26036,20978 = 两爬\n125816 !50186 = 自订组合';
+  assert.match(english.t(example), /26036,20978 = Reptiles and amphibians/);
+  assert.match(setup('zh-TW').LeafwiseI18n.t(example), /26036,20978 = 兩爬/);
+  assert.equal(setup('fr').LeafwiseI18n.legacy('每项最多包含 20 个类群。'), 'Include at most 20 taxa per entry.');
+});

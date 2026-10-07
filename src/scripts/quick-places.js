@@ -89,12 +89,12 @@
     select.value = bounded ? "" : canonical === "" ? "any" : groups.find(group => group.place === canonical)?.id || "";
     taxonSelect.replaceChildren(new Option(t("常用类群"), ""), new Option(t("不限"), "any"));
     for (const taxon of taxa) {
-      const name = taxon.name || t("类群 {0}", taxon.id);
+      const name = taxon.name || t("类群 {0}", savedTaxa.ids(taxon).join(","));
       const label = taxon.withoutTaxonIds ? `${name} · ${t("排除 {0}", taxon.withoutTaxonIds.join(","))}` : name;
       taxonSelect.add(new Option(label, `taxon:${savedTaxa.key(taxon)}`));
     }
     taxonSelect.add(new Option(t("管理常用类群…"), "settings"));
-    const currentTaxon = params.get("taxon_id");
+    const currentTaxon = params.getAll("taxon_id").join(",");
     let currentKey = null;
     try {
       if (currentTaxon) currentKey = savedTaxa.key({id:currentTaxon, withoutTaxonIds:params.getAll("without_taxon_id").join(",")});

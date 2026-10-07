@@ -4,9 +4,9 @@
 
 觀察搜尋工具列由 `quick-places.js` 掛在 `#stats-container .row > .col-xs-4`，以兩列放進原生 75px 深灰地區區塊，不增高白色標頭；對比入口在第一列末端，類群／地區選單等分第二列。僅標記的地區欄套用 scoped `.geo` 行高／省略及清除圖示位置，不移動 Angular 元素；離頁或換欄移除標記。缺失統計區塊時沿用舊獨立後備列。鑑定頁沿用同一 host，掛作 `#Identify .SearchBar` 的下一個兄弟，避免嵌入 React form；依公開 input 的 bounding rect 對齊位置及寬度，ResizeObserver／resize／字體就緒與重掛重新量測。禁用／blind 表單不啟用，URL 省略預設地區時僅讀公開原生 hidden input 判斷選項。`quickSearchPage` 僅放行兩個 HTTPS 正式搜尋路徑，原有 `searchURL`／`isSearchPage` 限制不放寬，故不把用戶／對比表單帶入鑑定頁。
 
-地區共用 local 組合庫，類群共用既有 `storage.sync.savedTaxa`；可選 `withoutTaxonIds: number[]` 按 ID 排序去重，舊無排除條目形狀不變。設定格式 `ID !排除ID,ID = 名稱`，以根＋排除聯集辨認；對比僅讀無排除條目，核心統計不變。明確選取才用 `taxonSearchURL` 取代 `taxon_id`／`without_taxon_id` 並清除分頁及查詢還原指標，普通條目及不限清除舊類群排除，其餘條件保留。兩份異步讀取各自以 storage revision／讀取 token 拒絕舊回應，BFcache 返回重讀。
+地區共用 local 組合庫，類群共用既有 `storage.sync.savedTaxa`。多根條目可選 `taxonIds: number[]`，`id` 為排序後的第一個 ID；可選 `withoutTaxonIds: number[]`，兩份清單各最多 20 個，排序去重，舊單根條目形狀不變。設定格式 `ID,ID !排除ID,ID = 名稱`，包含及排除清單組成完整 identity；`saved-taxa.ids()` 是所有包含 ID 的共用讀取邊界，URL 比對及名稱補全必須使用整組，不可只取 `id`。對比僅讀無排除且單根條目，核心統計不變。明確選取才用 `taxonSearchURL` 取代 `taxon_id`／`without_taxon_id` 並清除分頁及查詢還原指標，普通條目及不限清除舊類群排除，其餘條件保留。兩份異步讀取各自以 storage revision／讀取 token 拒絕舊回應，BFcache 返回重讀。
 
-對比觸發器以具名 slot 掛在快捷工具列；`content.js` 的用戶摘要／表單則以具名 slots 掛在對比面板內、對比 form 外。三個 UI 入口都有注入前 singleton guard，重掛載只移動既有 host。用戶及對比表單保留各自 Shadow DOM／事件與判定，不合併核心邏輯，也不把用戶輸入當成對比草稿變動。
+對比觸發器以具名 slot 掛在快捷工具列；對比面板不再包含來源／排除入口、用戶摘要／表單或其 slots。`content.js` 只保留原生過濾器中的來源／排除／互換及設定入口，錯誤在該組控制項內顯示；沿用原生更新搜尋與 pending 篩選補全。三個 UI 模組都有注入前 singleton guard，重掛載只移動既有 host。原生過濾器與對比仍有各自 Shadow DOM／事件；「對比使用者」仍為獨立統計基準，不把用戶篩選草稿當成對比變動，也不清空任何已保存設定。
 
 分類頁地區取自網站原生選擇器狀態及 `.NumObservations` 連結，而非僅依 URL。計數／多樣性／首次最近紀錄與觀察連結共享可選 `placeId`，快取按地區分隔；controller generation 和即時地區 identity 阻止跨地區舊回應回寫。選中但 ID 尚未取得時不冒充全球。設定頁、觀察搜尋頁的 `quick-places.js` 快捷選單與對比面板共用 local 地區組合庫，bulk 更新用舊 groups 快照作衝突檢查，保留查詢收藏。原有中國分組僅為設定頁可選範例，不播種至儲存；快捷選取透過 `explore-tools.placeSearchURL` 明確導航，保存設定則只更新選項、不改搜尋。
 

@@ -70,7 +70,6 @@
     <div class="qg">
       <section id="panel" class="panel" aria-label="類群對比" hidden>
         <div class="heading"><h2>類群對比</h2><button type="button" class="close" aria-label="收起面板">×</button></div>
-        <section class="user-tools" aria-label="QG 用户筛选"><slot name="user-filter-summary"></slot><slot name="user-filters"></slot></section>
         <p class="muted">比較當地已記錄的目、科、屬、種等。使用者在該單元或任一後代有記錄，即視為見過；年份以觀察日期計算，無日期記錄不參與年份對比。</p>
         <form id="comparison-form">
           <div class="fields">
@@ -635,9 +634,9 @@
   chrome.storage.sync.get(settingKeys).then(data => {
     userSettings = data;
     usernames = globalThis.QGInatUsers.read(userSettings);
-    // Comparison does not support taxon exclusions: never silently drop one
-    // from a saved search preset. Plain saved roots remain available as before.
-    commonTaxa = globalThis.QGInatSavedTaxa.read(data).filter(taxon => !taxon.withoutTaxonIds);
+    // Comparison needs one root: never silently narrow a union or drop its
+    // exclusions. Plain saved roots remain available as before.
+    commonTaxa = globalThis.QGInatSavedTaxa.read(data).filter(taxon => !taxon.withoutTaxonIds && !taxon.taxonIds);
     if (!dirty && !busy && !result) setFields(core.pageDefaults(location.href, fallbackUser()));
   }).catch(() => { /* Manual entry remains available without synced settings. */ });
   libraryAction("list").then(()=>{
@@ -668,7 +667,7 @@
     }
     if (changes.savedTaxa) {
       const current = $("#taxon").value;
-      commonTaxa = globalThis.QGInatSavedTaxa.read({ savedTaxa: changes.savedTaxa.newValue }).filter(taxon => !taxon.withoutTaxonIds);
+      commonTaxa = globalThis.QGInatSavedTaxa.read({ savedTaxa: changes.savedTaxa.newValue }).filter(taxon => !taxon.withoutTaxonIds && !taxon.taxonIds);
       populateTaxon(current);
     }
   });

@@ -65,7 +65,7 @@
     if (taxon === "any") url.searchParams.delete("taxon_id");
     else {
       const [item] = savedTaxa.normalize([taxon]);
-      url.searchParams.set("taxon_id", String(item.id));
+      url.searchParams.set("taxon_id", savedTaxa.ids(item).join(","));
       if (item.withoutTaxonIds) url.searchParams.set("without_taxon_id", item.withoutTaxonIds.join(","));
     }
     // A saved-query pointer would restore its old taxon after navigation.

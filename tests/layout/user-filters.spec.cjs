@@ -21,8 +21,15 @@ async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_i
     document.querySelector('[name=user_name]').value = params.get('user_id') || '';
     document.querySelector('[name=user_id]').value = params.get('user_id') || '';
     document.querySelector('[name=place_id]').value = params.get('place_id') || '';
-    const api = { runtime: { sendMessage: async () => ({ ok: true, library: {groups:[],queries:[]} }) }, storage: {
-      sync: { get: async () => ({ savedUsernames: ['observer'] }) }, onChanged: { addListener: () => {} }
+    window.storageListeners = []; window.settingsCalls = 0;
+    const api = { runtime: { sendMessage: async message => {
+      if (message.type === 'qg-open-options') {
+        window.settingsCalls++;
+        return { ok: !window.settingsFailure };
+      }
+      return { ok: true, library: {groups:[],queries:[]} };
+    } }, storage: {
+      sync: { get: async () => ({ savedUsernames: ['observer'] }) }, onChanged: { addListener: listener => storageListeners.push(listener) }
     } };
     window.chrome = api; window.browser = api;
     document.querySelector('.btn-primary').addEventListener('click', () => {
@@ -78,7 +85,7 @@ test('clearing native modeled user does not fall back to a stale visible autocom
   await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBeNull();
 });
 
-test('native user changes and reset update both extension forms without overwriting custom typing', async ({ page }, info) => {
+test('native user changes and reset update the sole filter controls without overwriting custom typing', async ({ page }, info) => {
   const modal = await open(page, info);
   await page.evaluate(() => { document.querySelector('[name=user_id]').value = 'other_observer'; });
   await expect(modal.locator('#modal-source-name')).toHaveValue('other_observer');
@@ -88,8 +95,8 @@ test('native user changes and reset update both extension forms without overwrit
   await page.locator('.btn-default').click();
   await expect(modal.locator('#modal-source')).toHaveValue('none');
   await page.locator('#qg-inat-higher-taxa-trigger button').click();
-  await page.locator('#qg-inat-user-filters-summary button').click();
-  await expect(page.locator('#qg-inat-user-filters #source')).toHaveValue('none');
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
+  await expect(page.locator('#qg-inat-higher-taxa #user-choice')).toBeEnabled();
   await page.locator('.btn-primary').click();
   await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBeNull();
   expect(new URL(page.url()).searchParams.get('place_id')).toBeNull();
@@ -106,25 +113,22 @@ test('source and exclusion chosen in the extension survive native update indepen
   expect(new URL(page.url()).searchParams.get('place_id')).toBe('7613');
 });
 
-test('nested user filters preserve swap and drafts across closing without dirtying comparison', async ({ page }, info) => {
-  await open(page, info);
-  const panel = page.locator('#qg-inat-higher-taxa'), user = page.locator('#qg-inat-user-filters');
-  await expect(page.locator('#filters h1 #qg-inat-user-filters-summary')).toHaveCount(0);
-  await expect(user).toBeHidden();
+test('filter swap and drafts remain independent of opening and closing comparison', async ({ page }, info) => {
+  const modal = await open(page, info);
+  const panel = page.locator('#qg-inat-higher-taxa');
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
   await page.locator('#qg-inat-higher-taxa-trigger button').click();
-  await page.locator('#qg-inat-user-filters-summary button').click();
-  await user.locator('#source').selectOption('custom');
-  await user.locator('#source-name').fill('draft_observer');
-  await user.locator('#exclude').selectOption('user:observer');
-  await user.locator('.swap').click();
-  await expect(user.locator('#source')).toHaveValue('user:observer');
-  await expect(user.locator('#exclude-name')).toHaveValue('draft_observer');
-  await user.locator('#exclude-name').press('Escape');
-  await expect(user).toBeHidden();
-  await expect(page.locator('#qg-inat-higher-taxa-trigger button')).toBeFocused();
+  await modal.locator('#modal-source').selectOption('custom');
+  await modal.locator('#modal-source-name').fill('draft_observer');
+  await modal.locator('#modal-exclude').selectOption('user:observer');
+  await modal.locator('#modal-swap').click();
+  await expect(modal.locator('#modal-source')).toHaveValue('user:observer');
+  await expect(modal.locator('#modal-exclude-name')).toHaveValue('draft_observer');
+  await panel.locator('.close').click();
+  await expect(modal.locator('#modal-source')).toBeVisible();
   await page.locator('#qg-inat-higher-taxa-trigger button').click();
-  await expect(user.locator('#exclude-name')).toHaveValue('draft_observer');
-  await expect(user.locator('#source')).toHaveValue('user:observer');
+  await expect(modal.locator('#modal-exclude-name')).toHaveValue('draft_observer');
+  await expect(modal.locator('#modal-source')).toHaveValue('user:observer');
   // User-filter input events are not comparison edits: native place changes
   // should still update an unedited comparison rather than preserve a draft.
   await page.evaluate(() => history.replaceState({}, '', '/observations?user_id=observer&taxon_id=3&month=9'));
@@ -132,17 +136,73 @@ test('nested user filters preserve swap and drafts across closing without dirtyi
   await expect(panel.locator('#status')).not.toContainText('保留当前填写内容');
 });
 
-test('applying user filters inside comparison preserves taxon, places and dates', async ({ page }, info) => {
-  await open(page, info);
-  await page.locator('#qg-inat-higher-taxa-trigger button').click();
-  await page.locator('#qg-inat-user-filters-summary button').click();
-  const user = page.locator('#qg-inat-user-filters');
-  await user.locator('#source').selectOption('custom');
-  await user.locator('#source-name').fill('new_observer');
-  await user.locator('#exclude').selectOption('user:observer');
-  await user.locator('button[type="submit"]').click();
-  await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBe('new_observer');
+test('native update applies user filters and preserves taxon, places and dates', async ({ page }, info) => {
+  const modal = await open(page, info);
+  await modal.locator('#modal-source').selectOption('custom');
+  await modal.locator('#modal-source-name').fill('new_observer');
+  await modal.locator('#modal-exclude').selectOption('user:observer');
+  await page.locator('.btn-primary').click();
+  await expect.poll(() => new URL(page.url()).searchParams.get('unobserved_by_user_id')).toBe('observer');
   const params = new URL(page.url()).searchParams;
+  expect(params.get('user_id')).toBe('new_observer');
   expect(params.get('unobserved_by_user_id')).toBe('observer');
   expect(params.get('taxon_id')).toBe('3'); expect(params.get('place_id')).toBe('7613'); expect(params.get('month')).toBe('9');
+});
+
+test('clearing exclusion through the native filter controls does not resurrect it', async ({ page }, info) => {
+  const modal = await open(page, info, '?user_id=observer&unobserved_by_user_id=other_observer&taxon_id=3');
+  await expect(modal.locator('#modal-exclude-name')).toHaveValue('other_observer');
+  await modal.locator('#modal-exclude').selectOption('none');
+  await page.locator('.btn-primary').click();
+  await expect.poll(() => new URL(page.url()).searchParams.get('unobserved_by_user_id')).toBeNull();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('qgInatPendingUnobservedUser'))).toBeNull();
+  await page.locator('.btn-primary').click();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('qgInatPendingUnobservedUser'))).toBeNull();
+  expect(new URL(page.url()).searchParams.get('unobserved_by_user_id')).toBeNull();
+  expect(new URL(page.url()).searchParams.get('user_id')).toBe('observer');
+});
+
+test('the remaining settings entry preserves custom drafts and exposes failures in the filter menu', async ({ page }, info) => {
+  const modal = await open(page, info);
+  await modal.locator('#modal-source').selectOption('custom');
+  await modal.locator('#modal-source-name').fill('draft_observer');
+  await modal.locator('#modal-source').selectOption('settings');
+  await expect.poll(() => page.evaluate(() => settingsCalls)).toBe(1);
+  await expect(modal.locator('#modal-source')).toHaveValue('custom');
+  await expect(modal.locator('#modal-source-name')).toHaveValue('draft_observer');
+  await modal.locator('#modal-exclude').selectOption('user:observer');
+  await page.evaluate(() => { window.settingsFailure = true; });
+  await modal.locator('#modal-exclude').selectOption('settings');
+  await expect(modal.locator('#modal-exclude')).toHaveValue('user:observer');
+  await expect(modal.locator('#modal-message')).toContainText('无法打开设置');
+  await page.evaluate(() => storageListeners.forEach(listener => listener({ savedUsernames: { newValue: ['observer', 'another'] } }, 'sync')));
+  await expect(modal.locator('#modal-source option[value="user:another"]')).toHaveCount(1);
+  await expect(modal.locator('#modal-source')).toHaveValue('custom');
+  await expect(modal.locator('#modal-source-name')).toHaveValue('draft_observer');
+  await expect(modal.locator('#modal-exclude')).toHaveValue('user:observer');
+});
+
+test('native menu remount and repeated injection keep only one filter group with no comparison entry', async ({ page }, info) => {
+  const modal = await open(page, info);
+  await modal.locator('#modal-exclude').selectOption('custom');
+  await modal.locator('#modal-exclude-name').fill('draft_exclude');
+  await page.evaluate(() => {
+    const menu = document.querySelector('#more-filters');
+    const replacement = menu.cloneNode(true);
+    replacement.querySelector('#qg-inat-native-filter-tools').remove();
+    menu.replaceWith(replacement);
+    sessionStorage.setItem('qgInatUserFiltersCollapsed', '0');
+  });
+  const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
+  await page.addScriptTag({ path: path.join(directory, 'content.js') });
+  await expect(page.locator('#more-filters > .row > .col-xs-4:nth-child(2) > #qg-inat-native-filter-tools')).toHaveCount(1);
+  await expect(modal.locator('#modal-exclude-name')).toHaveValue('draft_exclude');
+  await page.locator('#qg-inat-higher-taxa-trigger button').click();
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary, #qg-inat-higher-taxa .user-tools')).toHaveCount(0);
+  await expect(page.locator('#qg-inat-higher-taxa #user-choice')).toBeVisible();
+  await page.evaluate(() => history.replaceState({}, '', '/observations/123'));
+  await expect(modal).toHaveCount(0);
+  await page.evaluate(() => history.replaceState({}, '', '/observations?user_id=observer'));
+  await expect(modal).toHaveCount(1);
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
 });

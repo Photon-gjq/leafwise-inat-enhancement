@@ -89,11 +89,12 @@
   async function resolveTaxa(items) {
     const missing = items.filter(item => !item.name);
     if (!missing.length) return items;
+    const missingIDs = [...new Set(missing.flatMap(item => taxa.ids(item)))];
     const names = new Map();
-    for (let index = 0; index < missing.length; index += 30) {
-      const batch = missing.slice(index, index + 30);
+    for (let index = 0; index < missingIDs.length; index += 30) {
+      const batch = missingIDs.slice(index, index + 30);
       try {
-        const url = new URL(`https://api.inaturalist.org/v1/taxa/${batch.map(item => item.id).join(",")}`);
+        const url = new URL(`https://api.inaturalist.org/v1/taxa/${batch.join(",")}`);
         url.searchParams.set("locale", globalThis.LeafwiseI18n?.locale() || "zh-CN");
         url.searchParams.set("per_page", "30");
         const response = await fetch(url, { credentials: "omit", headers: { Accept: "application/json" } });
@@ -107,7 +108,7 @@
         });
       } catch { /* Keep the ID when a name lookup is unavailable. */ }
     }
-    return items.map(item => ({ ...item, name: item.name || names.get(item.id) || t("类群 {0}", item.id) }));
+    return items.map(item => ({ ...item, name: item.name || taxa.ids(item).map(id => names.get(id) || t("类群 {0}", id)).join(" / ") }));
   }
 
   document.querySelector("#taxa-form").addEventListener("submit", async event => {

@@ -196,7 +196,7 @@ taxon-status.js 只信任目前 iNaturalist 頁面右上使用者選單：
 
 ## 7. 高階分類與探索工具
 
-搜尋頁 `content.js` 的觀察來源以原生 `#filter-dropdown input[name=user_id][ng-model]` 為優先；欄位存在但為空代表清除，不可用可見名稱或舊 URL 補回。原生控制項全部不存在時才以 URL 後備。網址變化後以新 URL 同步兩份使用者表單；同網址下低頻掛載檢查原生欄位值，涵蓋 Angular 未發 input/change 的清除和切換。插件自己的輸入更新原生值快照，避免打字期間被重填。
+搜尋頁 `content.js` 的觀察來源以原生 `#filter-dropdown input[name=user_id][ng-model]` 為優先；欄位存在但為空代表清除，不可用可見名稱或舊 URL 補回。原生控制項全部不存在時才以 URL 後備。來源／排除僅保留原生過濾器內一組控制項；網址變化後以新 URL 同步，同網址下低頻掛載檢查原生欄位值，涵蓋 Angular 未發 input/change 的清除和切換。插件自己的輸入更新原生值快照，避免打字期間被重填。
 
 類群對比的 `dirty` 區分匯入頁面條件與使用者手動草稿：URL 變化時，未 dirty 且未 busy 的表單重新 `readPage()`（包括清空地點／月份等）；手動或執行中的草稿仍保留，清除舊結果並提示手動同步。不得重新套用已移除的條件，也不得藉此清除已保存收藏。
 
@@ -224,9 +224,11 @@ explore-tools.js 管理分區預設、自訂分組、已存查詢和 CSV。查�
 
 Identify 掛在 `#Identify .SearchBar` 之後、原生 form 外；以公開物種／地區 input 的 bounding rect 設定自有選單位置和寬度，`ResizeObserver`、視窗 resize、字體就緒及重掛時重新量測。兩欄未就緒時保留自有後備，不改原生搜尋框；隱藏樣式在各 placement／aligned 樣式之後，避免禁用／離頁被 display 覆寫。原生 disabled／blind 模式不啟用；帳號預設地區可能省略於 URL，僅用公開 `input[name=place_id]` 補充選項判斷，不讀 React 私有狀態或改預設。`quickSearchPage` 僅放行 HTTPS 官方 observations 根路徑與 identify；收藏的 `searchURL` 及用戶／對比的 `isSearchPage` 不擴充。
 
-常用類群與設定／對比共用既有 `storage.sync.savedTaxa`，地區共用 local library。類群條目可選 `withoutTaxonIds: number[]`，最多 20 個正整數，排序去重；`saved-taxa.key` 以根＋排除 ID 聯集辨認，同根不同排除可共存。無排除的舊條目維持 `{id,name}` 形狀，無需遷移；設定格式 `ID !排除ID,ID = 名稱`，名稱可省略。對比仍不支援排除統計，故只讀無排除條目，不靜默丟掉組合排除再使用。兩份 storage 變更只刷新選項、不套用篩選；各自 revision／read token 避免舊回應覆蓋新設定，BFcache 返回重讀。明確選取才透過 `placeSearchURL`／`taxonSearchURL` 導航並清除 page／`leafwise_query`；地區替換 `place_id` 及 bbox／半徑，類群替換／清除 `taxon_id` 與 `without_taxon_id`（普通條目及不限清除舊排除），其他條件包含 user 排除／reviewed／quality 等均保留。不改核心分類／統計／AI 邏輯、權限或背景訊息契約。
+常用類群與設定／對比共用既有 `storage.sync.savedTaxa`，地區共用 local library。多根類群條目可選 `taxonIds: number[]`，`id` 為排序後第一個 ID；排除可選 `withoutTaxonIds: number[]`，兩份清單各最多 20 個正整數，排序去重。`saved-taxa.ids()` 是包含 ID 的共用讀取邊界，名稱補全與 URL 必須使用完整清單；`saved-taxa.key` 以包含＋排除 ID 聯集辨認，同包含組合不同排除可共存。無排除的舊單根條目維持 `{id,name}` 形狀，無需遷移；設定格式 `ID,ID !排除ID,ID = 名稱`，單根及名稱省略仍支援。對比仍只支援單一根且無排除統計，故不讀多根或排除條目，不靜默丟掉組合成員再使用。兩份 storage 變更只刷新選項、不套用篩選；各自 revision／read token 避免舊回應覆蓋新設定，BFcache 返回重讀。明確選取才透過 `placeSearchURL`／`taxonSearchURL` 導航並清除 page／`leafwise_query`；地區替換 `place_id` 及 bbox／半徑，類群替換／清除 `taxon_id` 與 `without_taxon_id`（普通條目及不限清除舊排除），其他條件包含 user 排除／reviewed／quality 等均保留。不改核心分類／統計／AI 邏輯、權限或背景訊息契約。
 
-`higher-taxa-panel.js` 的 host 掛在 `#filters` 後；`user-filter-summary`／`user-filters` slots 在 comparison form 外接收 `content.js` 原有的摘要與用戶 form。兩份表單各有 Shadow DOM 和事件，來源／排除、互換、套用與原生 modal 同步不改；用戶欄位事件不可令對比 dirty。關閉面板隱藏用戶表單、重開保留同頁草稿。三個 UI 入口均以注入前全域 singleton 防重；mount 只移動既有 host，不反覆調整互相競爭的兄弟位置。新增文件須區分這種受控 DOM 測試與正式帳號驗收。
+Identify 在官方 `b1274a0b6cbf757600ff435135867b7b4021f33c` 使用 `shared/components/taxon_autocomplete.jsx` 而非 uploader 的同名元件。初始化只觸發 jQuery taxonAutocomplete 的 `assignSelection`，不呼叫 `afterSelect`；原生文字／隱藏欄可能顯示組合中第一個 taxon，但 reducer 的 CSV／陣列搜尋條件仍保留。快捷選單按完整 URL 辨認組合，不從該單值 hidden input 重建搜尋條件，也不需攔截原生事件。手動原生選擇則照常更新單一 taxon。
+
+`higher-taxa-panel.js` 的 host 掛在 `#filters` 後，不再含用戶摘要／表單或其 named slots；「對比使用者」仍是獨立統計基準。`content.js` 僅掛載原生過濾器內的 `qg-inat-native-filter-tools`，保留來源／排除、互換、設定入口、草稿與原生更新搜尋同步；錯誤在該組控制項內顯示。關閉對比不影響過濾器草稿，用戶欄位事件不可令對比 dirty。三個 UI 模組均以注入前全域 singleton 防重；mount 只移動既有 host。舊 `qgInatUserFiltersCollapsed` 不再讀寫，但不清除既有資料。新增文件須區分這種受控 DOM 測試與正式帳號驗收。
 
 higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果、逐列 Leaf taxa 驗證、兩個名稱 worker、leafwise_query 還原，以及 DOM 異步重掛載。
 
@@ -254,13 +256,13 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 
 ### 主要儲存位置
 
-- storage.sync：savedUsernames、savedTaxa（`{id,name,withoutTaxonIds?}`，無排除條目仍為舊形狀）；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
+- storage.sync：savedUsernames、savedTaxa（`{id,name,taxonIds?,withoutTaxonIds?}`，單根條目仍為舊形狀）；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
 - storage.local：個人次數快取、探索查詢／分組資料庫 leafwiseExploreLibraryV1。
 - storage.local：leafwiseNotificationFilterV1 僅記通知篩選布林值，預設 false、不 sync；鑑定比對資料只在本頁記憶體。
 - storage.local：leafwiseLastSiteLocale 只記最近網站語言碼，用於設定頁；不含帳戶資訊、不 sync，不改其他鍵。名稱訊息新增可選 locale，舊 caller 預設 zh-CN；名稱快取使用包含 locale 的 API URL。
 - storage.session：高階分類快取。
 - 頁面 localStorage：leafwise-upload-ai-panel-open。
-- 頁面 sessionStorage：搜尋 UI／待套用篩選狀態，例如 qgInatPendingUnobservedUser、qgInatUserFiltersCollapsed。
+- 頁面 sessionStorage：待套用篩選狀態 qgInatPendingUnobservedUser；舊 qgInatUserFiltersCollapsed 已不再使用。
 
 ### 個人計數快取 key（TTL 5 分鐘）
 

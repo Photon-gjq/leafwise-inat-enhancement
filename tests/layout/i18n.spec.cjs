@@ -12,11 +12,11 @@ test('all 50 locales translate quick region and taxon controls without altering 
   const names = require('../../src/i18n/locales.json');
   let lang='en';
   await page.route('https://www.inaturalist.org/**', route => route.fulfill({contentType:'text/html',body:
-    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><div id="filters"><h1>Native</h1></div><div id="stats-container"><div class="row"><div class="col-xs-4" style="width:340px;height:75px;background:#565656"><span class="geo">World</span></div></div></div></body></html>`}));
+    `<!doctype html><html lang="${lang}"><meta charset="utf-8"><body><div id="filters"><h1>Native</h1><div id="filter-dropdown"><div id="more-filters"><div class="row"><div class="col-xs-4"><input name="user_name"><input name="user_id" type="hidden" ng-model="params.user_id"></div><div class="col-xs-4"></div></div></div></div></div><div id="stats-container"><div class="row"><div class="col-xs-4" style="width:340px;height:75px;background:#565656"><span class="geo">World</span></div></div></div></body></html>`}));
   for(const code of Object.keys(names)){
     lang=code;await page.goto('https://www.inaturalist.org/observations?place_id=6803&taxon_id=3');
     await page.evaluate(()=>{
-      const api={runtime:{sendMessage:async()=>({ok:true,library:{queries:[],groups:[{id:'p1',name:'我的自訂地區',place:'6803'}]}})},storage:{sync:{get:async()=>({savedUsernames:['observer'],savedTaxa:[{id:3,name:'我的自訂類群'},{id:3,name:'我的排除組合',withoutTaxonIds:[50186]}]})},onChanged:{addListener:()=>{}}}};
+      const api={runtime:{sendMessage:async()=>({ok:true,library:{queries:[],groups:[{id:'p1',name:'我的自訂地區',place:'6803'}]}})},storage:{sync:{get:async()=>({savedUsernames:['observer'],savedTaxa:[{id:3,name:'我的自訂類群'},{id:3,name:'我的排除組合',withoutTaxonIds:[50186]},{id:20978,name:'兩爬自訂名稱',taxonIds:[20978,26036]}]})},onChanged:{addListener:()=>{}}}};
       window.chrome=api;window.browser=api;
     });
     await inject(page,info,[...helpers,'url-filters.js','saved-users.js','saved-taxa.js','content.js','higher-taxa-core.js','explore-tools.js','quick-places.js','higher-taxa-panel.js']);
@@ -32,20 +32,26 @@ test('all 50 locales translate quick region and taxon controls without altering 
     await expect(quick.locator('#taxon-choice option[value="taxon:3"]')).toHaveText('我的自訂類群');
     await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3');
     await expect(quick.locator('#taxon-choice option[value="taxon:3!50186"]')).toHaveText(await page.evaluate(()=>`我的排除組合 · ${LeafwiseI18n.t('排除 {0}',50186)}`));
+    await expect(quick.locator('#taxon-choice option[value="taxon:20978,26036"]')).toHaveText('兩爬自訂名稱');
     await expect(quick).toHaveAttribute('dir',['ar','he','fa'].includes(code)?'rtl':'ltr');
     await expect(quick.locator('#qg-inat-higher-taxa-trigger button')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('類群對比')));
-    await expect(page.locator('#qg-inat-user-filters-summary')).toBeHidden();
+    await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
     await quick.locator('#qg-inat-higher-taxa-trigger button').click();
-    await expect(page.locator('#qg-inat-user-filters-summary button')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('用户筛选：未启用')));
+    await expect(page.locator('#qg-inat-higher-taxa .user-tools')).toHaveCount(0);
+    const modal=page.locator('#qg-inat-native-filter-tools');
+    await expect(modal.locator('label[for="modal-source"]')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('观察来源')));
+    await expect(modal.locator('label[for="modal-exclude"]')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('排除已观察')));
+    await expect(modal.locator('#modal-swap')).toHaveAttribute('aria-label',await page.evaluate(()=>LeafwiseI18n.t('互换观察来源和排除已观察')));
+    await expect(modal.locator('#modal-source option[value="settings"]')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('管理常用用户…')));
     await expect(page.locator('#filters h1')).toContainText('Native');
     await page.evaluate(() => {
-      history.replaceState({}, '', '/observations/identify?place_id=6803&taxon_id=3&without_taxon_id=50186');
+      history.replaceState({}, '', '/observations/identify?place_id=6803&taxon_id=26036,20978');
       const identify = document.createElement('div'); identify.id = 'Identify';
       identify.innerHTML = '<div><form class="SearchBar"><input name="place_id" type="hidden"></form></div>';
       document.body.append(identify);
     });
     await expect(quick).toHaveAttribute('data-page','identify');
-    await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3!50186');
+    await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:20978,26036');
     await expect(quick.locator('#place-choice')).toHaveValue('p1');
     await expect(quick.locator('#qg-inat-higher-taxa-trigger')).toBeHidden();
     await expect(quick.locator('#taxon-choice')).toHaveAttribute('aria-label',await page.evaluate(()=>LeafwiseI18n.t('选择常用类群')));

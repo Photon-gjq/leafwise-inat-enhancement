@@ -1,6 +1,14 @@
 # 測試與驗收
 
+移除對比頂部來源／排除入口的回歸：`user-filters.spec.cjs` 驗證僅剩原生過濾器的一組控制項、來源／排除獨立更新、互換、原生清除／重設不復活舊條件、設定入口及錯誤可見、storage 更新保留草稿、重掛載／重複注入及離頁重返。對比使用者仍可用，開關對比不影響過濾器。`search-toolbar.spec.cjs`／`explore.spec.cjs` 驗證重複入口不存在；`i18n.spec.cjs` 在 50 種語言下驗證保留的來源／排除／互換／設定標籤。這些是三瀏覽器受控 DOM 回歸，不是登入正式帳號人工驗收。
+
+多類群快捷篩選新增回歸：`saved-taxa.test.cjs` 檢查包含／排除聯集、20 個 ID 邊界、去重、舊設定相容及錯誤原子拒絕；`explore-tools.test.cjs` 檢查完整 `taxon_id` URL 及其他條件保留。三瀏覽器 `explore.spec.cjs` 覆蓋設定保存、重開、無效輸入不覆蓋及觀察頁選擇；`identify-shortcuts.spec.cjs` 覆蓋多根與排除、地區切換、清除及不觸發鑑定／已檢視操作。`i18n.spec.cjs` 驗證 50 種語言下的自訂組合名稱與選取狀態不變。這些是受控 API／DOM 測試，不是登入正式帳號的人工驗收。
+
+Identify 的多類群案例另模擬「原生 hidden taxon ID 已顯示組合中的第一個 ID，但 URL 仍為完整聯集」：快捷選單必須保持完整組合，不能改寫原生欄位。初始化行為核對官方同一提交的 [shared TaxonAutocomplete](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/shared/components/taxon_autocomplete.jsx) 及 [jQuery taxonAutocomplete](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/assets/javascripts/jquery/plugins/inat/taxon_autocomplete.js.erb)：`assignSelection` 不呼叫 `afterSelect`，只有手動選取才更新搜尋參數。此案例不執行完整上游 React 元件，不能替代正式頁驗收。
+
 ## 自動測試
+
+1.2.2 發版前驗證（2026-10-07）：多類群／重複入口移除的功能程式碼通過啟用 Edge、單 worker 的完整 Playwright 共 264 項（另跑來源／排除與工具列 42 項全部通過）；更新版本與 lockfile 後，重新執行 `npm ci --ignore-scripts`、`npm run check` 共 314 項通過，`npm run package` 的六個 1.2.2 套件通過解壓逐檔與 manifest 校驗，`v1.2.2` 發版說明校驗通過。檢視受控窄視窗對比截圖，未做登入正式帳號人工驗收；本次沿用既有公開 DOM 掛載點，未查核正式上游頁面。先前本地功能驗證產物另存，原有 1.2.1 歷史套件及 SHA256 清單按位元組還原；正式打包新增 1.2.2 套件並更新目前版本的 SHA256 清單。
 
 1.2.1 發版前驗證（2026-10-07）：`npm ci --ignore-scripts`、`npm run check`（302 項）、啟用 Edge 的完整單 worker Playwright（252 項）、`npm run package`（六個套件）及 `v1.2.1` 發版說明校驗全部通過。檢視三瀏覽器 LTR／RTL、長地名及鑑定頁對齊截圖；未做登入正式帳號人工驗收。
 

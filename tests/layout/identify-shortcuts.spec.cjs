@@ -10,7 +10,7 @@ const fixture = lang => `<!doctype html><html lang="${lang}" dir="${lang === 'ar
 </style><body><div id="Identify"><div class="container-fluid"><div class="row"><div class="col-xs-12"><h2>Identify</h2></div></div>
 <div class="row"><div class="col-xs-12" id="search-column"><form class="SearchBar form-inline">
 <div class="pull-right"><button id="mark-all" type="button">Mark all as reviewed</button></div>
-<span class="form-group"><span class="TaxonAutocomplete"><span class="search-icon">⌕</span><input id="native-taxon" name="taxon_name" type="search" placeholder="Taxon"></span></span>
+<span class="form-group"><span class="TaxonAutocomplete"><span class="search-icon">⌕</span><input id="native-taxon" name="taxon_name" type="search" placeholder="Taxon"><input name="taxon_id" type="hidden"></span></span>
 <span class="form-group PlaceAutocomplete"><input name="place_name" type="search" placeholder="Place"><input name="place_id" type="hidden"></span>
 <button id="native-go" type="submit">Go</button> <button id="native-filters" type="button">Filters</button>
 <span class="form-group"><label><input id="reviewed" type="checkbox"> Reviewed</label></span></form></div></div>
@@ -23,7 +23,9 @@ async function prepare(page, lang = 'en') {
     const seeds = { sync: { savedTaxa: [
       { id: 125816, name: 'All' },
       { id: 125816, name: 'My custom <b>name</b>', withoutTaxonIds: [50186] },
-      { id: 125816, name: 'Other', withoutTaxonIds: [3, 50186] }
+      { id: 125816, name: 'Other', withoutTaxonIds: [3, 50186] },
+      { id: 20978, name: '兩爬 <b>custom</b>', taxonIds: [20978, 26036] },
+      { id: 20978, name: 'Filtered herps', taxonIds: [20978, 26036], withoutTaxonIds: [50186] }
     ], savedUsernames: ['observer'] }, local: { leafwiseExploreLibraryV1: { queries: [], groups: [{ id: 'p1', name: 'My region', place: '7613,10301' }] } } };
     const area = name => ({
       get: async () => JSON.parse(localStorage.getItem(name) || JSON.stringify(seeds[name] || {})),
@@ -49,6 +51,47 @@ async function inject(page, info) {
   for (const file of files) await page.addScriptTag({ path: path.join(scripts(info), file) });
 }
 const quick = page => page.locator('#leafwise-quick-places');
+
+test('Identify multi-taxon presets match reordered IDs and navigate the full union, never native actions', async ({ page }, info) => {
+  await prepare(page);
+  const href = 'https://www.inaturalist.org/observations/identify?taxon_id=26036,20978&taxon_id=20978&place_id=6903&reviewed=true&quality_grade=needs_id&user_id=observer&per_page=30&page=5&leafwise_query=q1#grid';
+  await page.goto(href);
+  // Identify's shared TaxonAutocomplete initializes its public fields with the
+  // first fetched taxon. Its assignSelection handler does not call afterSelect:
+  // the search URL/state still holds the union. Do not narrow it from this DOM.
+  await page.evaluate(() => {
+    document.querySelector('#native-taxon').value = 'Reptiles';
+    document.querySelector('input[name="taxon_id"]').value = '26036';
+  });
+  await inject(page, info);
+  expect(page.url()).toBe(href);
+  await expect(page.locator('input[name="taxon_id"]')).toHaveValue('26036');
+  await expect(quick(page).locator('#taxon-choice')).toHaveValue('taxon:20978,26036');
+  await expect(quick(page).locator('option[value="taxon:20978,26036"]')).toHaveText('兩爬 <b>custom</b>');
+  await expect(quick(page).locator('b')).toHaveCount(0);
+  await quick(page).locator('#taxon-choice').selectOption('taxon:20978,26036!50186');
+  await expect.poll(() => new URL(page.url()).searchParams.get('without_taxon_id')).toBe('50186');
+  const next = new URL(page.url());
+  expect(next.searchParams.getAll('taxon_id')).toEqual(['20978,26036']);
+  for (const [key, value] of new URL(href).searchParams) if (!['taxon_id', 'page', 'leafwise_query'].includes(key)) expect(next.searchParams.get(key)).toBe(value);
+  expect(next.pathname).toBe('/observations/identify'); expect(next.hash).toBe('#grid');
+  expect(next.searchParams.has('page')).toBe(false); expect(next.searchParams.has('leafwise_query')).toBe(false);
+  await inject(page, info);
+  await expect(quick(page).locator('#taxon-choice')).toHaveValue('taxon:20978,26036!50186');
+  await quick(page).locator('#place-choice').selectOption('p1');
+  await expect.poll(() => new URL(page.url()).searchParams.get('place_id')).toBe('7613,10301');
+  expect(new URL(page.url()).searchParams.get('taxon_id')).toBe('20978,26036');
+  expect(new URL(page.url()).searchParams.get('without_taxon_id')).toBe('50186');
+  await inject(page, info);
+  await quick(page).locator('#taxon-choice').selectOption('taxon:20978,26036');
+  await expect.poll(() => new URL(page.url()).searchParams.get('without_taxon_id')).toBeNull();
+  expect(new URL(page.url()).searchParams.get('taxon_id')).toBe('20978,26036');
+  await inject(page, info);
+  await quick(page).locator('#taxon-choice').selectOption('any');
+  await expect.poll(() => new URL(page.url()).searchParams.get('taxon_id')).toBeNull();
+  expect(new URL(page.url()).searchParams.get('reviewed')).toBe('true');
+  expect(await page.evaluate(() => window.nativeActions)).toEqual([]);
+});
 
 test('Identify shortcuts replace full taxon presets and regions while preserving native filters and actions', async ({ page }, info) => {
   await prepare(page);

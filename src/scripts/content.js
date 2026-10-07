@@ -33,21 +33,6 @@
   if (finishPendingNativeFilter()) return;
   if (globalThis.LeafwiseUserFilters) return;
   globalThis.LeafwiseUserFilters = true;
-  const host = document.createElement("div");
-  host.id = "qg-inat-user-filters";
-  const shadow = host.attachShadow({ mode: "open" });
-  const summaryHost = document.createElement("span");
-  summaryHost.id = "qg-inat-user-filters-summary";
-  const summaryShadow = summaryHost.attachShadow({ mode: "open" });
-  summaryShadow.innerHTML = html(`
-    <style>
-      :host { display: inline-flex; max-width: 100%; margin: 4px 0; vertical-align: middle; }
-      :host([hidden]) { display: none; }
-      button { max-width: 100%; padding: 3px 9px; overflow: hidden; border: 1px solid #a9b99d; border-radius: 999px; background: #f4f7f1; color: #49613d; font: 12px/1.4 system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-      button:hover { border-color: #66834f; background: #eaf1e4; }
-      button:focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
-    </style>
-    <button type="button" aria-label="展开 QG 用户筛选" title="点击展开用户筛选"></button>`);
   const modalHost = document.createElement("div");
   modalHost.id = "qg-inat-native-filter-tools";
   const modalShadow = modalHost.attachShadow({ mode: "open" });
@@ -63,6 +48,8 @@
       select, input { min-width: 0; width: 100%; padding: 5px 7px; }
       button { width: 34px; padding: 0; color: #496f29; font-size: 18px; cursor: pointer; }
       [hidden] { display: none !important; }
+      #modal-message { grid-column: 1 / -1; color: #915315; font-size: 12px; }
+      #modal-message:empty { display: none; }
       :focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
       @media (max-width: 900px) {
         :host { width: 100%; }
@@ -86,39 +73,9 @@
           <input id="modal-exclude-name" aria-label="排除已观察用户名" placeholder="输入用户名" spellcheck="false" autocomplete="off" hidden>
         </div>
       </div>
+      <span id="modal-message" role="status" aria-live="polite"></span>
     </div>`);
-  shadow.innerHTML = html(`
-    <style>
-      :host { display: block; clear: both; margin: 8px 0 12px; color-scheme: light; }
-      :host([hidden]) { display: none; }
-      * { box-sizing: border-box; }
-      form { margin: 0; padding: 12px 16px; border: 1px solid #ccd9c0; border-radius: 6px; background: #f5f8f0; color: #293524; font: 14px/1.5 system-ui, sans-serif; }
-      .row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
-      .field { display: flex; max-width: 100%; align-items: center; flex-wrap: wrap; gap: 8px; }
-      label { font-weight: 600; }
-      select, input, button { font: inherit; border: 1px solid #95a58b; border-radius: 4px; padding: 6px 9px; background: white; color: #293524; min-height: 34px; }
-      select { max-width: min(260px, 100%); } input { width: 170px; max-width: 100%; }
-      button { cursor: pointer; } button[type=submit] { background: #496f29; border-color: #496f29; color: white; }
-      button:disabled { opacity: .5; cursor: default; }
-      .swap { width: 34px; padding-inline: 0; color: #496f29; font-size: 18px; line-height: 1; }
-      .apply-status { display: flex; align-items: center; gap: 8px; min-width: 0; }
-      .apply-status button { flex-shrink: 0; }
-      #message { color: #915315; font-size: 12px; }
-      #message:empty { display: none; } [hidden] { display: none !important; }
-      :focus-visible { outline: 3px solid #83af53; outline-offset: 2px; }
-    </style>
-    <form aria-label="QG 用户筛选">
-      <div class="row">
-        <div class="field"><label for="source">观察来源</label><select id="source" disabled></select><input id="source-name" aria-label="观察来源用户名" placeholder="输入用户名" spellcheck="false" autocomplete="off" hidden></div>
-        <button type="button" class="swap" aria-label="互换观察来源和排除用户" title="互换观察来源和排除用户">⇄</button>
-        <div class="field"><label for="exclude">排除已观察</label><select id="exclude" disabled></select><input id="exclude-name" aria-label="排除已观察用户名" placeholder="输入用户名" spellcheck="false" autocomplete="off" hidden></div>
-        <div class="apply-status"><button type="submit" disabled>应用</button><span id="message" role="status" aria-live="polite"></span></div>
-      </div>
-    </form>`);
-  const form = shadow.querySelector("form");
-  const message = shadow.querySelector("#message");
-  const submit = shadow.querySelector("[type=submit]");
-  const summaryButton = summaryShadow.querySelector("button");
+  const message = modalShadow.querySelector("#modal-message");
   const modalSourceField = {
     key: "user_id",
     select: modalShadow.querySelector("#modal-source"),
@@ -138,51 +95,10 @@
   let lastHref = "";
   let lastNativePerson = "";
   let ready = false;
-  const collapsedKey = "qgInatUserFiltersCollapsed";
-  let collapsed = true;
-  function summaryText(href = location.href) {
-    const params = new URL(href).searchParams;
-    const source = params.get("user_id");
-    const exclude = params.get("unobserved_by_user_id");
-    if (source && exclude) return t("来源 {0} · 排除 {1}", source, exclude);
-    if (source) return t("来源 {0}", source);
-    if (exclude) return t("排除 {0}", exclude);
-    return t("用户筛选：未启用");
-  }
-  function saveCollapsed(value) {
-    try {
-      if (value) sessionStorage.setItem(collapsedKey, "1");
-      else sessionStorage.removeItem(collapsedKey);
-    } catch {}
-  }
-  function setCollapsed(value, persist = true, href = location.href) {
-    collapsed = value;
-    host.hidden = value;
-    summaryHost.hidden = !value;
-    summaryButton.textContent = summaryText(href);
-    summaryButton.title = t("{0}；点击展开用户筛选", summaryButton.textContent);
-    summaryButton.setAttribute("aria-expanded", String(!value));
-    if (persist) saveCollapsed(value);
-  }
-  summaryButton.addEventListener("click", () => setCollapsed(false));
-  try {
-    const savedCollapsed = sessionStorage.getItem(collapsedKey);
-    collapsed = savedCollapsed === null || savedCollapsed === "1";
-  } catch {}
-  setCollapsed(collapsed, false);
-  const fields = api.keys.map((key, index) => {
-    const id = index === 0 ? "source" : "exclude";
-    return { key, select: shadow.querySelector(`#${id}`), input: shadow.querySelector(`#${id}-name`), empty: index === 0 ? t("不限用户") : t("不排除") };
-  });
   function value(field) {
     const selected = field.select.value;
     if (selected === "none" || selected === "settings") return "";
     return selected.startsWith("user:") ? selected.slice(5) : field.input.value.trim();
-  }
-  function warn() {
-    const [source, exclude] = fields.map(value);
-    message.textContent = source && exclude && source.toLowerCase() === exclude.toLowerCase()
-      ? t("两个筛选使用同一用户，通常会得到空结果；仍可点击应用。") : "";
   }
   function populate(field, current, mode) {
     field.select.replaceChildren();
@@ -251,16 +167,10 @@
     if (current === lastNativePerson) return;
     lastNativePerson = current;
     populateModalSource(current);
-    populate(fields[0], current);
   }
   function syncURL() {
-    const params = new URL(location.href).searchParams;
-    fields.forEach(field => populate(field, params.get(field.key) || ""));
     lastHref = location.href;
-    summaryButton.textContent = summaryText();
-    summaryButton.title = t("{0}；点击展开用户筛选", summaryButton.textContent);
     syncModalFromURL();
-    warn();
   }
   async function openSettings() {
     try {
@@ -313,60 +223,6 @@
     populateModalSource(exclude);
     populate(modalExcludeField, source);
   });
-  shadow.querySelector(".swap").addEventListener("click", () => {
-    const drafts = fields.map(field => ({ value: value(field), custom: field.select.value === "custom" }));
-    populate(fields[0], drafts[1].value, drafts[1].custom ? "custom" : undefined);
-    populate(fields[1], drafts[0].value, drafts[0].custom ? "custom" : undefined);
-    warn();
-  });
-  fields.forEach(field => {
-    field.select.addEventListener("change", () => {
-      if (field.select.value === "settings") {
-        populate(field, field.lastValue, field.lastMode);
-        openSettings();
-        return;
-      }
-      field.input.hidden = field.select.value !== "custom";
-      field.input.required = !field.input.hidden;
-      field.input.setCustomValidity("");
-      warn();
-      if (!field.input.hidden) field.input.focus();
-      field.lastValue = value(field);
-      field.lastMode = field.select.value;
-    });
-    field.input.addEventListener("input", () => {
-      field.input.setCustomValidity(""); warn();
-      field.lastValue = value(field);
-      field.lastMode = "custom";
-    });
-  });
-  form.addEventListener("submit", event => {
-    event.preventDefault();
-    if (!ready || !api.isSearchPage(location.href)) return;
-    if (lastHref !== location.href) {
-      syncURL();
-      message.textContent = t("页面筛选已变化，已同步当前条件，请重新选择后应用。");
-      return;
-    }
-    const changes = {};
-    for (const field of fields) {
-      const selected = value(field);
-      if (field.select.value !== "none" && !selected) {
-        if (field.select.value === "settings") {
-          message.textContent = t("请先设置常用用户名。");
-          openSettings();
-        } else {
-          field.input.setCustomValidity(t("请输入用户名，不能只包含空格。"));
-          field.input.reportValidity();
-        }
-        return;
-      }
-      changes[field.key] = selected;
-    }
-    const next = api.updateFilters(location.href, changes);
-    setCollapsed(true, true, next);
-    if (next !== location.href) location.assign(next);
-  });
   const boundNativeUpdates = new WeakSet();
   function bindNativeUpdate() {
     const update = document.querySelector("#filters-footer .btn-primary");
@@ -384,31 +240,21 @@
       setNativeUnobserved(selected);
       const pending = { user_id: nativePersonValue(), unobserved_by_user_id: selected };
       try { sessionStorage.setItem(nativePendingKey, JSON.stringify(pending)); } catch {}
-      saveCollapsed(true);
       const before = location.href;
       setTimeout(() => {
         if (location.href === before && readPendingNativeFilter() !== null) finishPendingNativeFilter();
       }, 1200);
     }, true);
   }
-  // Share the comparison panel's named slots, keeping independent form logic.
+  // User filtering lives only in the native filter menu, not in comparison.
   function mount() {
-    if (!api.isSearchPage(location.href)) { host.remove(); summaryHost.remove(); modalHost.remove(); return; }
+    if (!api.isSearchPage(location.href)) { modalHost.remove(); return; }
     const nativePerson = nativePersonInput();
     const nativePersonGroup = nativePerson?.closest(".form-group");
     const middleColumn = document.querySelector("#more-filters > .row > .col-xs-4:nth-child(2)");
     if (middleColumn && modalHost.parentElement !== middleColumn) middleColumn.append(modalHost);
     else if (!middleColumn && nativePersonGroup && modalHost.parentElement !== nativePersonGroup.parentElement) nativePersonGroup.after(modalHost);
     bindNativeUpdate();
-    const panel = document.getElementById("qg-inat-higher-taxa");
-    if (panel) {
-      host.slot = "user-filters";
-      summaryHost.slot = "user-filter-summary";
-      if (host.parentElement !== panel) panel.append(host);
-      if (summaryHost.parentElement !== panel) panel.append(summaryHost);
-    }
-    host.hidden = collapsed;
-    summaryHost.hidden = !collapsed;
     if (ready && lastHref !== location.href) syncURL();
     else syncNativePerson();
   }
@@ -430,24 +276,17 @@
     usernames = users.read(storedUsers);
     ready = true;
     syncURL();
-    submit.disabled = false;
   }).catch(() => { message.textContent = t("读取设置失败，请刷新页面重试。"); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync" || !users.storageKeys.some(key => changes[key]) || !ready) return;
     // Preserve selected values when a saved candidate changes, including unsaved drafts.
-    const drafts = fields.map(field => ({ value: value(field), mode: field.select.value }));
+    const sourceDraft = { value: modalSourceValue(), mode: modalSource.value };
     const modalDraft = { value: value(modalExcludeField), mode: modalExcludeField.select.value };
     for (const key of users.storageKeys) {
       if (changes[key]) storedUsers[key] = changes[key].newValue;
     }
     usernames = users.read(storedUsers);
-    fields.forEach((field, index) => {
-      const draft = drafts[index];
-      const mode = draft.mode === "custom" ? "custom" : undefined;
-      populate(field, draft.value, mode);
-    });
-    populateModalSource();
+    populate(modalSourceField, sourceDraft.value, sourceDraft.mode === "custom" ? "custom" : undefined);
     populate(modalExcludeField, modalDraft.value, modalDraft.mode === "custom" ? "custom" : undefined);
-    warn();
   });
 })();

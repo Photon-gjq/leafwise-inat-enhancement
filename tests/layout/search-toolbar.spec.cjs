@@ -50,7 +50,8 @@ async function setup(page, info, language, adaptive = false, delayed = false) {
     await page.evaluate(() => document.querySelector('.container').insertAdjacentHTML('beforeend', nativeHeader));
   }
   await expect(page.locator('#leafwise-quick-places #taxon-choice')).toHaveValue('taxon:3');
-  await expect(page.locator('#qg-inat-higher-taxa > #qg-inat-user-filters-summary')).toHaveCount(1);
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
+  await expect(page.locator('#qg-inat-higher-taxa')).toHaveCount(1);
   return baseline;
 }
 
@@ -83,8 +84,7 @@ for (const language of ['en', 'ar']) {
       const foreground = await quick.locator('#place-choice').evaluate(el => getComputedStyle(el).color);
       expect(foreground).toBe('rgb(255, 255, 255)');
       await expect(page.locator('#filters h1')).toHaveText('Observations');
-      await expect(page.locator('#qg-inat-user-filters-summary')).toBeHidden();
-      await expect(page.locator('#qg-inat-user-filters')).toBeHidden();
+      await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
       await page.locator('#native-filters').click();
       expect(await page.evaluate(() => nativeClicks)).toBe(1);
       if (width === 1100) await page.screenshot({ path: info.outputPath(`compact-header-${language}.png`), fullPage: true });
@@ -92,11 +92,11 @@ for (const language of ['en', 'ar']) {
   });
 }
 
-test('narrow adaptive host and whole-header remount retain one toolbar and both user controls inside comparison', async ({ page }, info) => {
+test('narrow adaptive host and whole-header remount retain comparison without duplicate user controls', async ({ page }, info) => {
   await page.setViewportSize({ width: 375, height: 850 });
   const baseline = await setup(page, info, 'en', true, true);
   expect(await nativeBoxes(page)).toEqual(baseline);
-  await expect(page.locator('#qg-inat-user-filters-summary')).toBeHidden();
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
   await page.evaluate(() => {
     const header = document.querySelector('#filters');
     const replacement = document.createRange().createContextualFragment(nativeHeader).firstElementChild;
@@ -104,20 +104,20 @@ test('narrow adaptive host and whole-header remount retain one toolbar and both 
   });
   await expect(page.locator('#stats-container .col-xs-4 > #leafwise-quick-places')).toHaveCount(1);
   await expect(page.locator('#qg-inat-higher-taxa-trigger')).toHaveCount(1);
-  await expect(page.locator('#qg-inat-higher-taxa > #qg-inat-user-filters')).toHaveCount(1);
   await page.locator('#qg-inat-higher-taxa-trigger button').click();
-  await page.locator('#qg-inat-user-filters-summary button').click();
-  await expect(page.locator('#qg-inat-user-filters #source')).toBeVisible();
+  await expect(page.locator('#qg-inat-higher-taxa #user-choice')).toBeVisible();
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   await page.screenshot({ path: info.outputPath('compact-toolbar-mobile-expanded.png'), fullPage: true });
   await page.locator('#qg-inat-higher-taxa .close').click();
-  await expect(page.locator('#qg-inat-user-filters #source')).toBeHidden();
+  await expect(page.locator('#qg-inat-higher-taxa #user-choice')).toBeHidden();
   await page.evaluate(() => history.replaceState({}, '', '/observations/123'));
   await expect(page.locator('#leafwise-quick-places')).toBeHidden();
   await expect(page.locator('[data-leafwise-shortcuts]')).toHaveCount(0);
   await page.evaluate(() => history.replaceState({}, '', '/observations?taxon_id=3'));
   await expect(page.locator('#leafwise-quick-places')).toBeVisible();
-  await expect(page.locator('#qg-inat-user-filters')).toHaveCount(1);
+  await expect(page.locator('#qg-inat-higher-taxa')).toHaveCount(1);
+  await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);
 });
 
 test('statistics remount and long selected places preserve native map and clear actions', async ({ page }, info) => {

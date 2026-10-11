@@ -4,6 +4,7 @@ const extension=require('./extension-path.cjs');
 const core=require(extension+'/scripts/higher-taxa-core.js');
 const tools=require(extension+'/scripts/explore-tools.js');
 const savedTaxa=require(extension+'/scripts/saved-taxa.js');
+const nativeSearchParams=require('./native-search-params.cjs');
 const {createService}=require(extension+'/scripts/higher-taxa-service.js');
 const base={user:'observer',place:10301,taxon:3,rank:'order',quality:'any'};
 const rawTree=(ids)=>({size:ids.length+1,results:[{id:3,parent_id:null,name:'Aves',rank:'class',rank_level:50,direct_obs_count:0,descendant_obs_count:ids.length},...ids.map(id=>({id,parent_id:3,name:`Order ${id}`,rank:'order',rank_level:40,direct_obs_count:1,descendant_obs_count:1}))]});
@@ -22,25 +23,59 @@ test('taxon shortcuts validate IDs and only replace the taxon, page and saved-qu
 
 test('multi-taxon shortcuts apply every included root and optional exclusions without losing unrelated filters',()=>{
  for(const pathname of ['/observations','/observations/identify']) {
+  const parameter=pathname==='/observations'?'taxon_ids':'taxon_id';
   const href=`https://www.inaturalist.org${pathname}?taxon_id=3&taxon_id=4&without_taxon_id=5&place_id=6903&user_id=observer&unobserved_by_user_id=other&reviewed=false&quality_grade=needs_id&month=9&per_page=30&page=4&leafwise_query=q1#grid`;
   const [entry] = savedTaxa.parse('26036,20978 !50186,3 = 兩爬');
   const snapshot=JSON.stringify(entry);
   const next=new URL(tools.taxonSearchURL(href,entry,savedTaxa));
-  assert.deepEqual(next.searchParams.getAll('taxon_id'),['20978,26036']);
+  assert.deepEqual(next.searchParams.getAll(parameter),['20978,26036']);
+  assert.equal(next.searchParams.has(parameter==='taxon_ids'?'taxon_id':'taxon_ids'),false);
   assert.deepEqual(next.searchParams.getAll('without_taxon_id'),['3,50186']);
   assert.equal(next.pathname,pathname);assert.equal(next.hash,'#grid');
   for(const [key,value] of new URL(href).searchParams)if(!['taxon_id','without_taxon_id','page','leafwise_query'].includes(key))assert.equal(next.searchParams.get(key),value,key);
   assert.equal(next.searchParams.has('page'),false);assert.equal(next.searchParams.has('leafwise_query'),false);
   assert.equal(JSON.stringify(entry),snapshot);
   const plain=new URL(tools.taxonSearchURL(next.href,'26036,20978',savedTaxa));
-  assert.equal(plain.searchParams.get('taxon_id'),'20978,26036');assert.equal(plain.searchParams.has('without_taxon_id'),false);
+  assert.equal(plain.searchParams.get(parameter),'20978,26036');assert.equal(plain.searchParams.has('without_taxon_id'),false);
   const region=new URL(tools.placeSearchURL(next.href,'10301',core));
-  assert.equal(region.searchParams.get('taxon_id'),'20978,26036');assert.equal(region.searchParams.get('without_taxon_id'),'3,50186');
+  assert.equal(region.searchParams.get(parameter),'20978,26036');assert.equal(region.searchParams.get('without_taxon_id'),'3,50186');
   const single=new URL(tools.taxonSearchURL(next.href,3,savedTaxa));
-  assert.equal(single.searchParams.get('taxon_id'),'3');assert.equal(single.searchParams.has('without_taxon_id'),false);
+  assert.equal(single.searchParams.get('taxon_id'),'3');assert.equal(single.searchParams.has('taxon_ids'),false);assert.equal(single.searchParams.has('without_taxon_id'),false);
   const any=new URL(tools.taxonSearchURL(next.href,'any',savedTaxa));
-  assert.equal(any.searchParams.has('taxon_id'),false);assert.equal(any.searchParams.has('without_taxon_id'),false);
+  assert.equal(any.searchParams.has('taxon_id'),false);assert.equal(any.searchParams.has('taxon_ids'),false);assert.equal(any.searchParams.has('without_taxon_id'),false);
  }
+});
+
+test('native search initialization truncates the old Explore URL but keeps every root in corrected shortcuts',()=>{
+ const old='https://www.inaturalist.org/observations?taxon_id=20978,26036';
+ assert.equal(nativeSearchParams({href:old,page:'observations'}).taxon_id,20978);
+ for(const page of ['observations','identify']) {
+  const href=tools.taxonSearchURL(`https://www.inaturalist.org/observations${page==='identify'?'/identify':''}?reviewed=false&place_id=10301`,'20978,26036',savedTaxa);
+  const params=nativeSearchParams({href,page});
+  assert.deepEqual(String(params.taxon_ids??params.taxon_id).split(','),['20978','26036']);
+  assert.equal(String(params.place_id),'10301');assert.equal(String(params.reviewed),'false');
+ }
+});
+
+test('shortcuts replace all taxon URL aliases, including stale mixed singular and plural scopes',()=>{
+ for(const pathname of ['/observations/','/observations/identify/']) {
+  const href=`https://www.inaturalist.org${pathname}?taxon_id=3&taxon_ids=4,5&taxon_ids[]=6&taxon_ids[]=7&without_taxon_id=8&reviewed=true&place_id=10301&user_id=observer`;
+  for(const choice of ['20978,26036',3,'any']) {
+   const next=new URL(tools.taxonSearchURL(href,choice,savedTaxa));
+   const key=pathname==='/observations/'&&choice==='20978,26036'?'taxon_ids':'taxon_id';
+   for(const alias of ['taxon_id','taxon_ids','taxon_ids[]'])assert.equal(next.searchParams.has(alias),choice!=='any'&&alias===key);
+   assert.equal(next.searchParams.has('without_taxon_id'),false);
+   for(const filter of ['reviewed','place_id','user_id'])assert.equal(next.searchParams.get(filter),new URL(href).searchParams.get(filter));
+  }
+ }
+});
+
+test('preset matching recognizes complete plural, array and singular scopes without merging conflicting aliases',()=>{
+ for(const query of ['taxon_ids=26036,20978','taxon_ids=26036&taxon_ids=20978','taxon_ids[]=26036&taxon_ids[]=20978','taxon_id=26036,20978','taxon_id=20978,26036&taxon_ids=26036,20978']) {
+  assert.equal(tools.taxonSearchKey(new URLSearchParams(query),savedTaxa),'20978,26036');
+  assert.equal(tools.taxonSearchKey(new URLSearchParams(query+'&without_taxon_id=50186'),savedTaxa),'20978,26036!50186');
+ }
+ for(const query of ['', 'taxon_ids=26036,,20978','taxon_id=3&taxon_ids=20978,26036','taxon_ids[]=20978&taxon_ids=26036','taxon_ids=any'])assert.equal(tools.taxonSearchKey(new URLSearchParams(query),savedTaxa),null);
 });
 
 test('taxon exclusion shortcuts replace both taxon parameters on Observations and Identify, never other filters',()=>{

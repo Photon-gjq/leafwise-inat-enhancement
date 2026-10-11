@@ -48,6 +48,15 @@ test('rank cannot be above the search root, and root ancestors are not candidate
   const result = core.compare(core.tree(regionData), core.tree(personalData), { ...options, taxon: 40 }, { rank_level: 40 });
   assert.equal(result.total, 1);
 });
+test('comparison reads plural taxon aliases without silently replacing unsupported unions by all life', () => {
+ for(const query of ['taxon_ids=20978,26036','taxon_ids[]=20978&taxon_ids[]=26036','taxon_id=3&taxon_ids=20978,26036']) {
+  const defaults=core.pageDefaults('https://www.inaturalist.org/observations?user_id=observer&place_id=any&'+query);
+  assert.ok(String(defaults.taxon).includes(','));
+  assert.throws(()=>core.normalize(defaults),/单个/);
+ }
+ assert.equal(core.normalize(core.pageDefaults('https://www.inaturalist.org/observations?user_id=observer&place_id=any&taxon_ids=3')).taxon,3);
+});
+
 test('query parameters isolate the global baseline and never send rank or unobserved filters', () => {
   const defaults = core.normalize(core.pageDefaults('https://www.inaturalist.org/observations?user_id=source&unobserved_by_user_id=observer&place_id=6903&iconic_taxa=Aves&lrank=family&verifiable=any&d1=2025-01-01'));
   assert.deepEqual(defaults, { ...options, rank: 'family', d1:'2025-01-01' });

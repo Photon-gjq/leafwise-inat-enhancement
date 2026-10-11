@@ -1,5 +1,11 @@
 # 測試與驗收
 
+1.2.3 本機驗證（2026-10-11）：`npm run check` 通過三目標各 107 項及商店流程 5 項，共 326 項；啟用 Edge 的完整 Playwright 回歸 270/270 通過（每瀏覽器 90 項）。`npm run package` 驗證六個 1.2.3 檔案與 manifest 版本，`release:notes` 核對 `v1.2.3`；產物及測試 profile 不提交。
+
+1.2.3 多類群原生相容回歸：`native-search-params.cjs` 明確模擬 Explore 的單數 `parseInt` 截斷及 Identify 的 CSV 陣列解析，先證明舊網址會縮至第一根，再驗證新頁面專屬網址保留整組；此受控模型不是完整上游元件。純函數另覆蓋三種包含別名、衝突別名不冒充聯集、單根／不限清理及對比不回退全部生物。三瀏覽器的 Explore／Identify 測試涵蓋實際快捷操作、重載、地區切換、排除、清除、設定保留及不觸發鑑定／已檢視；50 語言追加複數網址的組合辨認。
+
+2026-10-11 另在隔離環境下載固定提交的官方 [Explore 控制器](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/assets/javascripts/ang/controllers/observation_search.js.erb)、[API 參數函式](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/assets/javascripts/ang/factories/observations.js.erb)、[Identify reducer](https://github.com/inaturalist/inaturalist/blob/b1274a0b6cbf757600ff435135867b7b4021f33c/app/webpack/observations/identify/reducers/search_params_reducer.js)，直接執行原始初始化及參數清理函式；白名單核對 `MAPPABLE_PARAMS` 與 index 模板的隱藏 input。公開 API 限定 2026-10-01 至 10-02，兩頁完整聯集皆為 11,605 筆，等於兩棲 4,961 加爬行 6,644。這是當次公開資料快照，不是永久計數；上游程式／完整 API 回應不納入套件或倉庫。正式網頁嘗試遭 Cloudflare 安全驗證阻擋，未完成登入正式帳號驗收，不繞過驗證。
+
 移除對比頂部來源／排除入口的回歸：`user-filters.spec.cjs` 驗證僅剩原生過濾器的一組控制項、來源／排除獨立更新、互換、原生清除／重設不復活舊條件、設定入口及錯誤可見、storage 更新保留草稿、重掛載／重複注入及離頁重返。對比使用者仍可用，開關對比不影響過濾器。`search-toolbar.spec.cjs`／`explore.spec.cjs` 驗證重複入口不存在；`i18n.spec.cjs` 在 50 種語言下驗證保留的來源／排除／互換／設定標籤。這些是三瀏覽器受控 DOM 回歸，不是登入正式帳號人工驗收。
 
 多類群快捷篩選新增回歸：`saved-taxa.test.cjs` 檢查包含／排除聯集、20 個 ID 邊界、去重、舊設定相容及錯誤原子拒絕；`explore-tools.test.cjs` 檢查完整 `taxon_id` URL 及其他條件保留。三瀏覽器 `explore.spec.cjs` 覆蓋設定保存、重開、無效輸入不覆蓋及觀察頁選擇；`identify-shortcuts.spec.cjs` 覆蓋多根與排除、地區切換、清除及不觸發鑑定／已檢視操作。`i18n.spec.cjs` 驗證 50 種語言下的自訂組合名稱與選取狀態不變。這些是受控 API／DOM 測試，不是登入正式帳號的人工驗收。

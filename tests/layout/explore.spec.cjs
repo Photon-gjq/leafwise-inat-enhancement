@@ -1,6 +1,7 @@
 const {test,expect}=require('@playwright/test');
 const path=require('node:path');
 const fs=require('node:fs/promises');
+const nativeSearchParams=require('../native-search-params.cjs');
 test.setTimeout(45000);
 const html=`<!doctype html><meta charset="utf-8"><style>body{margin:0;font:14px Arial;color:#333}nav{padding:16px;border-bottom:1px solid #ddd}#filters{padding:12px 20px}h1{font-size:26px}main{padding-bottom:40px}</style><nav class="navtab user"><a class="observations_link" href="/observations/observer">我的觀察</a> <a class="profile_link" href="/people/7">個人頁</a></nav><div id="filters"><h1>觀察</h1></div><main id="observations-search"><div id="taxon_page"><h1>測試類群</h1></div></main>`;
 async function prepare(page, language='') {
@@ -414,6 +415,43 @@ test('taxon shortcuts share saved settings, preserve other filters and apply onl
  expect(new URL(page.url()).searchParams.get('taxon_id')).toBe('999');
 });
 
+test('Explore reload preserves the full native multi-taxon scope, region changes and single/Any cleanup', async ({ page }, info) => {
+ await prepare(page, 'en');
+ const initial='https://www.inaturalist.org/observations?taxon_id=3&taxon_ids=47158&taxon_ids[]=4&place_id=10301&user_id=observer&quality_grade=research&month=9';
+ await page.goto(initial); await inject(page,info,false,true);
+ await page.evaluate(()=>chrome.storage.sync.set({savedTaxa:[{id:3,name:'Birds'},{id:20978,taxonIds:[20978,26036],withoutTaxonIds:[50186],name:'Herps'}]}));
+ const quick=page.locator('#leafwise-quick-places');
+ await expect(quick.locator('#taxon-choice')).toHaveValue('');
+ await quick.locator('#taxon-choice').selectOption('taxon:20978,26036!50186');
+ await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_ids')).toBe('20978,26036');
+ async function verifyUnion() {
+  const params=await page.evaluate(nativeSearchParams,{href:page.url(),page:'observations'});
+  expect(params.taxon_ids).toBe('20978,26036');expect(params.taxon_id).toBeUndefined();
+  expect(params.without_taxon_id).toBe('50186');
+  expect(params.user_id).toBe('observer');expect(params.quality_grade).toBe('research');expect(params.month).toBe('9');
+ }
+ await verifyUnion();await page.reload();await inject(page,info,false,true);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:20978,26036!50186');
+ await verifyUnion();
+ // Comparison must not silently pick its all-life default for a plural union.
+ await expect(page.locator('#qg-inat-higher-taxa #taxon')).toHaveValue('20978,26036');
+ await quick.locator('#place-choice').selectOption('any');
+ await expect.poll(()=>new URL(page.url()).searchParams.get('place_id')).toBe('any');
+ await verifyUnion();await inject(page,info,false,true);
+ await quick.locator('#taxon-choice').selectOption('taxon:3');
+ await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_id')).toBe('3');
+ expect(new URL(page.url()).searchParams.has('taxon_ids')).toBe(false);
+ expect(new URL(page.url()).searchParams.has('taxon_ids[]')).toBe(false);
+ expect(new URL(page.url()).searchParams.has('without_taxon_id')).toBe(false);
+ await inject(page,info,false,true);await quick.locator('#taxon-choice').selectOption('any');
+ await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_id')).toBeNull();
+ await inject(page,info,false,true);await expect(quick.locator('#taxon-choice')).toHaveValue('any');
+ // Array alias / reordered IDs also match without automatically navigating.
+ const alias='https://www.inaturalist.org/observations?taxon_ids[]=26036&taxon_ids[]=20978&without_taxon_id=50186';
+ await page.goto(alias);await inject(page,info,false,true);
+ await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:20978,26036!50186');expect(page.url()).toBe(alias);
+});
+
 test('saved taxa edited in settings persist after reload and update both selectors', async ({ page }, info) => {
  const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0]);
  const settings = (await fs.readFile(path.join(directory, 'options/options.html'), 'utf8')).replace(/<script[^>]*><\/script>/g, '');
@@ -446,7 +484,8 @@ test('saved taxa edited in settings persist after reload and update both selecto
  await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value="taxon:47158"]')).toHaveText('My insects（47158）');
  await expect(page.locator('#qg-inat-higher-taxa #taxon-choice option[value^="taxon:"]')).toHaveCount(2);
  await page.locator('#leafwise-quick-places #taxon-choice').selectOption('taxon:20978,26036!50186');
- await expect.poll(() => new URL(page.url()).searchParams.get('taxon_id')).toBe('20978,26036');
+ await expect.poll(() => new URL(page.url()).searchParams.get('taxon_ids')).toBe('20978,26036');
+ expect(new URL(page.url()).searchParams.has('taxon_id')).toBe(false);
  expect(new URL(page.url()).searchParams.get('without_taxon_id')).toBe('50186');
  await inject(page, info, false, true);
  await expect(page.locator('#leafwise-quick-places #taxon-choice')).toHaveValue('taxon:20978,26036!50186');

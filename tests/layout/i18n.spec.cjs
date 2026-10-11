@@ -33,6 +33,8 @@ test('all 50 locales translate quick region and taxon controls without altering 
     await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:3');
     await expect(quick.locator('#taxon-choice option[value="taxon:3!50186"]')).toHaveText(await page.evaluate(()=>`我的排除組合 · ${LeafwiseI18n.t('排除 {0}',50186)}`));
     await expect(quick.locator('#taxon-choice option[value="taxon:20978,26036"]')).toHaveText('兩爬自訂名稱');
+    await page.evaluate(()=>history.replaceState({}, '', '/observations?place_id=6803&taxon_ids=26036,20978'));
+    await expect(quick.locator('#taxon-choice')).toHaveValue('taxon:20978,26036');
     await expect(quick).toHaveAttribute('dir',['ar','he','fa'].includes(code)?'rtl':'ltr');
     await expect(quick.locator('#qg-inat-higher-taxa-trigger button')).toHaveText(await page.evaluate(()=>LeafwiseI18n.t('類群對比')));
     await expect(page.locator('#qg-inat-user-filters, #qg-inat-user-filters-summary')).toHaveCount(0);

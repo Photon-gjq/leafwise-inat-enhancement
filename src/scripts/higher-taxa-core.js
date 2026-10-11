@@ -68,7 +68,10 @@
     const p = new URL(href).searchParams;
     const rank = [p.get("rank"), p.get("lrank"), p.get("hrank")].find(r => Object.hasOwn(ranks, r)) || "order";
     const user = p.get("unobserved_by_user_id") || p.get("user_id") || fallbackUser;
-    return { user, place: p.get("place_id") || "", taxon: p.get("taxon_id") || iconicIDs[p.get("iconic_taxa")] || "", rank,
+    // Keep the full native scope in the form. Multi-root comparisons remain
+    // unsupported and must fail single-ID validation, not default to all life.
+    const taxon = ["taxon_id", "taxon_ids", "taxon_ids[]"].flatMap(key => p.getAll(key)).join(",");
+    return { user, place: p.get("place_id") || "", taxon: taxon || iconicIDs[p.get("iconic_taxa")] || "", rank,
       quality: p.get("quality_grade") === "research" ? "research" : p.get("verifiable") === "any" ? "any" : "verifiable",
       months: p.get("month") || "", d1: p.get("d1") || "", d2: p.get("d2") || "", project: p.get("project_id") || "" };
   }

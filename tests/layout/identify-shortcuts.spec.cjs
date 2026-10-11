@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
+const nativeSearchParams = require('../native-search-params.cjs');
 const scripts = info => path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
 const files = ['i18n-catalog.js', 'i18n.js', 'url-filters.js', 'saved-users.js', 'saved-taxa.js', 'content.js', 'higher-taxa-core.js', 'explore-tools.js', 'quick-places.js', 'higher-taxa-panel.js'];
 // Public DOM shape follows Identify's app.jsx, search_bar.jsx and
@@ -75,6 +76,9 @@ test('Identify multi-taxon presets match reordered IDs and navigate the full uni
   expect(next.searchParams.getAll('taxon_id')).toEqual(['20978,26036']);
   for (const [key, value] of new URL(href).searchParams) if (!['taxon_id', 'page', 'leafwise_query'].includes(key)) expect(next.searchParams.get(key)).toBe(value);
   expect(next.pathname).toBe('/observations/identify'); expect(next.hash).toBe('#grid');
+  const nativeParams = await page.evaluate(nativeSearchParams, { href: page.url(), page: 'identify' });
+  expect(nativeParams.taxon_id).toEqual(['20978', '26036']);
+  expect(nativeParams.without_taxon_id).toBe(50186);expect(nativeParams.reviewed).toBe(true);
   expect(next.searchParams.has('page')).toBe(false); expect(next.searchParams.has('leafwise_query')).toBe(false);
   await inject(page, info);
   await expect(quick(page).locator('#taxon-choice')).toHaveValue('taxon:20978,26036!50186');
@@ -91,6 +95,26 @@ test('Identify multi-taxon presets match reordered IDs and navigate the full uni
   await expect.poll(() => new URL(page.url()).searchParams.get('taxon_id')).toBeNull();
   expect(new URL(page.url()).searchParams.get('reviewed')).toBe('true');
   expect(await page.evaluate(() => window.nativeActions)).toEqual([]);
+});
+
+test('Identify accepts existing plural scopes and normalizes explicit choices without stale aliases', async ({ page }, info) => {
+  await prepare(page);
+  const href='https://www.inaturalist.org/observations/identify?taxon_ids=26036,20978&without_taxon_id=50186&reviewed=false&place_id=10301';
+  await page.goto(href);await inject(page,info);
+  await expect(quick(page).locator('#taxon-choice')).toHaveValue('taxon:20978,26036!50186');expect(page.url()).toBe(href);
+  await quick(page).locator('#taxon-choice').selectOption('taxon:20978,26036');
+  await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_id')).toBe('20978,26036');
+  expect(new URL(page.url()).searchParams.has('taxon_ids')).toBe(false);
+  await page.reload();await inject(page,info);
+  await expect(quick(page).locator('#taxon-choice')).toHaveValue('taxon:20978,26036');
+  expect((await page.evaluate(nativeSearchParams,{href:page.url(),page:'identify'})).taxon_id).toEqual(['20978','26036']);
+  await quick(page).locator('#taxon-choice').selectOption('taxon:125816');
+  await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_id')).toBe('125816');
+  await inject(page,info);await quick(page).locator('#taxon-choice').selectOption('any');
+  await expect.poll(()=>new URL(page.url()).searchParams.get('taxon_id')).toBeNull();
+  expect(new URL(page.url()).searchParams.has('taxon_ids')).toBe(false);
+  expect(new URL(page.url()).searchParams.get('reviewed')).toBe('false');
+  expect(await page.evaluate(()=>window.nativeActions)).toEqual([]);
 });
 
 test('Identify shortcuts replace full taxon presets and regions while preserving native filters and actions', async ({ page }, info) => {

@@ -94,13 +94,10 @@
       taxonSelect.add(new Option(label, `taxon:${savedTaxa.key(taxon)}`));
     }
     taxonSelect.add(new Option(t("管理常用类群…"), "settings"));
-    const currentTaxon = params.getAll("taxon_id").join(",");
-    let currentKey = null;
-    try {
-      if (currentTaxon) currentKey = savedTaxa.key({id:currentTaxon, withoutTaxonIds:params.getAll("without_taxon_id").join(",")});
-    } catch { /* Native/custom taxon scopes remain unselected, not rewritten. */ }
+    const currentKey = tools.taxonSearchKey(params, savedTaxa);
+    const hasTaxon = ["taxon_id", "taxon_ids", "taxon_ids[]", "without_taxon_id"].some(key => params.has(key));
     const match = taxa.find(taxon => savedTaxa.key(taxon) === currentKey);
-    taxonSelect.value = currentTaxon ? match ? `taxon:${currentKey}` : "" : params.get("without_taxon_id") ? "" : "any";
+    taxonSelect.value = match ? `taxon:${currentKey}` : hasTaxon ? "" : "any";
   }
   async function openSettings() {
     const reply = await chrome.runtime.sendMessage({type:"qg-open-options"});

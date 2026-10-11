@@ -61,16 +61,29 @@
     const url = new URL(quickSearchURL(href));
     // Each shortcut replaces the whole taxon scope, not just its positive ID.
     // Plain entries / Any explicitly clear the previous taxon exclusion.
-    url.searchParams.delete("without_taxon_id");
-    if (taxon === "any") url.searchParams.delete("taxon_id");
-    else {
+    for (const key of ["taxon_id", "taxon_ids", "taxon_ids[]", "without_taxon_id"]) url.searchParams.delete(key);
+    if (taxon !== "any") {
       const [item] = savedTaxa.normalize([taxon]);
-      url.searchParams.set("taxon_id", savedTaxa.ids(item).join(","));
+      const ids = savedTaxa.ids(item);
+      // Explore's Angular initializer parseInt()s taxon_id, truncating CSV.
+      // Its plural parameter survives. Identify normalizes singular CSV into
+      // an array and uses it in its native autocomplete / clear-taxonomy flow.
+      const key = ids.length > 1 && quickSearchPage(href) === "observations" ? "taxon_ids" : "taxon_id";
+      url.searchParams.set(key, ids.join(","));
       if (item.withoutTaxonIds) url.searchParams.set("without_taxon_id", item.withoutTaxonIds.join(","));
     }
     // A saved-query pointer would restore its old taxon after navigation.
     url.searchParams.delete("page");
     return url.href;
+  }
+  function taxonSearchKey(params, savedTaxa) {
+    try {
+      const scopes = ["taxon_id", "taxon_ids", "taxon_ids[]"].filter(key => params.has(key)).map(key =>
+        savedTaxa.key({id:params.getAll(key).join(","), withoutTaxonIds:params.getAll("without_taxon_id").join(",")}));
+      // Different aliases can be intersected by the website/API. Never label
+      // that as the saved union or use only the first member of a mixed scope.
+      return scopes.length && scopes.every(key => key === scopes[0]) ? scopes[0] : null;
+    } catch { return null; } // Unknown/custom scopes remain unselected.
   }
   function title(value) {
     const name = String(value ?? "").trim();
@@ -151,6 +164,6 @@
       place:typeof item.place_guess==="string"?item.place_guess:"地點未公開或未提供",
       url:`https://www.inaturalist.org/observations/${item.id}` };
   }
-  const api={places,groups,placeLabel,searchURL,quickSearchPage,placeSearchURL,taxonSearchURL,editLibrary,parsePlaceGroups,formatPlaceGroups,appendPlaceGroup,replacePlaceGroups,exportTable,observationSummary};
+  const api={places,groups,placeLabel,searchURL,quickSearchPage,placeSearchURL,taxonSearchURL,taxonSearchKey,editLibrary,parsePlaceGroups,formatPlaceGroups,appendPlaceGroup,replacePlaceGroups,exportTable,observationSummary};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.LeafwiseExploreTools=api;
 })(globalThis);

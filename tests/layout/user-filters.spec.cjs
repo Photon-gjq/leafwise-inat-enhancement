@@ -133,7 +133,7 @@ test('filter swap and drafts remain independent of opening and closing compariso
   // should still update an unedited comparison rather than preserve a draft.
   await page.evaluate(() => history.replaceState({}, '', '/observations?user_id=observer&taxon_id=3&month=9'));
   await expect(panel.locator('#place')).toHaveValue('');
-  await expect(panel.locator('#status')).not.toContainText('保留当前填写内容');
+  await expect(panel.locator('#status')).not.toContainText('Panel drafts were kept');
 });
 
 test('native update applies user filters and preserves taxon, places and dates', async ({ page }, info) => {
@@ -174,7 +174,7 @@ test('the remaining settings entry preserves custom drafts and exposes failures 
   await page.evaluate(() => { window.settingsFailure = true; });
   await modal.locator('#modal-exclude').selectOption('settings');
   await expect(modal.locator('#modal-exclude')).toHaveValue('user:observer');
-  await expect(modal.locator('#modal-message')).toContainText('无法打开设置');
+  await expect(modal.locator('#modal-message')).toContainText('Cannot open settings');
   await page.evaluate(() => storageListeners.forEach(listener => listener({ savedUsernames: { newValue: ['observer', 'another'] } }, 'sync')));
   await expect(modal.locator('#modal-source option[value="user:another"]')).toHaveCount(1);
   await expect(modal.locator('#modal-source')).toHaveValue('custom');

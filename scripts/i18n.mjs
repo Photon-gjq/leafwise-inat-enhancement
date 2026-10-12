@@ -74,6 +74,27 @@ export function translations(root) {
 
 export function writeTranslations(root, destination) {
   const data = translations(root);
+  const marker = '/* LEAFWISE_ENGLISH_FALLBACK */ { source: {}, names: { en: "English" } }';
+  const helperSource = fs.readFileSync(path.join(root, 'src/scripts/i18n.js'), 'utf8');
+  if (helperSource.split(marker).length !== 2) throw new Error('Missing or duplicate English fallback marker');
+  // Escape dots in data, not code: the Firefox namespace transform must never
+  // rewrite text such as "browser." inside the embedded English dictionary.
+  const english = JSON.stringify({ source: data.source, names: data.names }).replaceAll('.', '\\u002e');
+  const helper = helperSource.replace(marker, () => english);
+  fs.writeFileSync(path.join(destination, 'scripts/i18n.js'), helper);
+  // Each presentation entry can initialize the same singleton without another
+  // script dependency. Missing i18n.js/catalog files must not expose Chinese UI.
+  // Only generated presentation scripts are prefixed; core/API contracts stay intact.
+  const presenters = ['options/options.js', ...fs.readdirSync(path.join(root, 'src/scripts'))
+    .filter(name => name !== 'i18n.js' && name.endsWith('.js'))
+    .map(name => `scripts/${name}`)];
+  for (const name of presenters) {
+    const file = path.join(destination, name);
+    const content = fs.readFileSync(file, 'utf8');
+    if (content.includes('globalThis.LeafwiseI18n')) {
+      fs.writeFileSync(file, `/* Self-contained English fallback; generated from the shared i18n helper. */\n${helper}\n${content}`);
+    }
+  }
   fs.writeFileSync(path.join(destination, 'scripts/i18n-catalog.js'),
     `/* Generated from src/i18n; edit the source catalogs, not this file. */\n` +
     `(function(root){if(!root.LeafwiseTranslations)root.LeafwiseTranslations=${JSON.stringify(data)};})(globalThis);\n`);

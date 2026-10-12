@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const extension = require('./extension-path.cjs');
 const read = file => fs.readFileSync(path.join(extension, 'scripts', file), 'utf8');
 
-function setup(lang, overrides = {}) {
+function setup(lang, overrides = {}, withCatalog = true) {
   const doc = {
     documentElement: { getAttribute: () => lang },
     querySelector: () => null,
@@ -14,10 +14,43 @@ function setup(lang, overrides = {}) {
     querySelectorAll: () => []
   };
   const context = vm.createContext({ document: doc, navigator: { language: 'zh-CN' }, ...overrides });
-  vm.runInContext(read('i18n-catalog.js'), context);
+  if (withCatalog) vm.runInContext(read('i18n-catalog.js'), context);
   vm.runInContext(read('i18n.js'), context);
   return context;
 }
+
+test('a missing catalog falls back to English for every registered UI string and known error', () => {
+  const source = require('../src/i18n/source.json');
+  for (const lang of ['en', 'zh-CN', 'fr', 'ar', 'unsupported']) {
+    const api = setup(lang, {}, false).LeafwiseI18n;
+    for (const [text, english] of Object.entries(source)) assert.equal(api.t(text), english, `${lang}: ${text}`);
+    assert.equal(api.t('来源 {0}', '<b>自訂 {1} $&</b>'), 'Source <b>自訂 {1} $&</b>');
+    assert.equal(api.legacy('每项最多包含 20 个类群。'), 'Include at most 20 taxa per entry.');
+    assert.equal(api.legacy('Unknown native error / 自訂名稱'), 'Unknown native error / 自訂名稱');
+  }
+});
+
+test('missing, partial or invalid translation catalogs use English without throwing', () => {
+  const context = setup('fr');
+  const key = 'Only show non-confirming IDs';
+  for (const value of [undefined, null, {}, { locales: null }, { locales: {} },
+    { locales: { fr: { [key]: '' } } }, { locales: { fr: { [key]: 42 } } }]) {
+    context.LeafwiseTranslations = value;
+    assert.equal(context.LeafwiseI18n.t('僅顯示非完全贊同的鑑定'), key);
+  }
+});
+
+test('late catalogs recover the site language without replacing the singleton or translating data', () => {
+  const context = setup('fr-CA', {}, false);
+  const api = context.LeafwiseI18n;
+  assert.equal(api.locale(), 'fr-CA');
+  assert.equal(api.t('保存常用用户'), 'Save users');
+  vm.runInContext(read('i18n-catalog.js'), context);
+  vm.runInContext(read('i18n.js'), context);
+  assert.equal(context.LeafwiseI18n, api);
+  assert.equal(api.t('保存常用用户'), 'Enregistrer les utilisateurs');
+  assert.equal(api.t('我的自訂名稱'), '我的自訂名稱');
+});
 
 test('exactly 50 supported variants have all required translations and matching placeholders', () => {
   const { LeafwiseTranslations: data } = setup('en');

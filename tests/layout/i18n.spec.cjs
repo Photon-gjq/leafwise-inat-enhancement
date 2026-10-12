@@ -7,6 +7,39 @@ async function inject(page, info, names) {
 }
 const helpers = ['i18n-catalog.js', 'i18n.js'];
 
+for (const missing of ['catalog', 'helper', 'both']) {
+  test(`notification controls have an English fallback with missing ${missing}`, async ({ page }, info) => {
+    // Even a Chinese site must show English when its translations are unavailable.
+    const language = missing === 'helper' ? 'en' : 'zh-CN';
+    await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
+      `<!doctype html><html lang="${language}"><meta charset="utf-8"><body><p id="native">原生網站文字</p><li id="updatesnav"><div id="updatessubnav"><ul><li><a href="/observations/101">Native update</a></li><li>Dashboard</li></ul></div></li></body></html>` }));
+    await page.goto('https://www.inaturalist.org/home');
+    const scripts = missing === 'catalog' ? ['i18n.js'] : missing === 'helper' ? ['i18n-catalog.js'] : [];
+    await inject(page, info, [...scripts, 'notification-filter.js', 'notification-tabs.js']);
+    await expect(page.locator('.leafwise-open-update-observations label span')).toHaveText('Only show non-confirming IDs');
+    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText('Open these observations (1)');
+    await expect(page.locator('#native')).toHaveText('原生網站文字');
+    expect(await page.evaluate(() => LeafwiseI18n.t('來源以外的自訂文字'))).toBe('來源以外的自訂文字');
+  });
+}
+
+test('late notification catalogs recover the selected language without a stuck Chinese fallback', async ({ page }, info) => {
+  await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><html lang="fr"><meta charset="utf-8"><body><li id="updatesnav"><div id="updatessubnav"><ul><li><a href="/observations/101">Native update</a></li><li>Dashboard</li></ul></div></li></body></html>' }));
+  await page.goto('https://www.inaturalist.org/home');
+  await inject(page, info, ['notification-filter.js', 'notification-tabs.js']);
+  const label = page.locator('.leafwise-open-update-observations label span');
+  await expect(label).toHaveText('Only show non-confirming IDs');
+  await expect(page.locator('.leafwise-open-update-observations button')).toHaveText('Open these observations (1)');
+  await page.evaluate(() => { window.originalI18n = LeafwiseI18n; });
+  await inject(page, info, helpers);
+  await page.locator('.leafwise-notification-filter').check();
+  const french = require('../../src/i18n/notification-filter.json').fr;
+  await expect(label).toHaveText(french['Only show non-confirming IDs']);
+  await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(french['Open filtered observations ({0})'].replace('{0}', '1'));
+  expect(await page.evaluate(() => LeafwiseI18n === originalI18n)).toBe(true);
+});
+
 test('all 50 locales translate quick region and taxon controls without altering custom names', async ({page}, info) => {
   test.setTimeout(120000);
   const names = require('../../src/i18n/locales.json');
@@ -137,4 +170,25 @@ test('settings follow last site language and never translate saved input', async
   await expect(page.locator('#username')).toHaveValue('observer');
   await page.locator('#users-form button').click();
   expect(await page.evaluate(() => savedResult.savedUsernames)).toEqual(['observer']);
+});
+
+test('settings and saved input survive missing translator and catalog files', async ({ page }, info) => {
+  const html = fs.readFileSync(path.join(build(info), 'options/options.html'), 'utf8').replace(/<script[^>]*><\/script>/g, '');
+  await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('https://www.inaturalist.org/options-fixture');
+  await page.evaluate(() => {
+    const saved = { savedUsernames: ['原用戶'], savedTaxa: [{ id: 3, name: '我的自訂名稱' }] };
+    const api = { runtime: { sendMessage: async () => ({ ok: true, library: { queries: [], groups: [] } }) },
+      storage: { local: { get: async () => ({ leafwiseLastSiteLocale: 'fr' }) },
+        sync: { get: async () => saved, set: async value => { window.savedResult = value; } } } };
+    window.chrome = api; window.browser = api;
+  });
+  await inject(page, info, ['saved-users.js', 'saved-taxa.js', 'higher-taxa-core.js', 'explore-tools.js']);
+  await page.addScriptTag({ path: path.join(build(info), 'options/options.js') });
+  await expect(page.locator('#page-title')).toHaveText('Leafwise settings');
+  await expect(page.locator('#users-form button')).toHaveText('Save users');
+  await expect(page.locator('#taxa')).toHaveValue('3 = 我的自訂名稱');
+  await expect(page.locator('#username')).toHaveValue('原用戶');
+  await page.locator('#users-form button').click();
+  expect(await page.evaluate(() => savedResult.savedUsernames)).toEqual(['原用戶']);
 });

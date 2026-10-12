@@ -82,3 +82,73 @@ test('Edge rejects an operation URL outside the official API origin', async () =
     fetchImpl: async () => reply({}, 202, { Location: 'https://example.com/operations/stolen' })
   }), /Invalid Edge operation URL/);
 });
+
+test('Chrome HTTP errors retain validation details without echoing credentials or arbitrary response fields', async () => {
+  const { publishChrome } = await import('../scripts/store-publish.mjs');
+  const env = { ...chromeEnv, CWS_CLIENT_SECRET: 'private/secret+key', CWS_REFRESH_TOKEN: 'private-refresh' };
+  const fetchImpl = async url => {
+    if (url.includes('oauth2.googleapis.com')) return reply({ access_token: 'private-access' });
+    if (url.endsWith(':fetchStatus')) return reply({});
+    if (url.endsWith(':upload')) return reply({ crxVersion: '1.2.4', uploadState: 'SUCCEEDED' });
+    return reply({ error: {
+      code: 400, status: 'FAILED_PRECONDITION',
+      message: `Verify publisher. ${env.CWS_CLIENT_SECRET} ${encodeURIComponent(env.CWS_CLIENT_SECRET)} private-refresh private-access Bearer unknown-token\n::error::injected`,
+      details: [{ reason: 'PUBLISHER_VALIDATION', fieldViolations: [{ field: 'publisher', description: 'Complete verification.' }],
+        metadata: { refresh_token: 'unexpected-private-value' } }],
+      access_token: 'unexpected-private-value'
+    }, arbitrary: 'private-response' }, 400);
+  };
+  await assert.rejects(() => publishChrome({ env, packageBytes: new Uint8Array([1]), fetchImpl, targetVersion: '1.2.4' }), error => {
+    assert.match(error.message, /Chrome publish: HTTP 400/);
+    assert.match(error.message, /FAILED_PRECONDITION/);
+    assert.match(error.message, /PUBLISHER_VALIDATION/);
+    assert.match(error.message, /Complete verification/);
+    assert.match(error.message, /REDACTED/);
+    for (const value of [env.CWS_CLIENT_SECRET, encodeURIComponent(env.CWS_CLIENT_SECRET), 'private-refresh', 'private-access',
+      'unknown-token', 'unexpected-private-value', 'private-response', '\n']) assert.equal(error.message.includes(value), false);
+    return true;
+  });
+});
+
+test('Chrome OAuth errors are redacted before an access token exists', async () => {
+  const { publishChrome } = await import('../scripts/store-publish.mjs');
+  await assert.rejects(() => publishChrome({ env: chromeEnv, packageBytes: new Uint8Array([1]),
+    fetchImpl: async () => reply({ error: 'invalid_grant', error_description: 'Rejected refresh client_secret="not-in-env"' }, 400)
+  }), error => {
+    assert.match(error.message, /Chrome token request: HTTP 400/);
+    assert.match(error.message, /invalid_grant/);
+    assert.equal(error.message.includes('refresh'), false);
+    assert.equal(error.message.includes('not-in-env'), false);
+    return true;
+  });
+});
+
+test('HTTP errors survive non-JSON, unavailable and oversized response bodies', async () => {
+  const { publishEdge } = await import('../scripts/store-publish.mjs');
+  for (const response of [new Response('<html>private HTML</html>', { status: 503 }),
+    { status: 503, json: async () => { throw new Error('private parser failure'); } }]) {
+    await assert.rejects(() => publishEdge({ env: edgeEnv, packageBytes: new Uint8Array([1]), fetchImpl: async () => response }),
+      error => error.message === 'Edge upload: HTTP 503');
+  }
+  await assert.rejects(() => publishEdge({ env: edgeEnv, packageBytes: new Uint8Array([1]),
+    fetchImpl: async () => reply({ message: 'x'.repeat(10000), details: Array.from({ length: 100 }, () => ({ reason: 'y'.repeat(10000) })) }, 400)
+  }), error => error.message.length < 2100);
+});
+
+test('Edge publish and operation failures include safe server diagnostics', async () => {
+  const { publishEdge } = await import('../scripts/store-publish.mjs');
+  for (const failOperation of [true, false]) {
+    const fetchImpl = async url => {
+      if (url.endsWith('/draft/package')) return reply({}, 202, { Location: 'upload-id' });
+      if (url.endsWith('/operations/upload-id')) return reply(failOperation
+        ? { status: 'Failed', errorCode: 'PACKAGE_INVALID', message: 'Invalid package ApiKey unexpected-key', api_key: 'hidden-value' }
+        : { status: 'Succeeded' });
+      return reply({ error: { code: 'VALIDATION_ERROR', message: 'Complete listing. Authorization: Bearer unexpected-token' } }, 400);
+    };
+    await assert.rejects(() => publishEdge({ env: edgeEnv, packageBytes: new Uint8Array([1]), fetchImpl }), error => {
+      assert.match(error.message, failOperation ? /PACKAGE_INVALID/ : /Edge publish: HTTP 400.*VALIDATION_ERROR/);
+      for (const value of ['unexpected-key', 'hidden-value', 'unexpected-token']) assert.equal(error.message.includes(value), false);
+      return true;
+    });
+  }
+});

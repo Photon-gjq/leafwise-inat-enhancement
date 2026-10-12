@@ -127,7 +127,7 @@ taxon-status.js
 
 ### 全站右上「新動態」清單
 
-`i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。
+`i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。英文映射及支援語言碼由建置嵌入 helper；各含 `globalThis.LeafwiseI18n` 的呈現入口同樣前綴該 helper，模組／完整目錄缺失時仍可初始化英文後備。目錄按次讀取，避免先初始化空資料後永久卡住；後續呈現可恢復遲到的網站翻譯。核心／API／儲存契約不變，原生 DOM、自訂資料及未知錯誤不翻譯。
 
 notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析直屬 `ul > li > a` 通知列，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。官方 mention 以 notifier 而非 observation resource 作 href，可能為 `/comments/<id/uuid>` 或 `/identifications/<id/uuid>`。notification-filter.js 的 activityLink 嚴格限制這兩種 HTTPS show 路徑，移除 query／hash；頁面以 credentials: omit 解析最終轉址 URL，立即取消正文，不讀取評論內容。最多兩個並發、整批最多 10 秒，結果僅留本頁記憶體；清單／原始 href／帳戶變更或 pagehide 取消並以獨立 linkGeneration 拒絕舊回應。解析完成前禁止開啟，toggle 不需重抓轉址。已確認日誌等非觀察目的地略過；未能解析則保留原生連結後備，此時只按連結去重，不能宣稱已知道其觀察 ID。
 
@@ -340,6 +340,7 @@ GitHub Windows runner 以單一 Playwright worker 依序執行三個瀏覽器，
 6. 標籤 workflow 重新驗證版本與 CHANGELOG，產出並發布 Chrome／Edge／Firefox 手動安裝 ZIP、Chrome／Edge 商店專用 ZIP、未簽名 XPI、SHA256SUMS.txt。
 7. 倉庫變數 AMO_AUTO_PUBLISH=true 且 secrets 存在時，CI 會先查 AMO 是否已有該版本，再用既有 Gecko ID 提交 listed Firefox 更新；相同版本重跑應安全跳過。
 8. 已有 Chrome／Edge 商店項目後，在倉庫設定各自的 ID 與 API secrets，分別以 `CWS_AUTO_PUBLISH=true`、`EDGE_AUTO_PUBLISH=true` 啟用標籤後自動提交更新；首次項目建立及商店資料仍由官方後台完成。工作流先確保跨平台檢查與 GitHub Release 成功；Chrome 以 API v2 跳過已公開／送審版本，Edge 以 v1.1 API key 等候上傳及送審操作成功。詳細手動設定見 docs/STORE_PUBLISHING.md。
+   商店錯誤日誌只輸出受限長度的白名單診斷欄位；OAuth client、refresh/access token、API key 及授權字串均遮蔽，不記錄完整回應或請求。上傳草稿與提交審核是兩個階段，必須核對實際提交結果；不能只按套件版本或 Action 已開始宣稱送審。
 
 不要為三個瀏覽器建立不同版本號或不同標籤。不要手工編輯 Release 中的套件來製造與標籤不同的內容。
 

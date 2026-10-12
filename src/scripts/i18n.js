@@ -2,7 +2,15 @@
 (function (root) {
   "use strict";
   if (root.LeafwiseI18n) return;
-  const data = root.LeafwiseTranslations || { locales: {}, source: {} };
+  // The build embeds the English mapping here, independently of the full
+  // multilingual catalog. Read translations lazily so a late catalog can recover.
+  const fallback = /* LEAFWISE_ENGLISH_FALLBACK */ { source: {}, names: { en: "English" } };
+  const sourceKeys = fallback.source;
+  const englishKeys = new Set(Object.values(sourceKeys));
+  function catalogs() {
+    const value = root.LeafwiseTranslations?.locales;
+    return value && typeof value === "object" ? value : {};
+  }
   const LAST_LOCALE_KEY = "leafwiseLastSiteLocale";
   let optionsLocale = null;
 
@@ -14,8 +22,8 @@
       if (parts.includes("hant") || parts.includes("tw") || parts.includes("mo")) return "zh-TW";
       return "zh-CN";
     }
-    const exact = Object.keys(data.locales).find(code => code.toLowerCase() === parts.join("-"));
-    return exact || (Object.hasOwn(data.locales, parts[0]) ? parts[0] : "en");
+    const exact = Object.keys(fallback.names).find(code => code.toLowerCase() === parts.join("-"));
+    return exact || (Object.hasOwn(fallback.names, parts[0]) ? parts[0] : "en");
   }
   function siteLocale(doc = root.document) {
     // iNaturalist's server template sets <html lang> and Content-Language.
@@ -26,10 +34,11 @@
   }
   function locale() { return optionsLocale || normalize(siteLocale()); }
   function message(source) {
-    const key = Object.hasOwn(data.source, source) ? data.source[source] : String(source ?? "");
+    const key = Object.hasOwn(sourceKeys, source) ? sourceKeys[source] : String(source ?? "");
     const code = locale();
-    for (const catalog of [data.locales[code], data.locales[code.split("-")[0]]]) {
-      if (catalog && Object.hasOwn(catalog, key)) return catalog[key];
+    const locales = catalogs();
+    for (const catalog of [locales[code], locales[code.split("-")[0]]]) {
+      if (catalog && Object.hasOwn(catalog, key) && typeof catalog[key] === "string" && catalog[key].trim()) return catalog[key];
     }
     return key;
   }
@@ -47,7 +56,7 @@
       if (node.parentElement?.closest("style,script,textarea,[data-i18n-skip]")) continue;
       const text = node.nodeValue;
       const key = text.trim();
-      if (key && (Object.hasOwn(data.source, key) || Object.hasOwn(data.locales.en || {}, key))) {
+      if (key && (Object.hasOwn(sourceKeys, key) || englishKeys.has(key))) {
         node.nodeValue = text.replace(key, () => message(key));
       }
     }
@@ -55,7 +64,7 @@
       if (element.closest("[data-i18n-skip]")) continue;
       for (const name of ["title", "aria-label", "placeholder"]) {
         const value = element.getAttribute(name);
-        if (value && (Object.hasOwn(data.source, value) || Object.hasOwn(data.locales.en || {}, value))) {
+        if (value && (Object.hasOwn(sourceKeys, value) || englishKeys.has(value))) {
           element.setAttribute(name, message(value));
         }
       }
@@ -74,7 +83,7 @@
 
   // Core/service error contracts are left unchanged. Recognize only our known
   // messages, preserving inserted IDs/names and unknown native error details.
-  const patterns = Object.entries(data.source).filter(([source]) => /\{\d+\}/.test(source))
+  const patterns = Object.entries(sourceKeys).filter(([source]) => /\{\d+\}/.test(source))
     .sort((a, b) => b[0].length - a[0].length).map(([source]) => {
       const slots = [];
       const expression = source.split(/(\{\d+\})/).map(part => {
@@ -86,7 +95,7 @@
     });
   function legacy(value, depth = 0) {
     const text = String(value ?? "");
-    if (Object.hasOwn(data.source, text)) return t(text);
+    if (Object.hasOwn(sourceKeys, text)) return t(text);
     if (depth > 3) return text;
     for (const pattern of patterns) {
       const match = text.match(pattern.regexp);

@@ -31,3 +31,5 @@ Google OAuth 品牌頁的公開首頁為 `https://photon-gjq.github.io/leafwise-
 完成設定後，先以新於商店現有版本的 `vX.Y.Z` 標籤發佈。正式啟用自動提交時，再將 Actions variables `CWS_AUTO_PUBLISH`、`EDGE_AUTO_PUBLISH` 分別設為 `true`。一般 `main` push 或 PR 只測試、不提交商店；版本標籤會先完成三瀏覽器 Windows／Linux 測試、打包和 GitHub Release，然後分別提交 Chrome 與 Edge 更新。需要單次手動重試時，可在 `Build, test and release` 的 `workflow_dispatch` 勾選 `publish_chrome` 或 `publish_edge`；Edge 請勿在相同版本已送審時重複提交。
 
 Chrome 工作流會先讀取現有項目狀態，同版本已公開或已提交則跳過；否則上傳商店專用 ZIP，等待上傳成功後提交審核。Edge 工作流會等候套件上傳成功，再提交審核，並檢查操作狀態。商店審核與最終公開仍由 Google／Microsoft 決定，不由 GitHub Actions 的成功狀態保證。
+
+1.2.4 起，失敗日誌保留 HTTP 狀態及 API 錯誤碼、訊息、驗證原因等白名單欄位（最多 2048 字元）；遮蔽本次 OAuth／API 憑證、授權字串及控制字元。不記錄完整回應、headers、請求 body 或未知 metadata。非 JSON／無法讀取的回應仍保留原 HTTP 失敗，不把解析錯誤當作提交成功。若上傳成功但提交失敗，先按日誌原因及商店後台狀態排查，不能把草稿已上傳說成已進入審核。

@@ -52,7 +52,7 @@ async function inject(page,testInfo,personal=false,localize=false) {
 }
 async function open(page,testInfo,url='https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301') {
  await prepare(page);await page.goto(url);await inject(page,testInfo);
- await page.locator('#qg-inat-higher-taxa-trigger').getByRole('button',{name:'類群對比',exact:true}).click();
+ await page.locator('#qg-inat-higher-taxa-trigger').getByRole('button',{name:'Taxon comparison',exact:true}).click();
  const panel=page.locator('#qg-inat-higher-taxa');await expect(panel.locator('#user-choice')).toBeEnabled();return panel;
 }
 
@@ -77,19 +77,19 @@ test('localized comparison preserves API data, requests names in site language a
 
 test('only saved regions appear in comparison; known members and custom groups survive reload',async({page},testInfo)=>{
  const panel=await open(page,testInfo);
- await expect(panel.locator('#rank option[value="species"]')).toHaveText('种 · species');
+ await expect(panel.locator('#rank option[value="species"]')).toHaveText('Species · species');
  await expect(panel.locator('#place-choice option[value^="builtin:"]')).toHaveCount(0);
  await panel.locator('#place').fill('6903,7613,10301');
- await expect(panel.locator('#place-members')).toContainText('中國大陸（6903）');
- await expect(panel.locator('#place-members')).toContainText('香港（7613）');
- await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
- await expect(panel.locator('#place-members')).not.toContainText('臺灣');
+ await expect(panel.locator('#place-members')).toContainText('Mainland China（6903）');
+ await expect(panel.locator('#place-members')).toContainText('Hong Kong（7613）');
+ await expect(panel.locator('#place-members')).toContainText('Macao（10301）');
+ await expect(panel.locator('#place-members')).not.toContainText('Taiwan');
  await panel.locator('#place').fill('53101,66994,7825,7613,10301');
- await expect(panel.locator('#place-members')).toContainText('香港（7613）');await expect(panel.locator('#place-members')).toContainText('澳門（10301）');
- await panel.locator('#place').fill('6904,7285,53098,65973,54517,57829,13358');await expect(panel.locator('#place-members')).not.toContainText('臺灣');
- await panel.getByText('查詢收藏與自訂地點組合',{exact:true}).click();
+ await expect(panel.locator('#place-members')).toContainText('Hong Kong（7613）');await expect(panel.locator('#place-members')).toContainText('Macao（10301）');
+ await panel.locator('#place').fill('6904,7285,53098,65973,54517,57829,13358');await expect(panel.locator('#place-members')).not.toContainText('Taiwan');
+ await panel.getByText('Saved searches and custom place groups',{exact:true}).click();
  await panel.locator('#place').fill('7613,10301');await panel.locator('#place-name').fill('我的兩地');await panel.locator('#save-place').click();
- await expect(panel.locator('#status')).toContainText('已保存自訂');
+ await expect(panel.locator('#status')).toContainText('Custom place group saved');
  await page.reload();await inject(page,testInfo);
  const next=page.locator('#qg-inat-higher-taxa');await expect(next.locator('#place-choice option').filter({hasText:'我的兩地'})).toHaveCount(1);
 });
@@ -103,7 +103,7 @@ test('unedited comparison follows removed URL filters while deliberate drafts re
  await expect(panel.locator('#user')).toHaveValue('observer');
  await panel.locator('#place').fill('6903,7613');
  await page.evaluate(()=>history.replaceState({},'', '/observations?taxon_id=48460&place_id=10301&month=8'));
- await expect(panel.locator('#status')).toContainText('保留当前填写内容');
+ await expect(panel.locator('#status')).toContainText('Panel drafts were kept');
  await expect(panel.locator('#place')).toHaveValue('6903,7613');
  await panel.locator('#read-page').click();
  await expect(panel.locator('#place')).toHaveValue('10301');
@@ -114,32 +114,32 @@ test('saved query restores the full URL and comparison settings after navigation
  const original='https://www.inaturalist.org/observations?user_id=observer&taxon_id=3&place_id=10301&month=9&swlat=1&nelat=2';
  const panel=await open(page,testInfo,original);
  await panel.locator('#comparison').selectOption('first');await panel.locator('#year').fill('2025');
- await panel.getByText('查詢收藏與自訂地點組合',{exact:true}).click();await panel.locator('#query-name').fill('秋季首見');await panel.locator('#save-query').click();
- await expect(panel.locator('#status')).toContainText('已保存完整');
+ await panel.getByText('Saved searches and custom place groups',{exact:true}).click();await panel.locator('#query-name').fill('秋季首見');await panel.locator('#save-query').click();
+ await expect(panel.locator('#status')).toContainText('Search URL and comparison settings saved');
  await page.goto('https://www.inaturalist.org/observations?taxon_id=3&month=8');await inject(page,testInfo);
  await page.locator('#qg-inat-higher-taxa-trigger').getByRole('button').click();
- await panel.getByText('查詢收藏與自訂地點組合',{exact:true}).click();await panel.locator('#query-choice').selectOption({label:'秋季首見'});
+ await panel.getByText('Saved searches and custom place groups',{exact:true}).click();await panel.locator('#query-choice').selectOption({label:'秋季首見'});
  await panel.locator('#load-query').click();await page.waitForURL('**/*leafwise_query=*');await inject(page,testInfo);
  await expect(panel.locator('#panel')).toBeVisible();await expect(panel.locator('#comparison')).toHaveValue('first');await expect(panel.locator('#year')).toHaveValue('2025');await expect(panel.locator('#months')).toHaveValue('9');
  expect(new URL(page.url()).searchParams.get('swlat')).toBe('1');expect(new URL(page.url()).searchParams.get('nelat')).toBe('2');
- await panel.getByText('查詢收藏與自訂地點組合',{exact:true}).click();await panel.locator('#remove-query').click();await expect(panel.locator('#query-choice option')).toHaveCount(1);
+ await panel.getByText('Saved searches and custom place groups',{exact:true}).click();await panel.locator('#remove-query').click();await expect(panel.locator('#query-choice option')).toHaveCount(1);
 });
 
 test('season shortcut, yearly/local/first scopes and links use the intended independent filters',async({page},testInfo)=>{
  const panel=await open(page,testInfo);
  await panel.locator('#this-month').click();await expect(panel.locator('#months')).toHaveValue(String(new Date().getMonth()+1));
- await panel.locator('#comparison').selectOption('year');await panel.locator('#year').fill('2026');await panel.getByRole('button',{name:'开始对比',exact:true}).click();
+ await panel.locator('#comparison').selectOption('year');await panel.locator('#year').fill('2026');await panel.getByRole('button',{name:'Start comparison',exact:true}).click();
  await expect(panel.locator('tbody tr[data-taxon-id]')).toHaveCount(1);await expect(panel.locator('tbody tr')).toHaveAttribute('data-taxon-id','1002');
  const regionURL=await panel.locator('#sources a').first().getAttribute('href');expect(new URL(regionURL).searchParams.has('month')).toBe(true);
  const personalURL=await panel.locator('#sources a').nth(1).getAttribute('href');expect(new URL(personalURL).searchParams.has('month')).toBe(false);expect(new URL(personalURL).searchParams.get('d1')).toBe('2026-01-01');
- await panel.locator('#comparison').selectOption('local');await panel.getByRole('button',{name:'开始对比',exact:true}).click();await expect(panel.locator('tbody tr[data-taxon-id="1002"]')).toHaveCount(1);
- await panel.locator('#comparison').selectOption('first');await panel.getByRole('button',{name:'开始对比',exact:true}).click();await expect(panel.locator('tbody tr[data-taxon-id="1001"]')).toHaveCount(1);await expect(panel.locator('#sources')).toContainText('該年以前');
+ await panel.locator('#comparison').selectOption('local');await panel.getByRole('button',{name:'Start comparison',exact:true}).click();await expect(panel.locator('tbody tr[data-taxon-id="1002"]')).toHaveCount(1);
+ await panel.locator('#comparison').selectOption('first');await panel.getByRole('button',{name:'Start comparison',exact:true}).click();await expect(panel.locator('tbody tr[data-taxon-id="1001"]')).toHaveCount(1);await expect(panel.locator('#sources')).toContainText('Earlier-years');
  await page.screenshot({path:testInfo.outputPath('explore-comparison.png'),fullPage:true});
 });
 
 test('CSV includes every filtered result across pages and clipboard failure offers selectable text',async({page},testInfo)=>{
- const panel=await open(page,testInfo);await panel.getByRole('button',{name:'开始对比',exact:true}).click();
- await expect(panel.locator('#status')).toContainText('已加载');await expect(panel.locator('tbody tr[data-taxon-id]')).toHaveCount(50);
+ const panel=await open(page,testInfo);await panel.getByRole('button',{name:'Start comparison',exact:true}).click();
+ await expect(panel.locator('#status')).toContainText('Loaded');await expect(panel.locator('tbody tr[data-taxon-id]')).toHaveCount(50);
  const before=await page.evaluate(()=>window.testRequests.length);
  const downloadEvent=page.waitForEvent('download');await panel.locator('#export-results').click();const download=await downloadEvent;
  const csv=await fs.readFile(await download.path(),'utf8');expect(csv.charCodeAt(0)).toBe(0xfeff);expect(csv.trim().split('\r\n')).toHaveLength(65);expect(csv).toContain('Order 1066');
@@ -154,7 +154,7 @@ test('personal records load only when requested, show first/latest, cache, and c
  expect(await page.evaluate(()=>window.testRequests.filter(url=>new URL(url).searchParams.has('order')).length)).toBe(0);
  await marker.click();const card=page.locator('#leafwise-personal-records');await expect(card.locator('#records')).toContainText('2020-01-01');await expect(card.locator('#records')).toContainText('2026-09-01');await expect(card.locator('#all a')).toHaveAttribute('href',/user_id=observer/);
  await page.screenshot({path:testInfo.outputPath('personal-records.png')});
- await card.getByRole('button',{name:'關閉我的紀錄'}).click();await marker.click();await expect(card.locator('#records')).toContainText('2020-01-01');
+ await card.getByRole('button',{name:'Close my records'}).click();await marker.click();await expect(card.locator('#records')).toContainText('2020-01-01');
  expect(await page.evaluate(()=>window.testRequests.filter(url=>new URL(url).searchParams.has('order')).length)).toBe(2);
  await page.evaluate(()=>history.pushState({},'', '/taxa/4'));await expect(card).toHaveCount(0);
 });
@@ -166,7 +166,7 @@ test('taxon page shows observations, leaf taxa and species rank counts in that o
  await expect(page.locator('#qg-inat-own-taxon-status')).toHaveText('(7|4|2)');
  await expect(page.locator('#taxonomy li.current .qg-inat-taxonomy-status')).toHaveText('(7|4|2)');
  await expect(page.locator('#taxonomy li:not(.current) .qg-inat-taxonomy-status')).toHaveText('(7|4|2)');
- await expect(page.locator('#qg-inat-own-taxon-status')).toHaveAttribute('title',/最低分類單元.*種級分類單元/);
+ await expect(page.locator('#qg-inat-own-taxon-status')).toHaveAttribute('title',/lowest-level taxa.*species-level taxa/);
 });
 
 test('taxon page keeps the observation count when diversity statistics fail',async({page},testInfo)=>{
@@ -202,7 +202,7 @@ test('taxon statistics, links and records follow live selected regions and clear
  await page.locator('#native-region').evaluate(a=>a.href='/observations?taxon_id=3&place_id=7613');
  await expect(marker).toHaveText('(1|1|1)');await expect(taxonomy).toHaveText(['(1|1|1)','(1|1|1)']);await expect(page.locator('#leafwise-personal-records')).toHaveCount(0);
  await page.locator('#native-region').evaluate(a=>a.href='/observations?taxon_id=3&place_id=10301');
- await expect(marker).toHaveText('🆕');await expect(marker).toHaveAttribute('title',/目前地区/);await expect(taxonomy).toHaveText(['🆕','🆕']);
+ await expect(marker).toHaveText('🆕');await expect(marker).toHaveAttribute('title',/current region/);await expect(taxonomy).toHaveText(['🆕','🆕']);
  await page.evaluate(()=>{document.querySelector('.PlaceChooserPopoverTrigger').classList.remove('chosen');document.querySelector('#native-region').href='/observations?taxon_id=3';});
  await expect(marker).toHaveText('(7|4|2)');await expect(taxonomy).toHaveText(['(7|4|2)','(7|4|2)']);await expect(marker).not.toHaveAttribute('href',/place_id/);
  await page.screenshot({path:info.outputPath('regional-taxon-statistics.png')});

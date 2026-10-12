@@ -69,7 +69,7 @@ for (const viewport of [{width:1536,height:864},{width:1280,height:720},{width:1
     const selectAll = await page.locator('#select-all').locator('..').boundingBox();
     const collapsed = await page.locator('#leafwise-upload-ai').boundingBox();
     expect(Math.abs(collapsed.y-selectAll.y)).toBeLessThan(12);
-    await page.getByRole('button',{name:'展開',exact:true}).click();
+    await page.getByRole('button',{name:'Expand',exact:true}).click();
     await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
     const after = await page.locator('.leftColumn').boundingBox();
     expect(after.y, 'AI panel must not push the fixed sidebar down').toBe(before.y);
@@ -93,9 +93,9 @@ test('expanding a long report and using AI controls preserves the sidebar and se
   await page.setViewportSize({width:1280,height:720});
   await load(page);const before=await page.locator('.leftColumn').boundingBox();
   await inject(page,testInfo);
-  await page.getByRole('button',{name:'展開',exact:true}).click();
-  await page.getByRole('button',{name:'僅檢查建議',exact:true}).click();
-  await page.locator('#leafwise-upload-ai').getByText('處理明細',{exact:false}).click();
+  await page.getByRole('button',{name:'Expand',exact:true}).click();
+  await page.getByRole('button',{name:'Preview suggestions',exact:true}).click();
+  await page.locator('#leafwise-upload-ai').getByText('Processing details',{exact:false}).click();
   await expect(page.locator('#leafwise-upload-ai').locator('tbody tr')).toHaveCount(410);
   expect((await page.locator('.leftColumn').boundingBox()).y).toBe(before.y);
   await expect(page.locator('#select-all')).toBeChecked();
@@ -111,7 +111,7 @@ test('wait for the real image column, then remount when the site replaces it',as
   const before=await page.locator('.leftColumn').boundingBox();
   await inject(page,testInfo);
   await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
-  await page.getByRole('button',{name:'展開',exact:true}).click();
+  await page.getByRole('button',{name:'Expand',exact:true}).click();
   await page.evaluate(()=>document.querySelector('.row-fluid').append(window.oldGrid));
   await expect(page.locator('#imageGrid > #leafwise-upload-ai')).toHaveCount(1);
   await page.evaluate(()=>{const grid=document.querySelector('#imageGrid');const next=document.createElement('div');next.id='imageGrid';next.className=grid.className;next.append(document.createElement('div'));grid.replaceWith(next)});
@@ -133,7 +133,7 @@ for (const automatic of [false,true]) {
       });
     });
     await inject(page,testInfo);
-    await page.getByRole('button',{name:'展開',exact:true}).click();
+    await page.getByRole('button',{name:'Expand',exact:true}).click();
     const panel=page.locator('#leafwise-upload-ai');
     const threshold=panel.locator('#threshold'),mode=panel.locator('#mode'),apply=panel.locator('#apply');
     if(automatic)await panel.locator('#auto').click();else await apply.click();
@@ -153,7 +153,7 @@ for (const automatic of [false,true]) {
     await page.evaluate(()=>{window.suggestionReady=true});
     expect(await page.evaluate(()=>window.selectedTaxon)).toBeNull();
     await apply.click();await expect(apply).toBeEnabled();
-    await expect(panel.locator('tbody')).toContainText('未超過 90');
+    await expect(panel.locator('tbody')).toContainText('does not exceed 90');
     expect(await page.evaluate(()=>window.selectedTaxon)).toBeNull();
     await threshold.click();await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('80');await page.keyboard.press('Tab');
     await apply.click();await expect(apply).toBeEnabled();
@@ -165,7 +165,7 @@ for (const automatic of [false,true]) {
 test('collapsed quick action runs directly without opening the full panel',async({page},testInfo)=>{
   await load(page);await inject(page,testInfo);
   const panel=page.locator('#leafwise-upload-ai');
-  await panel.getByRole('button',{name:'一鍵套用 AI 首選',exact:true}).click();
+  await panel.getByRole('button',{name:'Apply top AI suggestions',exact:true}).click();
   await expect(panel).toHaveAttribute('data-open','false');
   await expect(page.locator('.nav_add_obs > #leafwise-upload-ai')).toHaveCount(1);
 });
@@ -193,7 +193,7 @@ test('collapsed toolbar stays one row high and does not cover first-row remove c
 
 test('expanded panel state survives a page reload',async({page},testInfo)=>{
   await load(page);await inject(page,testInfo);
-  await page.getByRole('button',{name:'展開',exact:true}).click();
+  await page.getByRole('button',{name:'Expand',exact:true}).click();
   expect(await page.evaluate(()=>localStorage.getItem('leafwise-upload-ai-panel-open'))).toBe('true');
   await page.reload();await inject(page,testInfo);
   await expect(page.locator('#leafwise-upload-ai')).toHaveAttribute('data-open','true');

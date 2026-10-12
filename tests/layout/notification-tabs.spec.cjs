@@ -30,7 +30,7 @@ test('notification dropdown opens unique observations only after explicit click'
   await expect(page.locator('#updatessubnav .leafwise-open-update-observations')).toHaveCount(0);
   await page.locator('#updatessubnav').evaluate((menu, html) => { menu.innerHTML = html; }, updates);
   const button = page.locator('#updatessubnav .leafwise-open-update-observations button');
-  await expect(button).toHaveText('一鍵開啟這些觀察（2）');
+  await expect(button).toHaveText('Open these observations (2)');
   await button.click();
   await expect.poll(() => page.evaluate(() => window.sent.length)).toBe(1);
   expect(await page.evaluate(() => window.sent[0].observationIds)).toEqual(['101', '202']);
@@ -106,7 +106,7 @@ async function filterFixture(page, info, options = {}) {
 test('filter hides exact matches only, retains hierarchy changes, comments and unknowns, and opens visible unique observations', async ({ page }, info) => {
   const { checkbox, button, hint } = await filterFixture(page, info);
   await expect(checkbox).not.toBeChecked();
-  await expect(button).toHaveText('一鍵開啟這些觀察（7）');
+  await expect(button).toHaveText('Open these observations (7)');
   expect(await page.evaluate(() => window.sent.length)).toBe(0);
   await page.locator('#same').evaluate(row => row.style.setProperty('display', 'inline-block', 'important'));
   await checkbox.check();
@@ -114,8 +114,8 @@ test('filter hides exact matches only, retains hierarchy changes, comments and u
   for (const name of ['other', 'ancestor', 'descendant', 'duplicate', 'remark', 'unknown', 'comment']) {
     await expect(page.locator('#' + name)).toBeVisible();
   }
-  await expect(hint).toHaveText('無法判斷的消息已保留');
-  await expect(button).toHaveText('開啟篩選後的觀察（6）');
+  await expect(hint).toHaveText('Uncertain updates kept');
+  await expect(button).toHaveText('Open filtered observations (6)');
   expect(await page.evaluate(() => window.sent[0].observationIds)).toEqual([101, 202, 303, 404, 505, 606]);
   await button.click();
   expect(await page.evaluate(() => window.sent.find(message => message.type === 'leafwise-open-update-observations').observationIds))
@@ -131,9 +131,9 @@ test('failed API retains every update without repeated requests or modifying nat
   const { checkbox, button, hint } = await filterFixture(page, info, { fail: true });
   const before = await page.locator('#updatessubnav li > a').evaluateAll(links => links.map(link => link.href));
   await checkbox.check();
-  await expect(button).toHaveText('開啟篩選後的觀察（7）');
+  await expect(button).toHaveText('Open filtered observations (7)');
   await expect(button).toBeEnabled();
-  await expect(hint).toHaveText('無法判斷的消息已保留');
+  await expect(hint).toHaveText('Uncertain updates kept');
   await expect(page.locator('#same')).toBeVisible();
   expect(await page.evaluate(() => window.sent.length)).toBe(1);
   expect(await page.locator('#updatessubnav li > a').evaluateAll(links => links.map(link => link.href))).toEqual(before);
@@ -142,11 +142,11 @@ test('failed API retains every update without repeated requests or modifying nat
 test('switching off during loading ignores late replies and restores unfiltered opening', async ({ page }, info) => {
   const { checkbox, button, hint } = await filterFixture(page, info, { delay: true });
   await checkbox.check();
-  await expect(hint).toHaveText('正在篩選鑑定…');
+  await expect(hint).toHaveText('Checking identifications…');
   await expect(button).toBeDisabled();
   await checkbox.uncheck();
   await page.evaluate(() => window.historyResolvers[0]());
-  await expect(button).toHaveText('一鍵開啟這些觀察（7）');
+  await expect(button).toHaveText('Open these observations (7)');
   await expect(page.locator('#same')).toBeVisible();
   await button.click();
   expect(await page.evaluate(() => window.sent.at(-1).observationIds)).toEqual(['101', '202', '303', '404', '505', '606', '707']);
@@ -166,7 +166,7 @@ test('menu replacement and repeated injection preserve one switch and ignore sta
   await expect(button).toBeDisabled();
   await page.evaluate(() => window.historyResolvers[1]());
   await expect(button).toBeEnabled();
-  await expect(button).toHaveText('開啟篩選後的觀察（1）');
+  await expect(button).toHaveText('Open filtered observations (1)');
   await expect(page.locator('#replacement')).toBeVisible();
 });
 
@@ -193,13 +193,13 @@ test('missing viewer and later viewer changes keep uncertain updates and discard
     window.historyResolvers[0]();
   });
   await expect(page.locator('#same')).toBeVisible();
-  await expect(hint).toHaveText('無法判斷的消息已保留');
+  await expect(hint).toHaveText('Uncertain updates kept');
   await expect(button).toBeEnabled();
   const requests = await page.evaluate(() => window.sent.length);
   await checkbox.uncheck();
   await page.locator('.profile_link').evaluate(link => link.remove());
   await checkbox.check();
-  await expect(hint).toHaveText('無法判斷的消息已保留');
+  await expect(hint).toHaveText('Uncertain updates kept');
   expect(await page.evaluate(() => window.sent.length)).toBe(requests);
 });
 
@@ -243,14 +243,14 @@ test('mention permalinks join favorites, comments and IDs in observation-level d
     };
   });
   await page.locator('#updatessubnav').evaluate((menu, html) => { menu.innerHTML = html; }, mentionUpdates);
-  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await expect(button).toHaveText('Open these observations (3)');
   await expect(button).toBeEnabled();
   await checkbox.check();
   await expect(page.locator('#same')).toBeHidden();
   for (const name of ['mention-comment', 'mention-id', 'mention-duplicate', 'favorite', 'comment', 'journal']) {
     await expect(page.locator('#' + name)).toBeVisible();
   }
-  await expect(button).toHaveText('開啟篩選後的觀察（3）');
+  await expect(button).toHaveText('Open filtered observations (3)');
   await expect(button).toBeEnabled();
   expect(await page.evaluate(() => window.permalinkRequests.map(request => request.id).sort())).toEqual(['801', '802', '803', '805']);
   expect(await page.evaluate(() => window.permalinkRequests.every(request => request.credentials === 'omit'))).toBe(true);
@@ -278,10 +278,10 @@ test('unavailable mention redirects stay visible and open their native permalink
       <li><center><a href="/home">Dashboard</a></center></li></ul>`;
   });
   await expect(button).toBeEnabled();
-  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await expect(button).toHaveText('Open these observations (3)');
   await checkbox.check();
   await expect(page.locator('#failed-mention')).toBeVisible();
-  await expect(button).toHaveText('開啟篩選後的觀察（3）');
+  await expect(button).toHaveText('Open filtered observations (3)');
   expect(await page.evaluate(() => window.permalinkRequests.length)).toBe(2);
   expect(await page.evaluate(() => window.sent.length)).toBe(0);
   await button.click();
@@ -289,7 +289,7 @@ test('unavailable mention redirects stay visible and open their native permalink
     type: 'leafwise-open-update-observations', observationIds: ['707'],
     unresolvedLinks: ['https://www.inaturalist.org/comments/901', 'https://www.inaturalist.org/identifications/902']
   });
-  await expect(button).toHaveText('已開啟 3 個觀察');
+  await expect(button).toHaveText('Opened 3 observations');
 });
 
 test('mention redirects use at most two workers and menu replacement discards late old-menu destinations', async ({ page }, info) => {
@@ -313,7 +313,7 @@ test('mention redirects use at most two workers and menu replacement discards la
   await expect(button).toBeDisabled();
   await page.evaluate(() => window.redirectResolvers[2].resolve(909));
   await expect(button).toBeEnabled();
-  await expect(button).toHaveText('一鍵開啟這些觀察（1）');
+  await expect(button).toHaveText('Open these observations (1)');
   await button.click();
   expect(await page.evaluate(() => window.sent.at(-1).observationIds)).toEqual(['909']);
   expect(await page.evaluate(() => window.redirectResolvers.length)).toBe(3);
@@ -352,9 +352,9 @@ test('a stalled redirect batch times out without leaving the button disabled or 
       <li><a href="/comments/801">Mention</a></li><li><a href="/comments/802">Mention</a></li>
       <li><a href="/comments/803">Queued mention</a></li><li><center>Dashboard</center></li></ul>`;
   });
-  await expect(button).toHaveText('一鍵開啟這些觀察（3）');
+  await expect(button).toHaveText('Open these observations (3)');
   await expect(button).toBeEnabled();
-  await expect(hint).toHaveText('無法判斷的消息已保留');
+  await expect(hint).toHaveText('Uncertain updates kept');
   await button.click();
   expect(await page.evaluate(() => window.sent.at(-1).unresolvedLinks)).toEqual([
     'https://www.inaturalist.org/comments/801', 'https://www.inaturalist.org/comments/802', 'https://www.inaturalist.org/comments/803'

@@ -94,6 +94,7 @@
   let storedUsers = {};
   let lastHref = "";
   let lastNativePerson = "";
+  let sourceDraftHref = null;
   let ready = false;
   function value(field) {
     const selected = field.select.value;
@@ -140,6 +141,7 @@
     });
     // Our own input events must not repopulate the custom field while typing.
     lastNativePerson = nativePersonValue();
+    sourceDraftHref = location.href;
   }
   function setNativeUnobserved(username) {
     const next = String(username || "").trim();
@@ -157,7 +159,11 @@
   }
   function syncModalFromURL() {
     const params = new URL(location.href).searchParams;
-    populateModalSource(params.get("user_id") || "");
+    // Preserve an explicit extension edit made on this URL before polling.
+    if (sourceDraftHref !== location.href) {
+      populateModalSource(params.get("user_id") || "");
+      sourceDraftHref = null;
+    }
     populate(modalExcludeField, params.get("unobserved_by_user_id") || "");
     lastNativePerson = nativePersonValue();
   }
@@ -166,7 +172,18 @@
     const current = nativePersonValue();
     if (current === lastNativePerson) return;
     lastNativePerson = current;
+    sourceDraftHref = null;
     populateModalSource(current);
+  }
+  function sourceForAction() {
+    // Angular/autocomplete can leave user_id's hidden DOM value behind after
+    // the native checkbox already removed it from the URL. Do not replay that
+    // snapshot on Update; also handle a click before the next 750ms URL poll.
+    if (lastHref !== location.href && sourceDraftHref !== location.href) {
+      return new URL(location.href).searchParams.get("user_id") || "";
+    }
+    syncNativePerson();
+    return modalSourceValue();
   }
   function syncURL() {
     lastHref = location.href;
@@ -217,7 +234,7 @@
     modalExcludeField.lastMode = "custom";
   });
   modalShadow.querySelector("#modal-swap").addEventListener("click", () => {
-    const source = nativePersonValue();
+    const source = sourceForAction();
     const exclude = value(modalExcludeField);
     setNativePerson(exclude);
     populateModalSource(exclude);
@@ -229,6 +246,7 @@
     if (!update || boundNativeUpdates.has(update)) return;
     boundNativeUpdates.add(update);
     update.addEventListener("click", event => {
+      if (!ready) return;
       const selected = value(modalExcludeField);
       if (modalExcludeField.select.value === "custom" && !selected) {
         event.preventDefault();
@@ -238,7 +256,7 @@
         return;
       }
       setNativeUnobserved(selected);
-      const pending = { user_id: nativePersonValue(), unobserved_by_user_id: selected };
+      const pending = { user_id: sourceForAction(), unobserved_by_user_id: selected };
       try { sessionStorage.setItem(nativePendingKey, JSON.stringify(pending)); } catch {}
       const before = location.href;
       setTimeout(() => {

@@ -1,5 +1,11 @@
 # 測試與驗收
 
+1.2.5 發版前本機驗證（2026-10-23）：`npm ci --ignore-scripts`、`npm run check` 共 339 項、固定建置後啟用 Edge／單 worker 的 `npm run test:layout` 共 294 項（每瀏覽器 98 項）、`npm run package` 六個套件與 `v1.2.5` 發版說明校驗全部通過。Chrome／Firefox／Edge 的來源篩選另跑 39 項通過。正式 Chrome 頁面完成的是舊版重現；未在使用者現有瀏覽器安裝或重新載入本機修正版，不宣稱新版已完成正式帳號人工驗收。商店提交結果另按版本標籤工作流核對。
+
+1.2.5 來源回歸（2026-10-23）：在使用者既有正式 Chrome 觀察頁重現「取消您的觀察 → 所有人的結果已出現 → 更新搜尋 → 舊用戶被加回網址」，並只讀確認可見 `user_name` 已空、hidden `user_id[ng-model]` 仍有舊值。官方 [控制器](https://github.com/inaturalist/inaturalist/blob/7c5d4e8bc8a27a073fedb211462c3e0f705ad340/app/assets/javascripts/ang/controllers/observation_search.js.erb)／[模板](https://github.com/inaturalist/inaturalist/blob/7c5d4e8bc8a27a073fedb211462c3e0f705ad340/app/assets/javascripts/ang/templates/observation_search/filter_menu.html.haml) 核對原生 checkbox 變更 params、autocomplete 與 hidden 欄分離，以及更新按鈕走 `closeFilters`；未發現掛載 DOM 改名。
+
+`user-filters.spec.cjs` 加強舊 URL 移除案例，按更新後驗證 pending 內容與最終網址；另模擬原生 params／可見欄已清空但 hidden 殘留、連按兩次更新及重新勾選、同一事件輪內清除後立即更新／另選用戶，並保留類群、地點及月份。兩個新增斷言先在未修來源上失敗，再執行修正；來源測試在三瀏覽器共 39 項通過。此 fixture 只模擬官方相關契約，並非完整 Angular；新版正式帳號驗收與舊版正式重現不可混稱。
+
 1.2.4 發版前本機驗證（2026-10-12）：`npm ci --ignore-scripts`、`npm run check` 通過三目標各 110 項及商店流程 9 項，共 339 項；固定建置後以單 worker 跑 Chrome／Firefox／Edge 完整介面回歸 285/285 通過（每瀏覽器 95 項）。`npm run package` 驗證六個 1.2.4 套件，`release:notes` 核對 `v1.2.4`。檢視英文與 RTL 受控截圖；首次介面測試與重新建置重疊造成暫時缺檔，停止後串行完整重跑通過。未登入正式 iNaturalist 帳號驗收；商店是否送審須另核對正式結果。
 
 商店日誌回歸（1.2.4）：`store-publish.test.cjs` 模擬 Chrome 提交驗證錯誤與 OAuth 失敗、Edge 提交／非同步操作失敗、非 JSON／不可讀／超長回應。核對錯誤碼及白名單驗證原因保留，原 HTTP 錯誤不被解析錯誤覆蓋；已知及訊息內的授權字串、未知敏感欄位、控制字元不洩漏，成功／同版本跳過流程不變。這是離線 API fixture，不代表正式商店已送審。

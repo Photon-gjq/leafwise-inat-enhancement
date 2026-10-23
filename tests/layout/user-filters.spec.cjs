@@ -13,10 +13,10 @@ const fixture = `<!doctype html><meta charset="utf-8"><div id="filters">
   </div><div id="filters-footer"><button class="btn-primary">Update search</button><button class="btn-default">Reset</button></div>
 </div><main id="observations-search"></main>`;
 
-async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_id=3&month=9') {
+async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_id=3&month=9', nativeState = false) {
   await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body: fixture }));
   await page.goto('https://www.inaturalist.org/observations' + query);
-  await page.evaluate(() => {
+  await page.evaluate(nativeState => {
     const params = new URL(location.href).searchParams;
     document.querySelector('[name=user_name]').value = params.get('user_id') || '';
     document.querySelector('[name=user_id]').value = params.get('user_id') || '';
@@ -32,10 +32,28 @@ async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_i
       sync: { get: async () => ({ savedUsernames: ['observer'] }) }, onChanged: { addListener: listener => storageListeners.push(listener) }
     } };
     window.chrome = api; window.browser = api;
+    // Model the official toggleShowViewerObservations/closeFilters contract:
+    // native params and the visible autocomplete clear, but hidden input's DOM
+    // value may remain stale. This is not an execution of full Angular.
+    let nativeUser = params.get('user_id') || '';
+    if (nativeState) {
+      const label = document.createElement('label');
+      label.textContent = 'Your observations';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.checked = !!nativeUser;
+      label.append(checkbox); document.querySelector('#filter-dropdown').prepend(label);
+      checkbox.addEventListener('change', () => {
+        nativeUser = checkbox.checked ? 'observer' : '';
+        document.querySelector('[name=user_name]').value = nativeUser;
+        const url = new URL(location.href);
+        if (nativeUser) url.searchParams.set('user_id', nativeUser); else url.searchParams.delete('user_id');
+        history.replaceState({}, '', url);
+      });
+    }
     document.querySelector('.btn-primary').addEventListener('click', () => {
       const url = new URL(location.href);
       for (const key of ['user_id', 'place_id']) {
-        const value = document.querySelector(`[name=${key}]`).value;
+        const value = nativeState && key === 'user_id' ? nativeUser : document.querySelector(`[name=${key}]`).value;
         if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
       }
       history.replaceState({}, '', url);
@@ -44,7 +62,7 @@ async function open(page, info, query = '?user_id=observer&place_id=7613&taxon_i
       for (const input of document.querySelectorAll('#filters input')) input.value = '';
       history.replaceState({}, '', '/observations');
     });
-  });
+  }, nativeState);
   const directory = path.resolve(__dirname, '../../build', info.project.name.split('-')[0], 'scripts');
   for (const file of ['url-filters.js', 'saved-users.js', 'saved-taxa.js', 'content.js', 'higher-taxa-core.js', 'explore-tools.js', 'quick-places.js', 'higher-taxa-panel.js']) await page.addScriptTag({ path: path.join(directory, file) });
   const modal = page.locator('#qg-inat-native-filter-tools');
@@ -75,6 +93,65 @@ test('URL removal is authoritative even while native controls still display an o
   await page.evaluate(() => history.replaceState({}, '', '/observations?place_id=7613'));
   await expect(modal.locator('#modal-source')).toHaveValue('none');
   await expect(modal.locator('#modal-source-name')).toHaveValue('');
+  await expect(page.locator('[name=user_id]')).toHaveValue('observer');
+  const pending = await page.locator('.btn-primary').evaluate(button => {
+    button.click();
+    return JSON.parse(sessionStorage.getItem('qgInatPendingUnobservedUser'));
+  });
+  expect(pending.user_id).toBe('');
+  await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBeNull();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('qgInatPendingUnobservedUser'))).toBeNull();
+  expect(new URL(page.url()).searchParams.get('place_id')).toBe('7613');
+});
+
+test('unchecking Your observations leaves a stale hidden field but repeated updates stay cleared', async ({ page }, info) => {
+  const modal = await open(page, info, '?user_id=observer&place_id=7613&taxon_id=3&month=9', true);
+  const checkbox = page.getByRole('checkbox', { name: 'Your observations' });
+  await checkbox.uncheck();
+  await expect(modal.locator('#modal-source')).toHaveValue('none');
+  await expect(page.locator('[name=user_id]')).toHaveValue('observer');
+  await expect(page.locator('[name=user_name]')).toHaveValue('');
+  for (let index = 0; index < 2; index++) {
+    await page.locator('.btn-primary').click();
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('qgInatPendingUnobservedUser'))).toBeNull();
+    expect(new URL(page.url()).searchParams.get('user_id')).toBeNull();
+    await expect(checkbox).not.toBeChecked();
+    await expect(modal.locator('#modal-source')).toHaveValue('none');
+  }
+  await checkbox.check();
+  await expect(modal.locator('#modal-source')).toHaveValue('user:observer');
+  await page.locator('.btn-primary').click();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('qgInatPendingUnobservedUser'))).toBeNull();
+  expect(new URL(page.url()).searchParams.get('user_id')).toBe('observer');
+});
+
+test('an immediate update after URL user removal cannot replay a stale native user before polling', async ({ page }, info) => {
+  await open(page, info);
+  const pending = await page.evaluate(() => {
+    history.replaceState({}, '', '/observations?place_id=7613&taxon_id=3&month=9');
+    document.querySelector('.btn-primary').click();
+    return JSON.parse(sessionStorage.getItem('qgInatPendingUnobservedUser'));
+  });
+  expect(pending.user_id).toBe('');
+  await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBeNull();
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('taxon_id')).toBe('3'); expect(params.get('place_id')).toBe('7613'); expect(params.get('month')).toBe('9');
+});
+
+test('a deliberate source choice after URL removal wins even before the next URL poll', async ({ page }, info) => {
+  const modal = await open(page, info);
+  const pending = await modal.locator('#modal-source').evaluate(select => {
+    history.replaceState({}, '', '/observations?place_id=7613&taxon_id=3&month=9');
+    select.value = 'custom';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = select.getRootNode().querySelector('#modal-source-name');
+    input.value = 'new_observer';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('.btn-primary').click();
+    return JSON.parse(sessionStorage.getItem('qgInatPendingUnobservedUser'));
+  });
+  expect(pending.user_id).toBe('new_observer');
+  await expect.poll(() => new URL(page.url()).searchParams.get('user_id')).toBe('new_observer');
 });
 
 test('clearing native modeled user does not fall back to a stale visible autocomplete label', async ({ page }, info) => {

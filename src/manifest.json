@@ -111,7 +111,8 @@
         "https://inaturalist.org/taxa/*"
       ],
       "js": [
-        "scripts/taxon-status.js"
+        "scripts/taxon-status.js",
+        "scripts/taxon-places.js"
       ],
       "run_at": "document_idle"
     }

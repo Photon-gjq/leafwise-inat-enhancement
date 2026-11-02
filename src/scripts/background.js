@@ -204,6 +204,14 @@ function notificationIDs(rawIds) {
   return ids;
 }
 
+async function lookupTaxonPlace(placeId, sender) {
+  const page = notificationPage(sender);
+  if (sender.frameId !== 0 || !/^\/taxa\/[1-9]\d*(?:-[^/]*)?\/?$/.test(page.pathname)) {
+    throw new Error("Invalid taxon place request");
+  }
+  return { ok: true, place: await higherTaxaService.place(placeId) };
+}
+
 const notificationFetchJSON = QGInatHigherTaxaService.createTransport();
 const notificationRequests = new Map();
 async function updateIdentifications(rawIds, sender) {
@@ -278,6 +286,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
   else if (message?.type === "leafwise-open-update-observations") {
     task = openUpdateObservations(message.observationIds, sender, message.unresolvedLinks);
+  } else if (message?.type === "leafwise-taxon-place") {
+    task = lookupTaxonPlace(message.placeId, sender);
   } else if (message?.type === "leafwise-update-identifications") {
     task = updateIdentifications(message.observationIds, sender);
   } else if (message?.type === "qg-observation-taxon") {

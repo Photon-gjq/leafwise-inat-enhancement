@@ -1,5 +1,7 @@
 # 架構
 
+物種頁的 `taxon-places.js` 在原生 `#place-chooser-container` 追加獨立選單，只顯示既有 local 地區組合庫中的單地點條目。它共用 `taxon-status.js` 的公開 DOM 地區辨認函式，不讀取 React／Redux 私有狀態。明確選取後，背景 `leafwise-taxon-place` 僅驗證並返回公開地點 id/name；頁面以原生同站 CSRF／session 流程保存地區偏好，204 成功才刷新原網址及 hash。這是同站偏好寫入，與 credentials: omit 的公開統計請求分開，不新增權限或 storage key。設定保存不套用篩選；世代、storage revision、逾時、離頁及原生互動防止遲到回應觸發刷新。
+
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。
 
 觀察搜尋工具列由 `quick-places.js` 掛在 `#stats-container .row > .col-xs-4`，以兩列放進原生 75px 深灰地區區塊，不增高白色標頭；對比入口在第一列末端，類群／地區選單等分第二列。僅標記的地區欄套用 scoped `.geo` 行高／省略及清除圖示位置，不移動 Angular 元素；離頁或換欄移除標記。缺失統計區塊時沿用舊獨立後備列。鑑定頁沿用同一 host，掛作 `#Identify .SearchBar` 的下一個兄弟，避免嵌入 React form；依公開 input 的 bounding rect 對齊位置及寬度，ResizeObserver／resize／字體就緒與重掛重新量測。禁用／blind 表單不啟用，URL 省略預設地區時僅讀公開原生 hidden input 判斷選項。`quickSearchPage` 僅放行兩個 HTTPS 正式搜尋路徑，原有 `searchURL`／`isSearchPage` 限制不放寬，故不把用戶／對比表單帶入鑑定頁。

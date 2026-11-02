@@ -30,6 +30,9 @@ test('built version has one source and all manifest/HTML script references resol
     assert.ok(fs.existsSync(path.resolve(extension, path.dirname(manifest.options_page), script)), script);
   }
   const bridge = manifest.content_scripts.find(group => group.js.includes('scripts/vision-score-bridge.js'));
+  const taxon = manifest.content_scripts.find(group => group.js.includes('scripts/taxon-places.js'));
+  assert.deepEqual(taxon.js, ['scripts/taxon-status.js', 'scripts/taxon-places.js']);
+  assert.notEqual(taxon.world, 'MAIN');
   const notifications = manifest.content_scripts.find(group => group.js.includes('scripts/notification-tabs.js'));
   const uploader = manifest.content_scripts.find(group => group.js.includes('scripts/uploader-ai-panel.js'));
   const observation = manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js'));

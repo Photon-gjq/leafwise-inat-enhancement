@@ -160,7 +160,8 @@
         return { first:explore.observationSummary(responses[0].results[0]), latest:explore.observationSummary(responses[1].results[0]), datedCount:responses[0].total_results };
       }, 5 * 60 * 1000)).value;
     }
-    return { compare, verifyLeaf, names, refreshNames, records };
+    const place = async id => (await places(String(core.positiveID(id, "地点")))).items[0];
+    return { compare, verifyLeaf, names, refreshNames, records, place };
   }
   // Two simultaneous connections, with at least 1.1 seconds between starts.
   // No automatic retry storm; timeout / 429 / 5xx are actionable errors.

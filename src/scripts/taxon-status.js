@@ -679,5 +679,8 @@
     pageIdentity, clearStatusMarkers, selectedTaxonPlace
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else startPageController();
+  else {
+    root.LeafwiseTaxonStatus = api;
+    startPageController();
+  }
 })(globalThis);

@@ -61,6 +61,7 @@
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
 | src/scripts/quick-places.js | 觀察搜尋／鑑定頁緊湊工具列、地區及常用類群／排除組合快捷選單；共用既有兩份清單，不自動套用 |
+| src/scripts/taxon-places.js | 物種頁單地點快捷選單；讀取既有地區組合，只在明確選取後保存同站原生地區偏好並刷新 |
 | src/scripts/notification-tabs.js、notification-filter.js | 全站「新動態」清單去重開啟與可選的精確確認鑑定篩選；純規則與 DOM／非同步處理分離 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
@@ -123,7 +124,13 @@ url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-ta
 
 ### 分類單元詳情 /taxa/<id>
 
-taxon-status.js
+taxon-status.js → taxon-places.js
+
+1.3.0 的 taxon-places.js 在 #place-chooser-container 追加獨立 Shadow DOM，不移動原生按鈕。共用隔離世界 LeafwiseTaxonStatus.selectedTaxonPlace 以原生狀態及觀察連結辨認地區；未就緒禁用，不依名稱或網址猜測。讀取既有 leafwiseExploreLibraryV1.groups，僅列單一正整數 place 的條目，去重並保留名稱，不列 CSV／any 組合、不播種或改寫設定。storage 版本防止舊讀取覆蓋新清單；重掛載／重複注入／BFcache 均保持單一控制項。
+
+使用者選取後，leafwise-taxon-place 透過既有公開 places 服務及節流／快取驗證精確 ID；只回傳 id/name，不回傳幾何。然後從 meta[name=csrf-token] 暫時讀取防偽欄位，FormData 僅含 authenticity_token 與 preferred_taxon_page_place_id，以同站 PUT /users/update_session、credentials: same-origin、mode: same-origin、redirect: error 保存；全球使用字串 null，僅接受 204 後重新載入同一網址／hash。這是明確操作所需的同站偏好寫入例外，不是公開統計 API，不取得密碼、Cookie 或 OAuth／API token，也不持久保存防偽欄位。iNaturalist 可將此偏好保存到登入帳號或 session，與原生選擇器相同。隱私文件和靜態政策須同步。
+
+禁止使用假 place_id 網址或 React/Redux 私有狀態替代原生保存。25 秒逾時、中途原生操作、設定／頁面範圍變更及 pagehide 會中止客戶端處理，舊結果不觸發刷新；已送達伺服器的請求無法保證回滾。pagehide 清除 timer／observer，BFcache 返回重讀及重掛。官方契約查核於 2026-11-02，iNaturalist d0cd796c770e45c633cae98582dfbca88ef949c1 的 place_chooser_container.js、shared/util.js、users_controller.rb；受控回歸不等同登入正式帳號驗收。
 
 ### 全站右上「新動態」清單
 
@@ -253,6 +260,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - qg-higher-taxa-names
 - leafwise-explore-library
 - leafwise-personal-records
+- leafwise-taxon-place（僅 iNaturalist 頂層數字 taxon 詳情頁；單一地點公開查詢，回傳 id/name，不代理原生偏好寫入）
 - leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID 及可選 unresolvedLinks 評論／鑑定 show 連結後備；返回實際開啟數）
 - leafwise-update-identifications（同一來源／frame 驗證，每批最多 20 個觀察；返回最小 metadata，不保存歷史）
 

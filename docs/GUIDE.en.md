@@ -2,6 +2,12 @@
 
 Version 1.1.0 follows iNaturalist's website language. Select English in iNaturalist and reload the page to use English controls; the settings page reuses the last website language. The Chinese label tables below remain useful when using an older version or the Chinese website. This guide applies to the Chrome, Edge, and Firefox builds from the same release. See [language coverage and fallback](I18N.md) for the initial 50 variants.
 
+## Saved places on taxon pages
+
+On a species/taxon detail page, **Saved places** beside the native place selector reuses your saved regions. Only single-place entries such as `7613 = Hong Kong` are offered; comma-separated groups are hidden, never split or added by default.
+
+Selecting an entry validates its ID, saves iNaturalist's native place preference, and reloads the same taxon page so native charts, observations and personal counts share one scope. Like the native selector, this preference may persist in your iNaturalist account or site session. **Worldwide** clears it; **Manage saved regions…** opens settings. Editing settings alone does not apply a filter. Failed lookups or saves show an error rather than silently switching to worldwide.
+
 ## Recent activity notifications
 
 The **僅顯示非完全贊同的鑑定** (Only show non-confirming IDs) switch starts off and remembers its setting in this browser. When enabled, Leafwise reads public identification history on demand. It hides only an exact taxon match to your valid identification made before the update, without a remark. Different taxa, more specific or broader IDs, comments, remarks, and uncertain records remain visible. Withdrawn or subsequently modified history is not guessed, and the current community taxon is not used as the baseline.

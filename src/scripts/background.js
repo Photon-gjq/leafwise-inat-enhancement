@@ -261,10 +261,12 @@ function notificationPermalinks(rawLinks, page) {
   }))];
 }
 
-async function openUpdateObservations(rawIds, sender, rawLinks) {
+async function openUpdateObservations(rawIds, sender, rawLinks, rawFlagIds) {
   const page = notificationPage(sender);
   const ids = notificationIDs(rawIds);
+  const flags = notificationIDs(rawFlagIds === undefined ? [] : rawFlagIds);
   const urls = [...ids.map(id => `https://${page.hostname}/observations/${id}`),
+    ...flags.map(id => `https://${page.hostname}/flags/${id}`),
     ...notificationPermalinks(rawLinks, page)];
   let opened = 0;
   for (const url of urls) {
@@ -285,7 +287,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   let task;
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
   else if (message?.type === "leafwise-open-update-observations") {
-    task = openUpdateObservations(message.observationIds, sender, message.unresolvedLinks);
+    task = openUpdateObservations(message.observationIds, sender, message.unresolvedLinks, message.flagIds);
   } else if (message?.type === "leafwise-taxon-place") {
     task = lookupTaxonPlace(message.placeId, sender);
   } else if (message?.type === "leafwise-update-identifications") {

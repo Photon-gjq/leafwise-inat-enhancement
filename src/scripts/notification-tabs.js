@@ -38,12 +38,12 @@
 
   function rows() {
     return [...menu.querySelectorAll(":scope > ul > li > a[href]")].map(link => {
-      const direct = rules.observationLink(link.href, location.href);
+      const direct = rules.observationLink(link.href, location.href) || rules.flagLink(link.href, location.href);
       const activityUrl = direct ? null : rules.activityLink(link.href, location.href);
       // A mention must stay visible even when its ID matches the viewer's ID.
       const resolved = activityUrl && linkResults.get(activityUrl);
       return { row: link.parentElement, href: link.href, activityUrl,
-        ...(direct || (resolved ? { observationId: resolved.observationId, identification: null } : {})) };
+        ...(direct || (resolved ? { ...resolved, identification: null } : {})) };
     });
   }
 
@@ -70,7 +70,7 @@
         try {
           const response = await fetch(url, { credentials: "omit", signal: controller.signal });
           void response.body?.cancel().catch(() => {});
-          result = rules.observationLink(response.url, location.href);
+          result = rules.observationLink(response.url, location.href) || rules.flagLink(response.url, location.href);
           // The destination still identifies the observation when its page
           // body is unavailable (e.g. HTTP 403). Never inspect that body.
           const destination = new URL(response.url);
@@ -103,14 +103,18 @@
     hiddenRows.delete(row);
   }
 
-  function observationIds() {
-    return [...new Set(rows().filter(item => item.observationId && !item.row.hidden)
-      .map(item => String(item.observationId)))];
-  }
-
-  function unresolvedLinks() {
-    return [...new Set(rows().filter(item => item.activityUrl && !item.row.hidden
-      && linkResults.get(item.activityUrl) == null).map(item => item.activityUrl))];
+  function openingTargets() {
+    const observations = new Set();
+    const flags = new Set();
+    const unresolved = new Set();
+    for (const item of rows()) {
+      if (item.row.hidden) continue;
+      if (item.observationId) observations.add(String(item.observationId));
+      else if (item.flagId) flags.add(String(item.flagId));
+      else if (item.activityUrl && linkResults.get(item.activityUrl) == null) unresolved.add(item.activityUrl);
+    }
+    return { observationIds: [...observations], flagIds: [...flags], unresolvedLinks: [...unresolved],
+      count: observations.size + flags.size + unresolved.size };
   }
 
   async function checkBatch(ids, token, viewer) {
@@ -162,18 +166,18 @@
       if (stopped) return;
       refresh(); // Recheck the signed-in viewer before using filtered results.
       if (busy || pendingLinks.size || (enabled && pending.size)) return;
-      const ids = observationIds();
-      const links = unresolvedLinks();
-      const count = ids.length + links.length;
+      const { observationIds, flagIds, unresolvedLinks, count } = openingTargets();
       if (!count) return;
       busy = true;
-      status = t("正在開啟觀察…");
+      status = flagIds.length ? t("開啟頁面（{0}）", count) : t("正在開啟觀察…");
       clearTimeout(clearStatusTimer);
       refresh();
       try {
-        const reply = await chrome.runtime.sendMessage({ type: "leafwise-open-update-observations", observationIds: ids, unresolvedLinks: links });
+        const message = { type: "leafwise-open-update-observations", observationIds, unresolvedLinks };
+        if (flagIds.length) message.flagIds = flagIds;
+        const reply = await chrome.runtime.sendMessage(message);
         status = reply?.ok && reply.opened === count
-          ? t("已開啟 {0} 個觀察", reply.opened)
+          ? t(flagIds.length ? "已開啟 {0} 個頁面" : "已開啟 {0} 個觀察", reply.opened)
           : t("已開啟 {0} 個；其餘未能開啟", reply?.opened || 0);
       } catch { status = t("開啟失敗，請重試"); }
       finally {
@@ -220,7 +224,7 @@
     const text = t("僅顯示非完全贊同的鑑定");
     if (label.lastElementChild.textContent !== text) label.lastElementChild.textContent = text;
     control.dir = ["ar", "he", "fa"].includes(globalThis.LeafwiseI18n?.locale()) ? "rtl" : "ltr";
-    let uncertain = unresolvedLinks().some(url => linkResults.has(url));
+    let uncertain = false;
     const candidates = rows().filter(item => item.identification);
     if (enabled && viewer) {
       const ids = [...new Set(candidates.map(item => item.observationId))]
@@ -242,10 +246,12 @@
       if (enabled && result === "unknown" && !pending.has(item.observationId)) uncertain = true;
     }
     const button = control.querySelector("button");
-    const count = observationIds().length + unresolvedLinks().length;
-    const caption = status || t(enabled ? "開啟篩選後的觀察（{0}）" : "一鍵開啟這些觀察（{0}）", count);
+    const { count, flagIds, unresolvedLinks } = openingTargets();
+    const caption = status || t(flagIds.length ? "開啟頁面（{0}）"
+      : enabled ? "開啟篩選後的觀察（{0}）" : "一鍵開啟這些觀察（{0}）", count);
     if (button.textContent !== caption) button.textContent = caption;
     button.disabled = busy || count === 0 || pendingLinks.size > 0 || (enabled && pending.size > 0);
+    uncertain ||= unresolvedLinks.some(url => linkResults.has(url));
     const hint = control.querySelector(".leafwise-notification-filter-status");
     const message = enabled && pending.size ? t("正在篩選鑑定…") : uncertain ? t("無法判斷的消息已保留") : "";
     if (hint.textContent !== message) hint.textContent = message;

@@ -1,5 +1,7 @@
 {
   "es": {
+    "Open pages ({0})": "Abrir páginas ({0})",
+    "Opened {0} pages": "Se abrieron {0} páginas",
     "Only show non-confirming IDs": "Mostrar solo identificaciones distintas",
     "Checking identifications…": "Comprobando identificaciones…",
     "Uncertain updates kept": "Se conservan las notificaciones inciertas",
@@ -7,6 +9,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Ocultar coincidencias exactas sin notas; conservar comentarios y notificaciones inciertas."
   },
   "fr": {
+    "Open pages ({0})": "Ouvrir les pages ({0})",
+    "Opened {0} pages": "{0} pages ouvertes",
     "Only show non-confirming IDs": "Afficher uniquement les identifications différentes",
     "Checking identifications…": "Vérification des identifications…",
     "Uncertain updates kept": "Notifications incertaines conservées",
@@ -14,6 +18,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Masquer les correspondances exactes sans remarque ; conserver les commentaires et les notifications incertaines."
   },
   "pt": {
+    "Open pages ({0})": "Abrir páginas ({0})",
+    "Opened {0} pages": "{0} páginas abertas",
     "Only show non-confirming IDs": "Mostrar apenas identificações diferentes",
     "Checking identifications…": "A verificar identificações…",
     "Uncertain updates kept": "Notificações incertas mantidas",
@@ -21,6 +27,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Ocultar correspondências exatas sem notas; manter comentários e notificações incertas."
   },
   "de": {
+    "Open pages ({0})": "Seiten öffnen ({0})",
+    "Opened {0} pages": "{0} Seiten geöffnet",
     "Only show non-confirming IDs": "Nur abweichende Bestimmungen anzeigen",
     "Checking identifications…": "Bestimmungen werden geprüft…",
     "Uncertain updates kept": "Unklare Meldungen bleiben sichtbar",
@@ -28,6 +36,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Exakte Übereinstimmungen ohne Anmerkung ausblenden; Kommentare und unklare Meldungen beibehalten."
   },
   "ru": {
+    "Open pages ({0})": "Открыть страницы ({0})",
+    "Opened {0} pages": "Открыто страниц: {0}",
     "Only show non-confirming IDs": "Показывать только отличающиеся определения",
     "Checking identifications…": "Проверка определений…",
     "Uncertain updates kept": "Неопределённые уведомления сохранены",
@@ -35,6 +45,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Скрывать точные совпадения без пояснений; сохранять комментарии и неопределённые уведомления."
   },
   "ja": {
+    "Open pages ({0})": "ページを開く（{0}）",
+    "Opened {0} pages": "{0} ページを開きました",
     "Only show non-confirming IDs": "完全に一致しない同定のみ表示",
     "Checking identifications…": "同定を確認中…",
     "Uncertain updates kept": "判断できない通知は保持",
@@ -42,6 +54,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "説明のない完全一致の同定を非表示にし、コメントや判断できない通知は保持します。"
   },
   "ko": {
+    "Open pages ({0})": "페이지 열기 ({0})",
+    "Opened {0} pages": "페이지 {0}개를 열었습니다",
     "Only show non-confirming IDs": "완전히 일치하지 않는 동정만 표시",
     "Checking identifications…": "동정 확인 중…",
     "Uncertain updates kept": "판단할 수 없는 알림 유지",
@@ -49,6 +63,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "설명 없는 완전 일치 동정은 숨기고 댓글과 판단할 수 없는 알림은 유지합니다."
   },
   "it": {
+    "Open pages ({0})": "Apri pagine ({0})",
+    "Opened {0} pages": "Aperte {0} pagine",
     "Only show non-confirming IDs": "Mostra solo identificazioni diverse",
     "Checking identifications…": "Verifica delle identificazioni…",
     "Uncertain updates kept": "Notifiche incerte mantenute",
@@ -56,6 +72,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Nascondi le corrispondenze esatte senza note; conserva commenti e notifiche incerte."
   },
   "nl": {
+    "Open pages ({0})": "Pagina’s openen ({0})",
+    "Opened {0} pages": "{0} pagina’s geopend",
     "Only show non-confirming IDs": "Alleen afwijkende determinaties tonen",
     "Checking identifications…": "Determinaties controleren…",
     "Uncertain updates kept": "Onzekere meldingen behouden",
@@ -63,6 +81,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Verberg exacte overeenkomsten zonder toelichting; behoud reacties en onzekere meldingen."
   },
   "pl": {
+    "Open pages ({0})": "Otwórz strony ({0})",
+    "Opened {0} pages": "Otwarto {0} stron",
     "Only show non-confirming IDs": "Pokaż tylko odmienne oznaczenia",
     "Checking identifications…": "Sprawdzanie oznaczeń…",
     "Uncertain updates kept": "Niepewne powiadomienia zachowane",
@@ -70,6 +90,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Ukryj dokładne zgodności bez uwag; zachowaj komentarze i niepewne powiadomienia."
   },
   "uk": {
+    "Open pages ({0})": "Відкрити сторінки ({0})",
+    "Opened {0} pages": "Відкрито сторінок: {0}",
     "Only show non-confirming IDs": "Показувати лише відмінні визначення",
     "Checking identifications…": "Перевірка визначень…",
     "Uncertain updates kept": "Невизначені сповіщення збережено",
@@ -77,6 +99,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Приховувати точні збіги без пояснень; зберігати коментарі та невизначені сповіщення."
   },
   "cs": {
+    "Open pages ({0})": "Otevřít stránky ({0})",
+    "Opened {0} pages": "Počet otevřených stránek: {0}",
     "Only show non-confirming IDs": "Zobrazit jen odlišná určení",
     "Checking identifications…": "Kontrola určení…",
     "Uncertain updates kept": "Nejistá oznámení ponechána",
@@ -84,6 +108,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Skrýt přesné shody bez poznámek; ponechat komentáře a nejistá oznámení."
   },
   "sv": {
+    "Open pages ({0})": "Öppna sidor ({0})",
+    "Opened {0} pages": "{0} sidor öppnade",
     "Only show non-confirming IDs": "Visa endast avvikande bestämningar",
     "Checking identifications…": "Kontrollerar bestämningar…",
     "Uncertain updates kept": "Osäkra meddelanden behålls",
@@ -91,6 +117,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Dölj exakta matchningar utan anmärkningar; behåll kommentarer och osäkra meddelanden."
   },
   "da": {
+    "Open pages ({0})": "Åbn sider ({0})",
+    "Opened {0} pages": "{0} sider åbnet",
     "Only show non-confirming IDs": "Vis kun afvigende bestemmelser",
     "Checking identifications…": "Kontrollerer bestemmelser…",
     "Uncertain updates kept": "Usikre beskeder bevares",
@@ -98,6 +126,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Skjul præcise match uden bemærkninger; behold kommentarer og usikre beskeder."
   },
   "nb": {
+    "Open pages ({0})": "Åpne sider ({0})",
+    "Opened {0} pages": "{0} sider åpnet",
     "Only show non-confirming IDs": "Vis bare avvikende bestemmelser",
     "Checking identifications…": "Kontrollerer bestemmelser…",
     "Uncertain updates kept": "Usikre meldinger beholdes",
@@ -105,6 +135,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Skjul nøyaktige treff uten merknader; behold kommentarer og usikre meldinger."
   },
   "fi": {
+    "Open pages ({0})": "Avaa sivut ({0})",
+    "Opened {0} pages": "Avattu {0} sivua",
     "Only show non-confirming IDs": "Näytä vain poikkeavat määritykset",
     "Checking identifications…": "Tarkistetaan määrityksiä…",
     "Uncertain updates kept": "Epävarmat ilmoitukset säilytetään",
@@ -112,6 +144,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Piilota täsmäävät määritykset ilman huomautuksia; säilytä kommentit ja epävarmat ilmoitukset."
   },
   "tr": {
+    "Open pages ({0})": "Sayfaları aç ({0})",
+    "Opened {0} pages": "{0} sayfa açıldı",
     "Only show non-confirming IDs": "Yalnızca farklı tanımlamaları göster",
     "Checking identifications…": "Tanımlamalar kontrol ediliyor…",
     "Uncertain updates kept": "Belirsiz bildirimler korundu",
@@ -119,6 +153,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Not içermeyen tam eşleşmeleri gizle; yorumları ve belirsiz bildirimleri koru."
   },
   "ar": {
+    "Open pages ({0})": "فتح الصفحات ({0})",
+    "Opened {0} pages": "تم فتح {0} صفحة",
     "Only show non-confirming IDs": "إظهار التعريفات غير المطابقة فقط",
     "Checking identifications…": "جارٍ التحقق من التعريفات…",
     "Uncertain updates kept": "تم الإبقاء على الإشعارات غير المؤكدة",
@@ -126,6 +162,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "إخفاء التطابقات التامة دون ملاحظات؛ والإبقاء على التعليقات والإشعارات غير المؤكدة."
   },
   "he": {
+    "Open pages ({0})": "פתיחת דפים ({0})",
+    "Opened {0} pages": "נפתחו {0} דפים",
     "Only show non-confirming IDs": "הצגת זיהויים שאינם תואמים בלבד",
     "Checking identifications…": "בדיקת זיהויים…",
     "Uncertain updates kept": "התראות לא ודאיות נשמרו",
@@ -133,6 +171,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "הסתרת התאמות מלאות ללא הערות; שמירת תגובות והתראות לא ודאיות."
   },
   "id": {
+    "Open pages ({0})": "Buka halaman ({0})",
+    "Opened {0} pages": "{0} halaman dibuka",
     "Only show non-confirming IDs": "Hanya tampilkan identifikasi yang berbeda",
     "Checking identifications…": "Memeriksa identifikasi…",
     "Uncertain updates kept": "Notifikasi yang tidak pasti dipertahankan",
@@ -140,6 +180,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Sembunyikan kecocokan persis tanpa catatan; pertahankan komentar dan notifikasi yang tidak pasti."
   },
   "ms": {
+    "Open pages ({0})": "Buka halaman ({0})",
+    "Opened {0} pages": "{0} halaman dibuka",
     "Only show non-confirming IDs": "Paparkan pengecaman yang berbeza sahaja",
     "Checking identifications…": "Menyemak pengecaman…",
     "Uncertain updates kept": "Pemberitahuan tidak pasti dikekalkan",
@@ -147,6 +189,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Sembunyikan padanan tepat tanpa nota; kekalkan komen dan pemberitahuan tidak pasti."
   },
   "vi": {
+    "Open pages ({0})": "Mở trang ({0})",
+    "Opened {0} pages": "Đã mở {0} trang",
     "Only show non-confirming IDs": "Chỉ hiện các định danh khác biệt",
     "Checking identifications…": "Đang kiểm tra định danh…",
     "Uncertain updates kept": "Giữ lại thông báo chưa xác định",
@@ -154,6 +198,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Ẩn định danh trùng khớp hoàn toàn không có ghi chú; giữ bình luận và thông báo chưa xác định."
   },
   "th": {
+    "Open pages ({0})": "เปิดหน้า ({0})",
+    "Opened {0} pages": "เปิดแล้ว {0} หน้า",
     "Only show non-confirming IDs": "แสดงเฉพาะการระบุชนิดที่ไม่ตรงกันทั้งหมด",
     "Checking identifications…": "กำลังตรวจสอบการระบุชนิด…",
     "Uncertain updates kept": "เก็บการแจ้งเตือนที่ไม่แน่ชัดไว้",
@@ -161,6 +207,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "ซ่อนรายการที่ตรงกันทั้งหมดและไม่มีหมายเหตุ แต่เก็บความคิดเห็นและการแจ้งเตือนที่ไม่แน่ชัดไว้"
   },
   "hi": {
+    "Open pages ({0})": "पेज खोलें ({0})",
+    "Opened {0} pages": "{0} पेज खोले गए",
     "Only show non-confirming IDs": "केवल अलग पहचान दिखाएँ",
     "Checking identifications…": "पहचान जाँची जा रही हैं…",
     "Uncertain updates kept": "अनिश्चित सूचनाएँ रखी गईं",
@@ -168,6 +216,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "बिना टिप्पणी वाली पूर्णतः समान पहचान छिपाएँ; टिप्पणियाँ और अनिश्चित सूचनाएँ रखें।"
   },
   "fa": {
+    "Open pages ({0})": "باز کردن صفحه‌ها ({0})",
+    "Opened {0} pages": "{0} صفحه باز شد",
     "Only show non-confirming IDs": "فقط شناسایی‌های متفاوت را نشان بده",
     "Checking identifications…": "در حال بررسی شناسایی‌ها…",
     "Uncertain updates kept": "اعلان‌های نامشخص حفظ شدند",
@@ -175,6 +225,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "تطابق‌های دقیق بدون توضیح را پنهان کن؛ نظرها و اعلان‌های نامشخص را نگه دار."
   },
   "ro": {
+    "Open pages ({0})": "Deschide paginile ({0})",
+    "Opened {0} pages": "Pagini deschise: {0}",
     "Only show non-confirming IDs": "Arată doar identificările diferite",
     "Checking identifications…": "Se verifică identificările…",
     "Uncertain updates kept": "Notificările incerte sunt păstrate",
@@ -182,6 +234,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Ascunde potrivirile exacte fără remarci; păstrează comentariile și notificările incerte."
   },
   "hu": {
+    "Open pages ({0})": "Oldalak megnyitása ({0})",
+    "Opened {0} pages": "{0} oldal megnyitva",
     "Only show non-confirming IDs": "Csak az eltérő azonosítások megjelenítése",
     "Checking identifications…": "Azonosítások ellenőrzése…",
     "Uncertain updates kept": "Bizonytalan értesítések megtartva",
@@ -189,6 +243,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "A megjegyzés nélküli pontos egyezések elrejtése; a hozzászólások és bizonytalan értesítések megtartása."
   },
   "el": {
+    "Open pages ({0})": "Άνοιγμα σελίδων ({0})",
+    "Opened {0} pages": "Άνοιξαν {0} σελίδες",
     "Only show non-confirming IDs": "Εμφάνιση μόνο διαφορετικών ταυτοποιήσεων",
     "Checking identifications…": "Έλεγχος ταυτοποιήσεων…",
     "Uncertain updates kept": "Οι αβέβαιες ειδοποιήσεις διατηρήθηκαν",
@@ -196,6 +252,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Απόκρυψη ακριβών συμφωνιών χωρίς σημειώσεις· διατήρηση σχολίων και αβέβαιων ειδοποιήσεων."
   },
   "sk": {
+    "Open pages ({0})": "Otvoriť stránky ({0})",
+    "Opened {0} pages": "Počet otvorených stránok: {0}",
     "Only show non-confirming IDs": "Zobraziť iba odlišné určenia",
     "Checking identifications…": "Kontrola určení…",
     "Uncertain updates kept": "Neisté oznámenia ponechané",
@@ -203,6 +261,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Skryť presné zhody bez poznámok; ponechať komentáre a neisté oznámenia."
   },
   "bg": {
+    "Open pages ({0})": "Отвори страници ({0})",
+    "Opened {0} pages": "Отворени страници: {0}",
     "Only show non-confirming IDs": "Показвай само различни определения",
     "Checking identifications…": "Проверка на определенията…",
     "Uncertain updates kept": "Неясните известия са запазени",
@@ -210,6 +270,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Скрий точните съвпадения без бележки; запази коментарите и неясните известия."
   },
   "hr": {
+    "Open pages ({0})": "Otvori stranice ({0})",
+    "Opened {0} pages": "Otvoreno stranica: {0}",
     "Only show non-confirming IDs": "Prikaži samo različite identifikacije",
     "Checking identifications…": "Provjera identifikacija…",
     "Uncertain updates kept": "Nejasne obavijesti zadržane",
@@ -217,6 +279,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Sakrij potpuna podudaranja bez napomena; zadrži komentare i nejasne obavijesti."
   },
   "sr": {
+    "Open pages ({0})": "Отвори странице ({0})",
+    "Opened {0} pages": "Отворено страница: {0}",
     "Only show non-confirming IDs": "Прикажи само различите идентификације",
     "Checking identifications…": "Провера идентификација…",
     "Uncertain updates kept": "Нејасна обавештења су задржана",
@@ -224,6 +288,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Сакриј потпуна поклапања без напомена; задржи коментаре и нејасна обавештења."
   },
   "sl": {
+    "Open pages ({0})": "Odpri strani ({0})",
+    "Opened {0} pages": "Odprtih strani: {0}",
     "Only show non-confirming IDs": "Prikaži le drugačne določitve",
     "Checking identifications…": "Preverjanje določitev…",
     "Uncertain updates kept": "Nejasna obvestila ohranjena",
@@ -231,6 +297,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Skrij popolna ujemanja brez opomb; ohrani komentarje in nejasna obvestila."
   },
   "ca": {
+    "Open pages ({0})": "Obre les pàgines ({0})",
+    "Opened {0} pages": "S’han obert {0} pàgines",
     "Only show non-confirming IDs": "Mostra només identificacions diferents",
     "Checking identifications…": "Comprovant identificacions…",
     "Uncertain updates kept": "Es conserven les notificacions incertes",
@@ -238,6 +306,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Amaga les coincidències exactes sense notes; conserva els comentaris i les notificacions incertes."
   },
   "et": {
+    "Open pages ({0})": "Ava lehed ({0})",
+    "Opened {0} pages": "Avatud lehti: {0}",
     "Only show non-confirming IDs": "Näita ainult erinevaid määranguid",
     "Checking identifications…": "Määrangute kontrollimine…",
     "Uncertain updates kept": "Ebaselged teated säilitatud",
@@ -245,6 +315,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Peida täpsed vasted ilma märkusteta; säilita kommentaarid ja ebaselged teated."
   },
   "lt": {
+    "Open pages ({0})": "Atverti puslapius ({0})",
+    "Opened {0} pages": "Atvertų puslapių skaičius: {0}",
     "Only show non-confirming IDs": "Rodyti tik skirtingus nustatymus",
     "Checking identifications…": "Tikrinami nustatymai…",
     "Uncertain updates kept": "Neaiškūs pranešimai išsaugoti",
@@ -252,6 +324,8 @@
     "Hide exact matches without remarks; keep comments and uncertain updates.": "Slėpti tikslius sutapimus be pastabų; palikti komentarus ir neaiškius pranešimus."
   },
   "lv": {
+    "Open pages ({0})": "Atvērt lapas ({0})",
+    "Opened {0} pages": "Atvērto lapu skaits: {0}",
     "Only show non-confirming IDs": "Rādīt tikai atšķirīgas noteikšanas",
     "Checking identifications…": "Pārbauda noteikšanas…",
     "Uncertain updates kept": "Neskaidrie paziņojumi saglabāti",

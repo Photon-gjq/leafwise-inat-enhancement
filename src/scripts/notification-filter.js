@@ -21,6 +21,12 @@
     return { observationId: Number(match[1]), identification: anchor?.[1].toLowerCase() || null };
   }
 
+  function flagLink(href, base) {
+    const url = notificationURL(href, base);
+    const match = url && /^\/flags\/([1-9]\d*)\/?$/.exec(url.pathname);
+    return match && positiveID(Number(match[1])) ? { flagId: Number(match[1]) } : null;
+  }
+
   function activityLink(href, base) {
     const url = notificationURL(href, base);
     if (!url) return null;
@@ -55,7 +61,7 @@
     return baseline.taxonId === target.taxonId ? "confirming" : "different";
   }
 
-  const api = { observationLink, activityLink, classify };
+  const api = { observationLink, flagLink, activityLink, classify };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LeafwiseNotificationFilter = api;
 })(globalThis);

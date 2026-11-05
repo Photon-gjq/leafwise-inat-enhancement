@@ -27,8 +27,8 @@ function background(fetchJSON = async () => ({ results: [] })) {
 function send(listener, observationIds, sender = {
   id: 'leafwise-test', url: 'https://www.inaturalist.org/home', frameId: 0,
   tab: { id: 5, windowId: 7 }
-}, type = 'leafwise-open-update-observations', unresolvedLinks) {
-  return new Promise(resolve => listener({ type, observationIds, unresolvedLinks }, sender, resolve));
+}, type = 'leafwise-open-update-observations', unresolvedLinks, flagIds) {
+  return new Promise(resolve => listener({ type, observationIds, unresolvedLinks, flagIds }, sender, resolve));
 }
 
 test('notification action opens one inactive same-window tab per observation ID', async () => {
@@ -56,6 +56,21 @@ test('unresolved mentions fall back to deduplicated native read-only permalinks 
     { url: 'https://www.inaturalist.org/observations/123', active: false, windowId: 7 },
     { url: 'https://www.inaturalist.org/comments/801', active: false, windowId: 7 },
     { url: 'https://www.inaturalist.org/identifications/' + uuid, active: false, windowId: 7 }
+  ]);
+});
+
+test('flags deduplicate separately from observations, and invalid flag IDs reject the whole batch', async () => {
+  const { created, onMessage } = background();
+  for (const flags of [null, '123', [false], ['/flags/123'], ['9007199254740992']]) {
+    assert.equal((await send(onMessage, [123], undefined, undefined, undefined, flags)).ok, false);
+  }
+  assert.equal(created.length, 0);
+  const reply = await send(onMessage, [123], undefined, undefined, undefined, [123, '123', '456']);
+  assert.equal(reply.opened, 3);
+  assert.deepEqual(JSON.parse(JSON.stringify(created)), [
+    { url: 'https://www.inaturalist.org/observations/123', active: false, windowId: 7 },
+    { url: 'https://www.inaturalist.org/flags/123', active: false, windowId: 7 },
+    { url: 'https://www.inaturalist.org/flags/456', active: false, windowId: 7 }
   ]);
 });
 

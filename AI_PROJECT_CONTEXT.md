@@ -136,13 +136,13 @@ taxon-status.js → taxon-places.js
 
 `i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。英文映射及支援語言碼由建置嵌入 helper；各含 `globalThis.LeafwiseI18n` 的呈現入口同樣前綴該 helper，模組／完整目錄缺失時仍可初始化英文後備。目錄按次讀取，避免先初始化空資料後永久卡住；後續呈現可恢復遲到的網站翻譯。核心／API／儲存契約不變，原生 DOM、自訂資料及未知錯誤不翻譯。
 
-notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析直屬 `ul > li > a` 通知列，按數字觀察 ID 去重；不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。官方 mention 以 notifier 而非 observation resource 作 href，可能為 `/comments/<id/uuid>` 或 `/identifications/<id/uuid>`。notification-filter.js 的 activityLink 嚴格限制這兩種 HTTPS show 路徑，移除 query／hash；頁面以 credentials: omit 解析最終轉址 URL，立即取消正文，不讀取評論內容。最多兩個並發、整批最多 10 秒，結果僅留本頁記憶體；清單／原始 href／帳戶變更或 pagehide 取消並以獨立 linkGeneration 拒絕舊回應。解析完成前禁止開啟，toggle 不需重抓轉址。已確認日誌等非觀察目的地略過；未能解析則保留原生連結後備，此時只按連結去重，不能宣稱已知道其觀察 ID。
+notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析直屬 `ul > li > a` 通知列，按數字觀察 ID 或標記 ID 分別去重。不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。官方 mention 以 notifier 而非 observation resource 作 href，可能為 `/comments/<id/uuid>` 或 `/identifications/<id/uuid>`。notification-filter.js 的 activityLink 嚴格限制這兩種 HTTPS show 路徑，移除 query／hash；頁面以 credentials: omit 解析最終轉址 URL，立即取消正文，不讀取評論內容。最多兩個並發、整批最多 10 秒，結果僅留本頁記憶體；清單／原始 href／帳戶變更或 pagehide 取消並以獨立 linkGeneration 拒絕舊回應。解析完成前禁止開啟，toggle 不需重抓轉址。直接或轉址到官方 /flags/<id> 的通知按標記 ID 歸併，已確認的日誌目的地略過。解析失敗時保留原生連結後備並按連結去重。
 
-使用者點擊後傳送 leafwise-open-update-observations 的 observationIds 與可選 unresolvedLinks；背景再次驗證頂層來源、數字 ID 及最多 20 個合法評論／鑑定 show 連結，所有驗證完成才建立不啟用的同視窗分頁。不得將後備擴成任意 URL 或帶修改動作的路由。提及即使轉到 activity_identification 錨點也不列為 confirming 候選，保持可見；其他直接觀察鑑定通知仍走原有篩選。清單載入前不顯示按鈕；沒有可開啟觀察／後備時禁用。此功能只處理目前清單，不抓歷史分頁、不改通知已讀狀態。
+使用者點擊後傳送 leafwise-open-update-observations 的 observationIds、可選 flagIds 與 unresolvedLinks；背景再次驗證頂層來源、數字 ID 及最多 20 個合法評論／鑑定 show 連結，所有驗證完成才建立不啟用的同視窗分頁。不得將後備擴成任意 URL 或帶修改動作的路由。提及即使轉到 activity_identification 錨點也不列為 confirming 候選，保持可見；其他直接觀察鑑定通知仍走原有篩選。清單載入前不顯示按鈕；沒有可開啟目的地時禁用。此功能只處理目前清單，不抓歷史分頁、不改通知已讀狀態。
 
 第一個隔離組在 notification-tabs.js 前載入 notification-filter.js。開關預設關閉；官方 `#activity_identification_<uuid/id>` 精確配對通知鑑定，不解析翻譯後的摘要。參照頁面使用者選單的數字 ID，與消息前最後一筆自己的有效鑑定比較 taxon ID；只有精確相同且無說明者隱藏，上下級／其他類群保留。評論、說明、缺失／撤回／後改／不確定基準不隱藏；不使用目前社群 taxon、disagreement 或 maverick 代替完全相同。
 
-開關啟用時才透過 leafwise-update-identifications，每批最多 20 個觀察查詢公開 `/v1/observations/<ids>`。背景共用既有節流傳輸（最多 2 並發、起始間隔 1.1 秒）並合併相同未完成批次，只回傳最小鑑定 metadata、不存歷史；UI 在本頁記憶體比對。載入期間禁止開啟；成功或失敗後只開可見通知的去重觀察。停用、清單或錨點集合重畫、帳戶變更及 pagehide 都以 generation 拒絕舊回應，恢复原生 hidden／display；pageshow 從 back-forward cache 恢復時重連 observer 並重新查詢。重複注入只產生一組控制項。網站下拉可在無未讀時回顯舊消息，本功能不宣稱是完整未讀 API 篩選。
+開關啟用時才透過 leafwise-update-identifications，每批最多 20 個觀察查詢公開 `/v1/observations/<ids>`。背景共用既有節流傳輸（最多 2 並發、起始間隔 1.1 秒）並合併相同未完成批次，只回傳最小鑑定 metadata、不存歷史；UI 在本頁記憶體比對。載入期間禁止開啟；成功或失敗後只開可見通知的去重目的地。停用、清單或錨點集合重畫、帳戶變更及 pagehide 都以 generation 拒絕舊回應，恢复原生 hidden／display；pageshow 從 back-forward cache 恢復時重連 observer 並重新查詢。重複注入只產生一組控制項。網站下拉可在無未讀時回顯舊消息，本功能不宣稱是完整未讀 API 篩選。
 
 腳本順序是功能的一部分。調整順序時要同步改 manifest/build 測試，並重新驗證三個瀏覽器。
 
@@ -261,7 +261,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - leafwise-explore-library
 - leafwise-personal-records
 - leafwise-taxon-place（僅 iNaturalist 頂層數字 taxon 詳情頁；單一地點公開查詢，回傳 id/name，不代理原生偏好寫入）
-- leafwise-open-update-observations（只接受來自 iNaturalist 頂層頁面的觀察 ID 及可選 unresolvedLinks 評論／鑑定 show 連結後備；返回實際開啟數）
+- leafwise-open-update-observations（接受 iNaturalist 頂層頁面的觀察 ID、可選 flagIds 及 unresolvedLinks 評論／鑑定 show 連結後備，返回實際開啟數）
 - leafwise-update-identifications（同一來源／frame 驗證，每批最多 20 個觀察；返回最小 metadata，不保存歷史）
 
 更名或改 payload 形狀前，先搜尋所有 sender、listener 和測試；通常要保持向後相容。

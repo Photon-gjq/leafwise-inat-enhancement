@@ -54,7 +54,13 @@
   let choices = [], loaded = false, active = true, busy = false;
   let revision = 0, readToken = 0, generation = 0, scope = "", current = undefined, pending = null, optionKey = "";
   const nativePlace = () => root.LeafwiseTaxonStatus.selectedTaxonPlace(document, location.href);
-  const signature = () => `${location.href}|${nativePlace()}`;
+  const placeChooser = () => taxonPage(location.href) ? document.querySelector("#place-chooser-container") : null;
+  function signature(container) {
+    const trigger = container?.querySelector(".PlaceChooserPopoverTrigger");
+    // The chooser exists even when the observation panel renders no links.
+    // Use the native label only to detect changes, never to infer a place ID.
+    return trigger ? JSON.stringify([location.href, trigger.classList.contains("chosen"), trigger.textContent.trim()]) : "";
+  }
   function refresh() {
     const key = JSON.stringify([t("常用地点"), t("全球"), t("管理常用地區…"), choices]);
     if (key !== optionKey) {
@@ -64,8 +70,9 @@
       select.add(new Option(t("管理常用地區…"), "settings"));
       select.setAttribute("aria-label", t("常用地点"));
     }
-    select.value = current === null ? "any" : choices.some(place => place.id === String(current)) ? String(current) : "";
-    select.disabled = !loaded || busy || current === undefined || host.hidden;
+    const value = current === null ? "any" : choices.some(place => place.id === String(current)) ? String(current) : "";
+    if (select.value !== value) select.value = value;
+    select.disabled = !loaded || busy || !scope;
   }
   function cancel() {
     generation++;
@@ -82,11 +89,15 @@
   }
   function mount() {
     if (!active) return;
-    const container = taxonPage(location.href) && document.querySelector("#place-chooser-container");
+    const container = placeChooser();
     // Native remounts can clone the old light-DOM host without its shadow tree.
     document.querySelectorAll("#leafwise-taxon-places").forEach(node => { if (node !== host) node.remove(); });
-    const next = container && signature();
-    if (scope !== next) { cancel(); scope = next; }
+    const next = signature(container);
+    if (scope !== next) {
+      if (busy) status.textContent = "";
+      cancel();
+      scope = next;
+    }
     host.hidden = !container;
     if (container && host.parentElement !== container) container.append(host);
     else if (!container) host.remove();
@@ -107,9 +118,10 @@
     }
     if (chosen !== "any" && !choices.some(place => place.id === chosen)) { refresh(); return; }
     if (chosen === (current === null ? "any" : String(current))) { refresh(); return; }
-    const identity = signature(), version = revision;
+    const identity = signature(placeChooser()), version = revision;
+    if (!identity || identity !== scope) { mount(); return; }
     const token = ++generation;
-    const live = () => active && token === generation && version === revision && taxonPage(location.href) && signature() === identity;
+    const live = () => active && token === generation && version === revision && signature(placeChooser()) === identity;
     busy = true; select.disabled = true; status.textContent = t("正在保存…");
     const controller = new AbortController(); pending = controller;
     const timeout = setTimeout(() => controller.abort(), 25000);

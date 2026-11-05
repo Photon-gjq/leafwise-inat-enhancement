@@ -58,7 +58,8 @@ async function fixture(page,info,config={}) {
       '<nav class="navtab user"><a class="observations_link" href="/observations/observer">Observations</a><a class="profile_link" href="/people/7">Profile</a></nav>'+
       '<div id="TaxonHeader"><div class="inner"><h1><a class="taxon-name" href="/taxa/3-Aves">'+(state.long?'A very long common and scientific taxon name '.repeat(3):'Birds · Aves')+'</a></h1>'+
       '<div id="place-chooser-container"><button class="PlaceChooserPopoverTrigger '+(state.place===null?'':'chosen')+'">'+name+'</button><button id="native-clear" onclick="this.dataset.clicked=\'yes\'">×</button></div></div></div>'+
-      '<main><div class="NumObservations"><a href="/observations?taxon_id=3'+nativePlace+'">Native observations</a></div></main>'+
+      '<main><div class="NumObservations'+(state.noContent?' no-content':'')+'">'+
+      (state.noContent?'0':'<a href="/observations?taxon_id=3'+nativePlace+'">Native observations</a>')+'</div></main>'+
       scripts.filter(f=>!config.missingCatalog||!['i18n-catalog.js','i18n.js'].includes(f)).map(f=>'<script src="/__leafwise/'+f+'"></script>').join('')+'</html>';
     return route.fulfill({contentType:'text/html',body:html});
   });
@@ -96,6 +97,34 @@ test('single region and worldwide use native preferences, reload the same URL an
   expect(page.url()).toBe(initial);
   await choice(page).selectOption('any');
   expect(state.writes).toHaveLength(2);
+});
+
+test('a selected region with no observation links can switch places and clear to worldwide',async({page},info)=>{
+  let release;
+  const delayLookup=new Promise(resolve=>release=resolve);
+  const state=await fixture(page,info,{place:7613,noContent:true,delayLookup});
+  await expect(page.locator('.PlaceChooserPopoverTrigger')).toHaveText('Native place 7613');
+  await expect(page.locator('.NumObservations a')).toHaveCount(0);
+  await expect(choice(page)).toBeEnabled({timeout:2000});
+  await expect(choice(page)).toHaveValue('');
+  expect(state.reads).toEqual([]);
+  await choice(page).selectOption('10301');
+  await expect.poll(()=>state.lookups.length).toBe(1);
+  // Native totals can render after the chooser. Their arrival is not a place change.
+  await page.locator('.NumObservations').evaluate(node=>{
+    node.classList.remove('no-content');
+    node.innerHTML='<a href="/observations?taxon_id=3&place_id=7613">Native observations</a>';
+  });
+  await expect(choice(page)).toHaveValue('7613');
+  await expect(choice(page)).toBeDisabled();
+  release();
+  await expect(page.locator('.PlaceChooserPopoverTrigger')).toHaveText('Native place 10301');
+  expect(state.writes.map(write=>write.fields.preferred_taxon_page_place_id)).toEqual(['10301']);
+  await expect(page.locator('.NumObservations a')).toHaveCount(0);
+  await choice(page).selectOption('any');
+  await expect(page.locator('.PlaceChooserPopoverTrigger')).toHaveText('Filter by place');
+  expect(state.writes.map(write=>write.fields.preferred_taxon_page_place_id)).toEqual(['10301','null']);
+  expect(page.url()).toBe(initial);
 });
 
 for(const failure of ['missing csrf','invalid place','lookup error','save error','login redirect']){

@@ -126,7 +126,7 @@ url-filters.js → saved-users.js → saved-taxa.js → content.js → higher-ta
 
 taxon-status.js → taxon-places.js
 
-1.3.0 的 taxon-places.js 在 #place-chooser-container 追加獨立 Shadow DOM，不移動原生按鈕。共用隔離世界 LeafwiseTaxonStatus.selectedTaxonPlace 以原生狀態及觀察連結辨認地區；未就緒禁用，不依名稱或網址猜測。讀取既有 leafwiseExploreLibraryV1.groups，僅列單一正整數 place 的條目，去重並保留名稱，不列 CSV／any 組合、不播種或改寫設定。storage 版本防止舊讀取覆蓋新清單；重掛載／重複注入／BFcache 均保持單一控制項。
+1.3.0 的 taxon-places.js 在 #place-chooser-container 追加獨立 Shadow DOM，不移動原生按鈕。共用隔離世界 LeafwiseTaxonStatus.selectedTaxonPlace 以原生狀態及觀察連結辨認地區。1.3.2 起，即使零觀察或載入中的 NumObservations 缺少連結，原生選擇器就緒後仍可切換。觀察連結只供快捷選單顯示目前選項與個人統計確認地區。切換是否仍有效由頁面網址及原生選擇器的選中狀態和可見名稱判斷，觀察連結晚到不取消切換。名稱不作為地區 ID 的來源。讀取既有 leafwiseExploreLibraryV1.groups，僅列單一正整數 place 的條目，去重並保留名稱，不列 CSV／any 組合、不播種或改寫設定。storage 版本防止舊讀取覆蓋新清單；重掛載／重複注入／BFcache 均保持單一控制項。
 
 使用者選取後，leafwise-taxon-place 透過既有公開 places 服務及節流／快取驗證精確 ID；只回傳 id/name，不回傳幾何。然後從 meta[name=csrf-token] 暫時讀取防偽欄位，FormData 僅含 authenticity_token 與 preferred_taxon_page_place_id，以同站 PUT /users/update_session、credentials: same-origin、mode: same-origin、redirect: error 保存；全球使用字串 null，僅接受 204 後重新載入同一網址／hash。這是明確操作所需的同站偏好寫入例外，不是公開統計 API，不取得密碼、Cookie 或 OAuth／API token，也不持久保存防偽欄位。iNaturalist 可將此偏好保存到登入帳號或 session，與原生選擇器相同。隱私文件和靜態政策須同步。
 

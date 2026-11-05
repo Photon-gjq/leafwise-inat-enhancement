@@ -1,5 +1,7 @@
 # 測試與驗收
 
+1.3.2 的物種頁地區回歸以原生已選地區、零觀察且無連結的受控頁面重現舊版選單禁用。驗證選單可切換及清除地區，個人統計在地區 ID 不明時暫停，原生觀察連結晚到時可完成原本的切換。上游依據：[NumObservations](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/webpack/taxa/show/containers/num_observations_container.js)、[LeaderItem](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/webpack/taxa/show/components/leader_item.tsx)。
+
 1.3.1 的標記通知回歸涵蓋直接標記連結、評論錨點與提及轉址合併，同號的觀察和標記各自開啟，鑑定篩選保留標記，以及背景在建立分頁前拒絕不合法的標記 ID。依 iNaturalist 官方 [通知模板](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/views/users/new_updates.html.erb) 及 [評論轉址](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/controllers/comments_controller.rb) 建立受控案例。
 
 1.3.0 發版前本機驗證（2026-11-02）：`npm ci --ignore-scripts`、`npm run check` 共 351 項通過（三目標各 114、商店流程 9）。固定建置後啟用 Edge、單 worker 完整 Playwright 共 333 項全部通過（三瀏覽器各 111）；另跑新增功能 39 項及建置引用檢查 5 項。檢視 LTR／RTL、長名稱及 375px 受控截圖。另在隔離 profile 實際載入 Chrome／Edge 擴充，透過真實 content-script／service-worker 邊界執行受控頁面切換，確認單次 PUT 的 Origin 為 iNaturalist、成功後同網址及 hash 重載；不使用正式帳號或私人資料。這仍非登入正式網站人工驗收，也不宣稱 Firefox 的受控頁面測試等同實際安裝驗收。

@@ -223,6 +223,8 @@
   "頁面已離開。": "Page closed.",
   "正在開啟觀察…": "Opening observations…",
   "已開啟 {0} 個觀察": "Opened {0} observations",
+  "開啟頁面（{0}）": "Open pages ({0})",
+  "已開啟 {0} 個頁面": "Opened {0} pages",
   "已開啟 {0} 個；其餘未能開啟": "Opened {0}; others could not be opened",
   "開啟失敗，請重試": "Cannot open tabs; try again",
   "一鍵開啟這些觀察（{0}）": "Open these observations ({0})",

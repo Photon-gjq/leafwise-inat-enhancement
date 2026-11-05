@@ -84,7 +84,8 @@ async function filterFixture(page, info, options = {}) {
           if (window.delayHistory) await new Promise(resolve => window.historyResolvers.push(resolve));
           return window.historyFailed ? { ok: false } : { ok: true, observations };
         }
-        return { ok: true, opened: message.observationIds.length + (message.unresolvedLinks?.length || 0) };
+        return { ok: true, opened: message.observationIds.length + (message.flagIds?.length || 0)
+          + (message.unresolvedLinks?.length || 0) };
       } }
     };
     window.chrome = api;
@@ -258,6 +259,43 @@ test('mention permalinks join favorites, comments and IDs in observation-level d
     .at(-1).observationIds)).toEqual([101]);
   await button.click();
   expect(await page.evaluate(() => window.sent.at(-1).observationIds)).toEqual(['101', '202', '303']);
+});
+
+test('filtered opening deduplicates flag resolution, comments and mentions by flag ID', async ({ page }, info) => {
+  const { checkbox, button } = await filterFixture(page, info);
+  await page.evaluate(() => {
+    window.fetch = async url => {
+      const paths = {
+        '/comments/801': '/flags/202#activity_comment_801',
+        '/comments/804': '/flags/304#activity_comment_804'
+      };
+      return { url: location.origin + paths[new URL(url).pathname] };
+    };
+    document.querySelector('#updatessubnav').innerHTML = `<ul>
+      <li id="same"><a href="/observations/101#activity_identification_20">Confirming ID</a></li>
+      <li><a href="/observations/202#activity_comment_802">Observation comment</a></li>
+      <li id="resolved-flag"><a href="/flags/202">Flag resolved</a></li>
+      <li id="flag-comment"><a href="https://inaturalist.org/flags/202/?unused=1#activity_comment_801">Flag comment</a></li>
+      <li id="flag-mention"><a href="/comments/801">Mention on the same flag</a></li>
+      <li><a href="/flags/303">Another flag</a></li>
+      <li><a href="/comments/804">Mention on a different flag</a></li>
+      <li><a href="/flags/404/edit">Edit link</a></li>
+      <li><center>Dashboard</center></li></ul>`;
+  });
+  await expect(button).toBeEnabled();
+  await expect(button).toHaveText('Open pages (5)');
+  await checkbox.check();
+  await expect(page.locator('#same')).toBeHidden();
+  for (const id of ['resolved-flag', 'flag-comment', 'flag-mention']) {
+    await expect(page.locator('#' + id)).toBeVisible();
+  }
+  await expect(button).toHaveText('Open pages (4)');
+  expect(await page.evaluate(() => window.sent.map(message => message.observationIds))).toEqual([[101]]);
+  await button.click();
+  expect(await page.evaluate(() => window.sent.at(-1))).toEqual({
+    type: 'leafwise-open-update-observations', observationIds: ['202'], flagIds: ['202', '303', '304'], unresolvedLinks: []
+  });
+  await expect(button).toHaveText('Opened 4 pages');
 });
 
 test('unavailable mention redirects stay visible and open their native permalinks instead of disappearing', async ({ page }, info) => {

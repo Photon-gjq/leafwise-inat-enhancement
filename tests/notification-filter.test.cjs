@@ -2,10 +2,21 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const extension = require('./extension-path.cjs');
-const { classify, observationLink, activityLink } = require(path.join(extension, 'scripts/notification-filter.js'));
+const { classify, observationLink, flagLink, activityLink } = require(path.join(extension, 'scripts/notification-filter.js'));
 const own = { id: 10, userId: 7, taxonId: 100, current: true, createdAt: '2026-10-01T10:00:00Z' };
 const target = { id: 20, userId: 8, taxonId: 100, current: true, createdAt: '2026-10-01T11:00:00Z' };
 const check = (base = own, next = target) => classify([base, next], '20', 7);
+
+test('flag notifications identify only official numeric show destinations', () => {
+  const base = 'https://www.inaturalist.org/home';
+  assert.deepEqual(flagLink('/flags/101#activity_comment_20', base), { flagId: 101 });
+  assert.deepEqual(flagLink('https://inaturalist.org/flags/101/?return_to=/home', base), { flagId: 101 });
+  for (const invalid of ['/flags/0', '/flags/9007199254740992', '/flags/101/edit',
+    '/taxa/1/flags/101', 'https://other.example/flags/101', 'http://www.inaturalist.org/flags/101',
+    'https://www.inaturalist.org:444/flags/101', 'https://user@www.inaturalist.org/flags/101']) {
+    assert.equal(flagLink(invalid, base), null);
+  }
+});
 
 test('only exact same taxon is confirming; sibling, descendant and ancestor IDs are retained', () => {
   assert.equal(check(), 'confirming');

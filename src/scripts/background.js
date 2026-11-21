@@ -286,6 +286,9 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return;
   let task;
   if (message?.type === "qg-open-options") task = chrome.runtime.openOptionsPage().then(() => ({ ok: true }));
+  else if (message?.type === "leafwise-notification-queue") {
+    task = notificationQueueRequest(message, sender);
+  }
   else if (message?.type === "leafwise-open-update-observations") {
     task = openUpdateObservations(message.observationIds, sender, message.unresolvedLinks, message.flagIds);
   } else if (message?.type === "leafwise-taxon-place") {
@@ -320,3 +323,12 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   task.catch(error => ({ ok: false, error: error.message || "请求失败，请稍后重试。" })).then(respond);
   return true;
 });
+
+let notificationQueueService;
+async function notificationQueueRequest(message, sender) {
+  notificationPage(sender);
+  notificationQueueService ||= LeafwiseNotificationQueue.createService({
+    storage: chrome.storage.local, createTab: details => chrome.tabs.create(details)
+  });
+  return notificationQueueService(message, sender);
+}

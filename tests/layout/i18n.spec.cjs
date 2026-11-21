@@ -6,6 +6,19 @@ async function inject(page, info, names) {
   for (const name of names) await page.addScriptTag({ path: path.join(build(info), 'scripts', name) });
 }
 const helpers = ['i18n-catalog.js', 'i18n.js'];
+async function notificationAPI(page) {
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', '<div class="navtab user"><a class="profile_link" href="/people/7">User</a></div>');
+    const data = {};
+    const storage = { get: async key => ({ [key]: data[key] }), set: async value => { Object.assign(data, JSON.parse(JSON.stringify(value))); } };
+    const api = { storage: { local: storage, onChanged: { addListener() {} } }, runtime: { sendMessage: async message => {
+      if (message.type !== 'leafwise-notification-queue') return { ok: false };
+      window.queueService ||= LeafwiseNotificationQueue.createService({ storage, createTab: async () => {} });
+      return window.queueService(message, { tab: { windowId: 1 } });
+    } } };
+    window.chrome = api; window.browser = api;
+  });
+}
 
 for (const missing of ['catalog', 'helper', 'both']) {
   test(`notification controls have an English fallback with missing ${missing}`, async ({ page }, info) => {
@@ -14,10 +27,11 @@ for (const missing of ['catalog', 'helper', 'both']) {
     await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
       `<!doctype html><html lang="${language}"><meta charset="utf-8"><body><p id="native">原生網站文字</p><li id="updatesnav"><div id="updatessubnav"><ul><li><a href="/observations/101">Native update</a></li><li>Dashboard</li></ul></div></li></body></html>` }));
     await page.goto('https://www.inaturalist.org/home');
+    await notificationAPI(page);
     const scripts = missing === 'catalog' ? ['i18n.js'] : missing === 'helper' ? ['i18n-catalog.js'] : [];
-    await inject(page, info, [...scripts, 'notification-filter.js', 'notification-tabs.js']);
-    await expect(page.locator('.leafwise-open-update-observations label span')).toHaveText('Only show non-confirming IDs');
-    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText('Open these observations (1)');
+    await inject(page, info, [...scripts, 'notification-filter.js', 'notification-queue.js', 'notification-tabs.js']);
+    await expect(page.locator('.leafwise-notification-filter + span')).toHaveText('Only show non-confirming IDs');
+    await expect(page.locator('.leafwise-notification-open')).toHaveText('Open next batch (1)');
     await expect(page.locator('#native')).toHaveText('原生網站文字');
     expect(await page.evaluate(() => LeafwiseI18n.t('來源以外的自訂文字'))).toBe('來源以外的自訂文字');
   });
@@ -27,16 +41,17 @@ test('late notification catalogs recover the selected language without a stuck C
   await page.route('https://www.inaturalist.org/**', route => route.fulfill({ contentType: 'text/html', body:
     '<!doctype html><html lang="fr"><meta charset="utf-8"><body><li id="updatesnav"><div id="updatessubnav"><ul><li><a href="/observations/101">Native update</a></li><li>Dashboard</li></ul></div></li></body></html>' }));
   await page.goto('https://www.inaturalist.org/home');
-  await inject(page, info, ['notification-filter.js', 'notification-tabs.js']);
-  const label = page.locator('.leafwise-open-update-observations label span');
+  await notificationAPI(page);
+  await inject(page, info, ['notification-filter.js', 'notification-queue.js', 'notification-tabs.js']);
+  const label = page.locator('.leafwise-notification-filter + span');
   await expect(label).toHaveText('Only show non-confirming IDs');
-  await expect(page.locator('.leafwise-open-update-observations button')).toHaveText('Open these observations (1)');
+  await expect(page.locator('.leafwise-notification-open')).toHaveText('Open next batch (1)');
   await page.evaluate(() => { window.originalI18n = LeafwiseI18n; });
   await inject(page, info, helpers);
   await page.locator('.leafwise-notification-filter').check();
   const french = require('../../src/i18n/notification-filter.json').fr;
   await expect(label).toHaveText(french['Only show non-confirming IDs']);
-  await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(french['Open filtered observations ({0})'].replace('{0}', '1'));
+  await expect(page.locator('.leafwise-notification-open')).toHaveText(require('../../src/i18n/notification-queue.json').fr['Open next batch ({0})'].replace('{0}', '1'));
   expect(await page.evaluate(() => LeafwiseI18n === originalI18n)).toBe(true);
 });
 
@@ -103,14 +118,17 @@ test('all 50 locales render the translated notification action and keep native c
   for (const code of Object.keys(names)) {
     lang = code;
     await page.goto('https://www.inaturalist.org/home');
-    await inject(page, info, [...helpers, 'notification-filter.js', 'notification-tabs.js']);
-    const expected = await page.evaluate(() => LeafwiseI18n.t('一鍵開啟這些觀察（{0}）', 1));
-    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(expected);
+    await notificationAPI(page);
+    await inject(page, info, [...helpers, 'notification-filter.js', 'notification-queue.js', 'notification-tabs.js']);
+    const expected = await page.evaluate(() => LeafwiseI18n.t('開啟下一批（{0}）', 1));
+    await expect(page.locator('.leafwise-notification-open')).toHaveText(expected);
     const filterText = await page.evaluate(() => LeafwiseI18n.t('僅顯示非完全贊同的鑑定'));
-    await expect(page.locator('.leafwise-open-update-observations label span')).toHaveText(filterText);
+    await expect(page.locator('.leafwise-notification-filter + span')).toHaveText(filterText);
     await page.locator('.leafwise-notification-filter').check();
-    const filtered = await page.evaluate(() => LeafwiseI18n.t('開啟篩選後的觀察（{0}）', 1));
-    await expect(page.locator('.leafwise-open-update-observations button')).toHaveText(filtered);
+    await expect(page.locator('.leafwise-notification-open')).toHaveText(expected);
+    for (const [selector, text] of [['.leafwise-notification-batch-label span', '每批開啟頁數'], ['summary', '查看待開啟清單'], ['.leafwise-notification-clear', '清空待開啟清單']]) {
+      await expect(page.locator('.leafwise-open-update-observations ' + selector)).toHaveText(await page.evaluate(text => LeafwiseI18n.t(text), text));
+    }
     await expect(page.locator('.leafwise-open-update-observations')).toHaveAttribute('dir', ['ar', 'he', 'fa'].includes(code) ? 'rtl' : 'ltr');
     expect(expected).not.toContain('{0}');
     await expect(page.locator('#native')).toHaveText('停止');

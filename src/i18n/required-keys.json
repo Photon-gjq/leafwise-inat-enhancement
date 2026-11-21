@@ -175,5 +175,19 @@
   "Optional region examples",
   "Choose an example…",
   "Add to list",
-  "Saved places"
+  "Saved places",
+  "Pages per batch",
+  "Open next batch ({0})",
+  "Waiting to open: {0} pages",
+  "{0} pages hidden by filter",
+  "View queue",
+  "Clear queue",
+  "Clear {0} pending pages?",
+  "Observation {0}",
+  "Flag {0}",
+  "Notification {0}",
+  "Sign in to save the queue",
+  "Cannot save queue; retry",
+  "Enter a whole number from 1 to 50.",
+  "Queue is full"
 ]

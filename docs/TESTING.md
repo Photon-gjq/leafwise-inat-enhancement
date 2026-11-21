@@ -1,5 +1,7 @@
 # 測試與驗收
 
+1.4.0 的通知分批清單由 notification-queue.test.cjs 驗證持久化、容量、併發、帳號隔離、合法路由及逐頁失敗保留；notification-tabs.test.cjs 另驗證背景入口的 sender/viewer。三瀏覽器 notification-tabs.spec.cjs 重現 60 條縮回 9 條、刷新／背景重啟後續開、篩選保留、部分失敗、storage 失敗、清空確認／取消、提及／標記合併、兩並發／逾時、帳號切換、BFcache 及窄版 RTL。i18n.spec.cjs 驗證 50 種語言的批次欄、下一批、查看與清空按鈕，以及缺少／遲到目錄的英文後備。這是受控 DOM／API 回歸，不等同登入真實帳號或真實大量分頁的記憶體壓力測試。
+
 1.3.2 的物種頁地區回歸以原生已選地區、零觀察且無連結的受控頁面重現舊版選單禁用。驗證選單可切換及清除地區，個人統計在地區 ID 不明時暫停，原生觀察連結晚到時可完成原本的切換。上游依據：[NumObservations](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/webpack/taxa/show/containers/num_observations_container.js)、[LeaderItem](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/webpack/taxa/show/components/leader_item.tsx)。
 
 1.3.1 的標記通知回歸涵蓋直接標記連結、評論錨點與提及轉址合併，同號的觀察和標記各自開啟，鑑定篩選保留標記，以及背景在建立分頁前拒絕不合法的標記 ID。依 iNaturalist 官方 [通知模板](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/views/users/new_updates.html.erb) 及 [評論轉址](https://github.com/inaturalist/inaturalist/blob/d2f961dace510243106c619763c1bdb276ac7f67/app/controllers/comments_controller.rb) 建立受控案例。

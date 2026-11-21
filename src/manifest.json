@@ -33,6 +33,7 @@
         "scripts/i18n-catalog.js",
         "scripts/i18n.js",
         "scripts/notification-filter.js",
+        "scripts/notification-queue.js",
         "scripts/notification-tabs.js"
       ],
       "run_at": "document_idle"

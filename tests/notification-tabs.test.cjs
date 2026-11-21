@@ -11,7 +11,7 @@ function background(fetchJSON = async () => ({ results: [] })) {
   const api = {
     action: { onClicked: { addListener() {} } },
     runtime: { id: 'leafwise-test', onMessage: { addListener(listener) { onMessage = listener; } } },
-    storage: { session: {} },
+    storage: { session: {}, local: { get: async () => ({}), set: async () => {} } },
     tabs: { async create(details) { created.push(details); } }
   };
   const context = vm.createContext({
@@ -20,6 +20,9 @@ function background(fetchJSON = async () => ({ results: [] })) {
   });
   const source = fs.readFileSync(path.join(extension, 'scripts/background.js'), 'utf8')
     .replace(/^importScripts\([^\n]+\);\n\n/, '');
+  for (const name of ['notification-filter.js', 'notification-queue.js']) {
+    vm.runInContext(fs.readFileSync(path.join(extension, 'scripts', name), 'utf8'), context);
+  }
   vm.runInContext(source, context);
   return { created, onMessage };
 }
@@ -93,6 +96,18 @@ test('notification action rejects other origins, iframes and invalid IDs', async
   ]) assert.equal((await send(onMessage, [123], sender)).ok, false);
   assert.equal((await send(onMessage, ['javascript:alert(1)'])).ok, false);
   assert.equal((await send(onMessage, [true])).ok, false);
+  assert.equal(created.length, 0);
+});
+
+test('persistent queue endpoint validates the sender and viewer before any storage or tab action', async () => {
+  const { created, onMessage } = background();
+  const message = { type: 'leafwise-notification-queue', action: 'capture', viewerId: 7, entries: [{ href: '/observations/123' }] };
+  const request = (sender, data = message) => new Promise(resolve => onMessage(data, sender, resolve));
+  const sender = { id: 'leafwise-test', url: 'https://www.inaturalist.org/home', frameId: 0, tab: { id: 5, windowId: 7 } };
+  assert.equal((await request({ ...sender, url: 'https://evil.example' })).ok, false);
+  assert.equal((await request({ ...sender, frameId: 1 })).ok, false);
+  assert.equal((await request(sender, { ...message, viewerId: null })).ok, false);
+  assert.equal((await request(sender)).queue.entries.length, 1);
   assert.equal(created.length, 0);
 });
 

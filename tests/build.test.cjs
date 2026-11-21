@@ -34,6 +34,7 @@ test('built version has one source and all manifest/HTML script references resol
   assert.deepEqual(taxon.js, ['scripts/taxon-status.js', 'scripts/taxon-places.js']);
   assert.notEqual(taxon.world, 'MAIN');
   const notifications = manifest.content_scripts.find(group => group.js.includes('scripts/notification-tabs.js'));
+  assert.deepEqual(notifications.js.slice(2), ['scripts/notification-filter.js', 'scripts/notification-queue.js', 'scripts/notification-tabs.js']);
   const uploader = manifest.content_scripts.find(group => group.js.includes('scripts/uploader-ai-panel.js'));
   const observation = manifest.content_scripts.find(group => group.js.includes('scripts/observation-ai-adapter.js'));
   assert.deepEqual(bridge.js, ['scripts/vision-score-bridge.js']);

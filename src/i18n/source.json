@@ -372,5 +372,19 @@
   "先在上方填入 ID，再保存組合；可選地區範例可從插件設定頁加入。": "Enter IDs above and save your group. Optional region examples can be added from extension settings.",
   "常用地点": "Saved places",
   "ID,ID = 名称": "ID,ID = name",
-  "已加入清单（相同组合不会重复添加）。请点击保存常用地区。": "Added to the draft (duplicate groups are not added). Click Save regions to keep your changes."
+  "已加入清单（相同组合不会重复添加）。请点击保存常用地区。": "Added to the draft (duplicate groups are not added). Click Save regions to keep your changes.",
+  "每批開啟頁數": "Pages per batch",
+  "開啟下一批（{0}）": "Open next batch ({0})",
+  "待開啟：{0} 個頁面": "Waiting to open: {0} pages",
+  "篩選已隱藏 {0} 個頁面": "{0} pages hidden by filter",
+  "查看待開啟清單": "View queue",
+  "清空待開啟清單": "Clear queue",
+  "清空 {0} 個待開啟頁面？": "Clear {0} pending pages?",
+  "觀察 {0}": "Observation {0}",
+  "標記 {0}": "Flag {0}",
+  "通知 {0}": "Notification {0}",
+  "登入後可保存待開啟清單": "Sign in to save the queue",
+  "清單儲存失敗，請重試": "Cannot save queue; retry",
+  "請輸入 1 至 50 的整數。": "Enter a whole number from 1 to 50.",
+  "待開啟清單已滿": "Queue is full"
 }

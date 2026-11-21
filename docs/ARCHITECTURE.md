@@ -1,5 +1,7 @@
 # 架構
 
+新動態由 notification-filter.js、notification-queue.js、notification-tabs.js 分離純篩選、純清單／背景儲存服務及 UI。原生菜單載入即 capture；每帳號 local queue 以 revision 同步，背景序列鏈處理讀改寫及每批 1–50 個背景分頁。成功建立才標記 opened，失敗和被篩選項保留；clear 留近期識別記號。原地帳號切換等待新菜單，生命週期世代拒絕舊結果；提及解析最多兩並發、10 秒一批，只讀最終 URL，已解析目的地保存於 queue、鑑定歷史仍僅在記憶體。完整契約及容量限制見根目錄 AI_PROJECT_CONTEXT.md。
+
 物種頁的 `taxon-places.js` 在原生 `#place-chooser-container` 追加獨立選單，只顯示既有 local 地區組合庫中的單地點條目。它共用 `taxon-status.js` 的公開 DOM 地區辨認函式，不讀取 React／Redux 私有狀態。明確選取後，背景 `leafwise-taxon-place` 僅驗證並返回公開地點 id/name；頁面以原生同站 CSRF／session 流程保存地區偏好，204 成功才刷新原網址及 hash。這是同站偏好寫入，與 credentials: omit 的公開統計請求分開，不新增權限或 storage key。設定保存不套用篩選；世代、storage revision、逾時、離頁及原生互動防止遲到回應觸發刷新。
 
 功能只有一份來源，瀏覽器差異在建置時處理，不維護多份完整的程式。

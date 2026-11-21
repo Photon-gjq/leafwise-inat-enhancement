@@ -57,12 +57,12 @@
 | 路徑 | 職責 |
 | --- | --- |
 | src/manifest.json | 共用 manifest、權限、頁面匹配與腳本順序；不含版本與瀏覽器背景差異 |
-| src/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
+| src/scripts/background.js | 擴充背景入口、快取、公開 API、runtime message 路由 |
 | src/options/ | 設定頁；常用使用者與分類單元管理 |
 | src/scripts/ | 所有頁面功能、AI 適配、高階分類、個人紀錄與共用純邏輯 |
 | src/scripts/quick-places.js | 觀察搜尋／鑑定頁緊湊工具列、地區及常用類群／排除組合快捷選單；共用既有兩份清單，不自動套用 |
 | src/scripts/taxon-places.js | 物種頁單地點快捷選單；讀取既有地區組合，只在明確選取後保存同站原生地區偏好並刷新 |
-| src/scripts/notification-tabs.js、notification-filter.js | 全站「新動態」清單去重開啟與可選的精確確認鑑定篩選；純規則與 DOM／非同步處理分離 |
+| src/scripts/notification-tabs.js、notification-filter.js、notification-queue.js | 全站新動態的分批開啟、帳號隔離本機清單與精確確認鑑定篩選；純規則、背景儲存服務及 DOM 分離 |
 | src/_locales/ | 擴充名稱與文案翻譯 |
 | src/i18n/、src/scripts/i18n.js | 網站語言跟隨、界面文案／佔位符、英文後備；不翻譯網站原生 DOM 或使用者資料 |
 | scripts/i18n.mjs | 建置 50 個語言／地區目錄及中文轉換；OpenCC 為建置依賴，不在執行時使用 |
@@ -134,15 +134,21 @@ taxon-status.js → taxon-places.js
 
 ### 全站右上「新動態」清單
 
-`i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。helper 可重複載入但只初始化一次；MAIN 無 extension API 時不嘗試保存語言。設定頁自行載入 helper，讀取最近語言後只翻譯該擴充頁。英文映射及支援語言碼由建置嵌入 helper；各含 `globalThis.LeafwiseI18n` 的呈現入口同樣前綴該 helper，模組／完整目錄缺失時仍可初始化英文後備。目錄按次讀取，避免先初始化空資料後永久卡住；後續呈現可恢復遲到的網站翻譯。核心／API／儲存契約不變，原生 DOM、自訂資料及未知錯誤不翻譯。
+`i18n-catalog.js` → `i18n.js` → `notification-filter.js` → `notification-queue.js` → `notification-tabs.js` 是第一個 document_idle 隔離腳本組，也供搜尋／分類頁隔離功能使用。通知 rules/queue helper 亦依序載入 Chrome/Edge importScripts 及 Firefox background.scripts。語言 helper 可重複載入但只初始化一次；MAIN 無 extension API 時不保存語言。設定頁讀最近語言後只翻譯該擴充頁。英文映射及支援碼由建置嵌入 helper；各含 globalThis.LeafwiseI18n 的呈現入口同樣前綴 helper，模組／完整目錄缺失時仍可初始化英文後備；遲到目錄可恢復網站翻譯。新批次文案由 notification-queue.json 的 37 個基礎語言、地區繼承及中文轉換覆蓋 50 個版本。原生 DOM、自訂資料及未知錯誤不翻譯。
 
-notification-tabs.js 在 iNaturalist 各頁載入，等待 `#updatesnav #updatessubnav` 異步填入 `/users/new_updates` 的清單。只解析直屬 `ul > li > a` 通知列，按數字觀察 ID 或標記 ID 分別去重。不掃描私訊 `#messagessubnav`、儀表板或頁面其他連結。官方 mention 以 notifier 而非 observation resource 作 href，可能為 `/comments/<id/uuid>` 或 `/identifications/<id/uuid>`。notification-filter.js 的 activityLink 嚴格限制這兩種 HTTPS show 路徑，移除 query／hash；頁面以 credentials: omit 解析最終轉址 URL，立即取消正文，不讀取評論內容。最多兩個並發、整批最多 10 秒，結果僅留本頁記憶體；清單／原始 href／帳戶變更或 pagehide 取消並以獨立 linkGeneration 拒絕舊回應。解析完成前禁止開啟，toggle 不需重抓轉址。直接或轉址到官方 /flags/<id> 的通知按標記 ID 歸併，已確認的日誌目的地略過。解析失敗時保留原生連結後備並按連結去重。
+1.4.0（2026-11-21）：notification-tabs.js 在 iNaturalist 各頁讀取 #updatesnav #updatessubnav 已載入的直屬 ul > li > a，立即 capture 完整快照至本機清單，不掃私訊、儀表板或其他連結。菜單縮回最近條目時只合併新事件，不覆蓋待開啟項；沒有原生 ul 時亦可顯示已保存清單。每個 .navtab.user a.profile_link 數字帳號分開保存；未登入禁止保存／開啟，原地帳號切換等待新菜單再捕獲，避免帶入舊帳號資料。
 
-使用者點擊後傳送 leafwise-open-update-observations 的 observationIds、可選 flagIds 與 unresolvedLinks；背景再次驗證頂層來源、數字 ID 及最多 20 個合法評論／鑑定 show 連結，所有驗證完成才建立不啟用的同視窗分頁。不得將後備擴成任意 URL 或帶修改動作的路由。提及即使轉到 activity_identification 錨點也不列為 confirming 候選，保持可見；其他直接觀察鑑定通知仍走原有篩選。清單載入前不顯示按鈕；沒有可開啟目的地時禁用。此功能只處理目前清單，不抓歷史分頁、不改通知已讀狀態。
+notification-queue.js 共用 event/target/groups 純規則與 createService。storage.local.leafwiseNotificationQueueV1:<viewerID> 保存 {revision,batchSize,entries}，entry 僅有正規化 href/key、可選 stamp/target 及 opened。href 只接受官方 HTTPS 的數字 observation/flag 或 comment/identification show 路徑，移除 query，只留活動錨點；target 只接受數字 observation/flag 路徑或 false。官方無錨點 favorites/resolved-flag 沒有 update ID，使用去除 .small.meta 日期之摘要的 FNV-1a 64 位本機指紋，不保存文字。完全相同目的地／摘要的無錨點事件無法可靠區分，改網站語言亦可能改變指紋，不宣稱完整未讀 API。
+
+官方 mention href 可能是 /comments/<id/uuid> 或 /identifications/<id/uuid>；以 credentials:omit 解析最終 URL 並立即取消正文，不讀評論內容。最多兩個並發、單批 10 秒，新捕獲項等前批結束；成功目的地保存回 queue，已確認 journal 等無關目的地記 false 並略過。失敗保留合法原生 show 連結，重開頁可重試解析，此時只按原連結去重。提及即使轉至鑑定錨點仍不列 confirming 候選。帳號或 pagehide 以 linkGeneration 取消舊回應，菜單重畫不取消已保存項。
+
+新 UI 傳送 leafwise-notification-queue 的 list/capture/resolve/size/clear/open。背景驗證頂層官方 sender、數字 viewer ID、event/target 及每批 1–50，所有讀改寫／開頁共用序列鏈，避免多網站分頁覆寫／重開同一批。預設 10，按帳號保存；open 只開目前仍 pending 的請求目的地，先確認 storage 可寫，再 tabs.create(active:false,同視窗)，逐頁成功才保存 opened，失敗保留，回傳 openedTargets/failedTargets。程序在開頁與落盤間崩潰最多可能重複最後一頁，不能宣稱跨崩潰 exactly-once。舊 leafwise-open-update-observations 契約保留供相容。
+
+每帳號最多 5000 個 pending 事件、10000 個近期 opened/clear 記號，不因容量清理移除 pending；滿額提示 full，已有項仍可開啟／清空，釋出空間後重試捕獲仍載入的消息。clear 標記當前 pending 為已清空，保留識別記號以防最近列表立即加回；不清其他帳號。清單、批次數量在刷新／重啟／正常更新後保留，不 sync、不抓歷史、不改原生已讀。先前未捕獲且不再顯示的事件不能恢復。隱私文件同步說明帳號鍵、URL／指紋保存；清空仍留近期記號，完整刪除由瀏覽器擴充儲存控制完成，沒有新增權限。
 
 第一個隔離組在 notification-tabs.js 前載入 notification-filter.js。開關預設關閉；官方 `#activity_identification_<uuid/id>` 精確配對通知鑑定，不解析翻譯後的摘要。參照頁面使用者選單的數字 ID，與消息前最後一筆自己的有效鑑定比較 taxon ID；只有精確相同且無說明者隱藏，上下級／其他類群保留。評論、說明、缺失／撤回／後改／不確定基準不隱藏；不使用目前社群 taxon、disagreement 或 maverick 代替完全相同。
 
-開關啟用時才透過 leafwise-update-identifications，每批最多 20 個觀察查詢公開 `/v1/observations/<ids>`。背景共用既有節流傳輸（最多 2 並發、起始間隔 1.1 秒）並合併相同未完成批次，只回傳最小鑑定 metadata、不存歷史；UI 在本頁記憶體比對。載入期間禁止開啟；成功或失敗後只開可見通知的去重目的地。停用、清單或錨點集合重畫、帳戶變更及 pagehide 都以 generation 拒絕舊回應，恢复原生 hidden／display；pageshow 從 back-forward cache 恢復時重連 observer 並重新查詢。重複注入只產生一組控制項。網站下拉可在無未讀時回顯舊消息，本功能不宣稱是完整未讀 API 篩選。
+開關啟用時透過 leafwise-update-identifications，按待開啟清單而非當前原生菜單每批最多 20 個觀察查公開 history，沿用 2 並發／1.1 秒起始間隔及 pending 合併；只回最小 metadata，歷史僅在本頁記憶體。篩選不刪 queue entry；同一目的地有任何保留事件便可開啟，成功後消耗該目的地當時全部 pending 事件。新評論／鑑定錨點可再加入先前已開觀察。UI 有每批頁數、下一批、待開啟／隱藏數、清單明細、單項開啟、重試及確認清空。capture/resolve/history 期間及 storage 失敗禁止開啟；失敗不視為空清單。revision 及 viewer/lifecycle/generation 阻止舊回應，onChanged 同步其他頁，pagehide 清 observer/timer 並還原原生 hidden/display，BFcache 重讀。重複注入只產生一組控制項。
 
 腳本順序是功能的一部分。調整順序時要同步改 manifest/build 測試，並重新驗證三個瀏覽器。
 
@@ -263,6 +269,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - leafwise-taxon-place（僅 iNaturalist 頂層數字 taxon 詳情頁；單一地點公開查詢，回傳 id/name，不代理原生偏好寫入）
 - leafwise-open-update-observations（接受 iNaturalist 頂層頁面的觀察 ID、可選 flagIds 及 unresolvedLinks 評論／鑑定 show 連結後備，返回實際開啟數）
 - leafwise-update-identifications（同一來源／frame 驗證，每批最多 20 個觀察；返回最小 metadata，不保存歷史）
+- leafwise-notification-queue（list/capture/resolve/size/clear/open；帳號隔離、序列化讀改寫與分批開頁）
 
 更名或改 payload 形狀前，先搜尋所有 sender、listener 和測試；通常要保持向後相容。
 
@@ -271,6 +278,7 @@ higher-taxa-panel.js 使用 Shadow DOM，負責表單、收藏、匯出、結果
 - storage.sync：savedUsernames、savedTaxa（`{id,name,taxonIds?,withoutTaxonIds?}`，單根條目仍為舊形狀）；舊 unobservedByUserId 只供相容，空的新清單不能使舊值復活。
 - storage.local：個人次數快取、探索查詢／分組資料庫 leafwiseExploreLibraryV1。
 - storage.local：leafwiseNotificationFilterV1 僅記通知篩選布林值，預設 false、不 sync；鑑定比對資料只在本頁記憶體。
+- storage.local：leafwiseNotificationQueueV1:<數字帳號ID> 保存待開啟清單、近期事件記號、revision 與每批頁數；不 sync。
 - storage.local：leafwiseLastSiteLocale 只記最近網站語言碼，用於設定頁；不含帳戶資訊、不 sync，不改其他鍵。名稱訊息新增可選 locale，舊 caller 預設 zh-CN；名稱快取使用包含 locale 的 API URL。
 - storage.session：高階分類快取。
 - 頁面 localStorage：leafwise-upload-ai-panel-open。
